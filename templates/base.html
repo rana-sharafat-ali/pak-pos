@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PakPOS - Point of Sale{% endblock %}</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'core:home' %}" class="brand-logo">
+                <span class="brand-badge">POS</span>
+                <span>PakPOS</span>
+            </a>
+
+            <nav>
+                <ul class="nav-links">
+                    <li>
+                        <a href="{% url 'core:home' %}" class="nav-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
+                            📊 Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'products:product_list' %}" class="nav-link {% if request.resolver_match.app_name == 'products' %}active{% endif %}">
+                            📦 Products
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/admin/" class="nav-link" target="_blank">
+                            ⚙️ Admin
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="nav-actions">
+                <a href="{% url 'products:product_list' %}" class="btn btn-primary btn-sm">
+                    + New Sale
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-wrapper">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; {% now "Y" %} <strong>PakPOS</strong>. All rights reserved.</p>
+    </footer>
+
+    <!-- Main JS -->
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

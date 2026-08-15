@@ -1,6 +1,8 @@
 from django.shortcuts import render
-from django.http import HttpResponse
 
 
 def home(request):
-    return HttpResponse("Welcome to PakPOS Core App")
+    """
+    Main Landing / Dashboard View (Core App)
+    """
+    return render(request, 'core/index.html')

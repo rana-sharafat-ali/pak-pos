@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Products | PakPOS{% endblock %}
+
+{% block content %}
+<section style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.6rem; font-weight: 800; color: var(--secondary);">Product Management</h1>
+        <p style="color: var(--text-secondary); font-size: 0.95rem;">Manage catalog items, prices, barcodes, and inventory.</p>
+    </div>
+    <button class="btn btn-primary">
+        + Add New Product
+    </button>
+</section>
+
+<!-- Products Table / Card -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">All Products</h2>
+        <span class="badge badge-primary">0 Items</span>
+    </div>
+    <div class="card-body" style="text-align: center; padding: 3.5rem 1rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+        <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem;">No products added yet</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 400px; margin: 0 auto 1.5rem auto;">
+            Start adding inventory items to manage pricing, stock levels, and barcode scanning for POS sales.
+        </p>
+        <a href="/admin/" target="_blank" class="btn btn-outline btn-sm">Add via Django Admin</a>
+    </div>
+</div>
+{% endblock %}

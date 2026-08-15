@@ -1,6 +1,8 @@
 from django.shortcuts import render
-from django.http import HttpResponse
 
 
 def product_list(request):
-    return HttpResponse("PakPOS Products App")
+    """
+    Product Catalog View (Products App)
+    """
+    return render(request, 'products/product_list.html')
