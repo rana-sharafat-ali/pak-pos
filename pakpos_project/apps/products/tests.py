@@ -253,3 +253,27 @@ class ProductVariantTests(TestCase):
         self.assertFalse(Category.objects.filter(pk=c1.id).exists())
         self.assertFalse(Category.objects.filter(pk=c2.id).exists())
         self.assertTrue(Category.objects.filter(pk=c3.id).exists())
+
+    def test_google_sheets_url_conversion(self):
+        from .services import convert_google_sheet_url_to_csv_url
+        edit_url = "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit?usp=sharing"
+        converted = convert_google_sheet_url_to_csv_url(edit_url)
+        self.assertIn("/export?format=csv", converted)
+        self.assertIn("1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms", converted)
+
+    def test_parse_and_import_with_auto_category_creation(self):
+        from .services import parse_and_import_products
+        csv_data = (
+            "Product Name,Category,Selling Price,Sizes,Cost Price,Stock Quantity\n"
+            "Super Supreme Pizza,New Fresh Category,0,Small:600 | Large:1800,350,40\n"
+            "Chipotle Zinger,Burgers & Sandwiches,550,,300,50\n"
+        )
+        count, cats_count, errors = parse_and_import_products(csv_data)
+        self.assertEqual(count, 2)
+        self.assertEqual(cats_count, 2)  # Both 'New Fresh Category' and 'Burgers & Sandwiches' auto-created!
+        self.assertEqual(errors, [])
+        self.assertTrue(Category.objects.filter(name='New Fresh Category').exists())
+        self.assertTrue(Category.objects.filter(name='Burgers & Sandwiches').exists())
+        p_pizza = Product.objects.get(name='Super Supreme Pizza')
+        self.assertTrue(p_pizza.has_variants)
+        self.assertEqual(p_pizza.variants.count(), 2)

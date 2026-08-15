@@ -5,6 +5,7 @@ from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from .models import Product, ProductVariant, Category
 from .forms import ProductForm, ProductVariantFormSet, CategoryForm
+from .services import fetch_google_sheets_csv, parse_and_import_products
 
 
 def product_list(request):
@@ -372,3 +373,51 @@ def category_bulk_delete(request):
             messages.error(request, 'No categories were selected for deletion.')
             
     return redirect('products:category_list')
+
+
+def product_bulk_import(request):
+    """
+    Import products & categories from Google Sheets Link or CSV File Upload.
+    Guarantees zero-disk footprint (temporary files immediately deleted).
+    """
+    if request.method == 'POST':
+        import_type = request.POST.get('import_type', 'sheet')
+        sheet_url = request.POST.get('sheet_url', '').strip()
+        csv_file = request.FILES.get('csv_file')
+
+        csv_content = None
+        error_msg = None
+
+        try:
+            if import_type == 'sheet' and sheet_url:
+                csv_content, error_msg = fetch_google_sheets_csv(sheet_url)
+            elif csv_file:
+                try:
+                    csv_content = csv_file.read().decode('utf-8-sig', errors='replace')
+                except Exception as e:
+                    error_msg = f"Failed to read CSV file: {str(e)}"
+            else:
+                error_msg = "Please provide a valid Google Sheets URL or select a CSV file."
+
+            if error_msg:
+                messages.error(request, error_msg)
+            elif csv_content:
+                count, cats_count, errs = parse_and_import_products(csv_content)
+                if errs:
+                    messages.error(request, " ".join(errs))
+                elif count > 0 or cats_count > 0:
+                    msg = f"Successfully imported {count} products!"
+                    if cats_count > 0:
+                        msg += f" Automatically created {cats_count} new categories."
+                    messages.success(request, msg)
+                    return redirect('products:product_list')
+                else:
+                    messages.info(request, "No new products were imported (products may already exist).")
+        finally:
+            # Explicit RAM / Disk memory cleanup
+            csv_content = None
+
+    context = {
+        'title': 'Bulk Import Products & Categories',
+    }
+    return render(request, 'products/product_bulk_import.html', context)

@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .import-grid {
+        display: grid;
+        grid-template-columns: 2fr 1.1fr;
+        gap: 1.5rem;
+        align-items: start;
+        margin-top: 1.25rem;
+    }
+
+    .import-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        padding: 1.75rem;
+        box-shadow: var(--shadow-xs);
+    }
+
+    .tab-btn-group {
+        display: flex;
+        background: #f1f5f9;
+        padding: 0.3rem;
+        border-radius: 10px;
+        gap: 0.3rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        font-size: 0.88rem;
+        font-weight: 700;
+        border: none;
+        background: transparent;
+        color: var(--muted-text);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .tab-btn.active {
+        background: #ffffff;
+        color: var(--primary);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .file-drop-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .file-drop-zone:hover {
+        border-color: var(--primary);
+        background: #eff6ff;
+    }
+
+    .col-spec-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        margin-top: 0.75rem;
+    }
+
+    .col-spec-table th, .col-spec-table td {
+        padding: 0.55rem 0.65rem;
+        border-bottom: 1px solid var(--border-subtle);
+        text-align: left;
+    }
+
+    .col-spec-table th {
+        background: #f1f5f9;
+        font-weight: 700;
+        color: var(--secondary);
+    }
+
+    @media (max-width: 900px) {
+        .import-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'products:product_list' %}">
+            <span>&larr;</span> Products Catalog
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">Bulk Import</span>
+    </div>
+</div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">
+            📥 Bulk Import Products & Categories
+        </h1>
+        <p style="font-size: 0.88rem; color: var(--muted-text); margin-top: 0.25rem;">
+            Import hundreds of products & multi-size items instantly via Google Sheets or CSV files.
+        </p>
+    </div>
+</div>
+
+<div class="import-grid">
+    
+    <!-- LEFT COLUMN: IMPORT FORM -->
+    <div class="import-card">
+        
+        <!-- IMPORT MODE TABS -->
+        <div class="tab-btn-group">
+            <button type="button" class="tab-btn active" id="tab-btn-sheet" onclick="switchImportTab('sheet')">
+                🌐 Google Sheets Link
+            </button>
+            <button type="button" class="tab-btn" id="tab-btn-file" onclick="switchImportTab('file')">
+                📄 Upload CSV / Excel
+            </button>
+        </div>
+
+        <form method="POST" action="{% url 'products:product_bulk_import' %}" enctype="multipart/form-data" id="bulk-import-form">
+            {% csrf_token %}
+            <input type="hidden" name="import_type" id="import_type_input" value="sheet">
+
+            <!-- MODE 1: GOOGLE SHEETS LINK -->
+            <div id="import-section-sheet">
+                <div class="field-group">
+                    <label class="field-label" style="font-size: 0.9rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem; display: block;">
+                        Paste Public Google Sheets URL *
+                    </label>
+                    <input 
+                        type="url" 
+                        name="sheet_url" 
+                        id="sheet_url_input" 
+                        class="field-input" 
+                        style="padding: 0.75rem 1rem; font-size: 0.9rem;"
+                        placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5.../edit?usp=sharing"
+                    >
+                    <span style="font-size: 0.78rem; color: var(--muted-text); display: block; margin-top: 0.4rem;">
+                        💡 Make sure link access is set to <strong>"Anyone with the link can view"</strong> in Google Sheets.
+                    </span>
+                </div>
+
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 0.85rem 1rem; margin-top: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                    <span style="font-size: 1.25rem;">✨</span>
+                    <div style="font-size: 0.82rem; color: #1e40af; line-height: 1.45;">
+                        <strong>Automatic Category Creation:</strong><br>
+                        If your Google Sheet contains a Category that does not exist in {{ APP_NAME }}, the system will automatically create it for you!
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODE 2: CSV FILE UPLOAD -->
+            <div id="import-section-file" style="display: none;">
+                <div class="file-drop-zone" onclick="document.getElementById('csv_file_input').click()">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📂</div>
+                    <strong style="font-size: 0.95rem; color: var(--secondary); display: block; margin-bottom: 0.25rem;">
+                        Click to select CSV File
+                    </strong>
+                    <span style="font-size: 0.8rem; color: var(--muted-text);" id="selected-file-name">
+                        Supports .csv files exported from Excel or Google Sheets
+                    </span>
+                    <input type="file" name="csv_file" id="csv_file_input" accept=".csv" style="display: none;" onchange="updateFileName(this)">
+                </div>
+            </div>
+
+            <!-- SUBMIT ACTION BAR -->
+            <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: flex-end; border-top: 1px solid var(--border-card); padding-top: 1.25rem;">
+                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.8rem; font-weight: 700;">
+                    🚀 Start Import
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+    <!-- RIGHT COLUMN: GUIDELINES & SAMPLE COLUMNS -->
+    <div class="import-card" style="background: #f8fafc;">
+        <h3 style="font-size: 1rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.75rem;">
+            📊 Column Format Guidelines
+        </h3>
+
+        <p style="font-size: 0.82rem; color: var(--muted-text); line-height: 1.5; margin-bottom: 1rem;">
+            Your Google Sheet or CSV should include the following header row names:
+        </p>
+
+        <table class="col-spec-table">
+            <thead>
+                <tr>
+                    <th>Column Name</th>
+                    <th>Required</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Product Name</strong></td>
+                    <td><span style="color: var(--danger);">Yes</span></td>
+                    <td>Chicken Tikka Pizza</td>
+                </tr>
+                <tr>
+                    <td><strong>Category</strong></td>
+                    <td><span style="color: #16a34a;">Auto-Create</span></td>
+                    <td>Pizza & Crusts</td>
+                </tr>
+                <tr>
+                    <td><strong>Selling Price</strong></td>
+                    <td>Single items</td>
+                    <td>650.00</td>
+                </tr>
+                <tr>
+                    <td><strong>Sizes / Variants</strong></td>
+                    <td>Multi-size</td>
+                    <td>Small:650, Medium:1200</td>
+                </tr>
+                <tr>
+                    <td><strong>Cost Price</strong></td>
+                    <td>Optional</td>
+                    <td>380.00</td>
+                </tr>
+                <tr>
+                    <td><strong>Stock Quantity</strong></td>
+                    <td>Optional</td>
+                    <td>50</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 1.25rem; background: #ffffff; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.85rem; text-align: center;">
+            <a href="data:text/csv;charset=utf-8,Product%20Name%2CCategory%2CSelling%20Price%2CSizes%2CCost%20Price%2CStock%20Quantity%2CDescription%0AChicken%20Tikka%20Pizza%2CPizza%20%26%20Crusts%2C0%2CSmall%3A650%2C%20Medium%3A1250%2C%20Large%3A1750%2C400%2C50%2CSpicy%20tikka%20pizza%0AClassic%20Zinger%20Burger%2CBurgers%20%26%20Sandwiches%2C520%2C%2C290%2C80%2CCrispy%20fried%20chicken%20burger" download="pakpos_import_sample.csv" class="btn btn-outline btn-sm" style="width: 100%; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                📥 Download Sample CSV
+            </a>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function switchImportTab(mode) {
+        const btnSheet = document.getElementById('tab-btn-sheet');
+        const btnFile = document.getElementById('tab-btn-file');
+        const secSheet = document.getElementById('import-section-sheet');
+        const secFile = document.getElementById('import-section-file');
+        const inputType = document.getElementById('import_type_input');
+
+        if (mode === 'sheet') {
+            btnSheet.classList.add('active');
+            btnFile.classList.remove('active');
+            secSheet.style.display = 'block';
+            secFile.style.display = 'none';
+            if (inputType) inputType.value = 'sheet';
+        } else {
+            btnFile.classList.add('active');
+            btnSheet.classList.remove('active');
+            secFile.style.display = 'block';
+            secSheet.style.display = 'none';
+            if (inputType) inputType.value = 'file';
+        }
+    }
+
+    function updateFileName(input) {
+        const label = document.getElementById('selected-file-name');
+        if (input.files && input.files[0]) {
+            label.textContent = `Selected: ${input.files[0].name}`;
+            label.style.color = '#2563eb';
+            label.style.fontWeight = '700';
+        }
+    }
+</script>
+{% endblock %}
