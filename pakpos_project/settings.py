@@ -53,7 +53,25 @@ INSTALLED_APPS = [
     # Custom Apps
     'pakpos_project.apps.core',
     'pakpos_project.apps.products',
+    'pakpos_project.apps.users',
 ]
+
+# Custom User Model & Authentication Backends
+AUTH_USER_MODEL = 'users.User'
+
+AUTHENTICATION_BACKENDS = [
+    'pakpos_project.apps.users.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+LOGIN_URL = 'users:login'
+LOGIN_REDIRECT_URL = 'core:home'
+LOGOUT_REDIRECT_URL = 'users:login'
+
+# Session Duration Configuration (.env dynamic)
+SESSION_COOKIE_AGE_DAYS = int(os.getenv('SESSION_COOKIE_AGE_DAYS', '30'))
+SESSION_COOKIE_AGE = SESSION_COOKIE_AGE_DAYS * 86400  # in seconds
+SESSION_SAVE_EVERY_REQUEST = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

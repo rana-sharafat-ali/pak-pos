@@ -14,19 +14,38 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 0.85rem;">
-        <!-- View Toggle (Grid / List) -->
+        <!-- VIEW TOGGLE BUTTONS (List vs Grid) -->
         <div class="view-toggle-group">
-            <button type="button" class="view-toggle-btn active" id="btn-view-list" onclick="setProductView('list')" title="List / Table View">
-                ☰ List
+            <button type="button" class="view-toggle-btn active" id="btn-view-list" onclick="setProductView('list')" title="List Table View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                List
             </button>
             <button type="button" class="view-toggle-btn" id="btn-view-grid" onclick="setProductView('grid')" title="Grid Cards View">
-                🔲 Grid
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Grid
             </button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <a href="{% url 'products:product_bulk_import' %}" class="btn btn-outline" style="font-weight: 700; background: #ffffff;">
-                📥 Bulk Import
+            <a href="{% url 'products:product_bulk_import' %}" class="btn btn-outline" style="font-weight: 700; background: #ffffff; display: inline-flex; align-items: center; gap: 0.4rem;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Bulk Import
             </a>
             <a href="{% url 'products:product_create' %}" class="btn-add-product">
                 <span>+</span> Add Product
@@ -148,15 +167,28 @@
                 <!-- Actions Column -->
                 <td style="text-align: right;">
                     <div class="table-actions" style="justify-content: flex-end;">
-                        <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon" title="View Details">👁️</a>
-                        <a href="{% url 'products:product_update' product.id %}" class="action-btn-icon" title="Edit">✏️</a>
+                        <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon" title="View Details">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </a>
+                        <a href="{% url 'products:product_update' product.id %}" class="action-btn-icon" title="Edit">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </a>
                         <button 
                             type="button" 
                             class="action-btn-icon" 
                             style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
                             onclick="openDeleteModal('{{ product.name|escapejs }}', 'Product', '{% url 'products:product_delete' product.id %}', '{% if product.has_variants %}All {{ product.variants.count }} associated sizes will also be deleted.{% endif %}')"
                             title="Delete Product">
-                            🗑️
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
                         </button>
                     </div>
                 </td>
@@ -164,7 +196,6 @@
             {% empty %}
             <tr>
                 <td colspan="7" style="text-align: center; padding: 3.5rem 1rem; color: var(--muted-text);">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
                     <strong style="color: var(--secondary);">No products match your criteria</strong>
                     <p style="font-size: 0.85rem; margin-top: 0.25rem;">Try adjusting filters or adding a new product.</p>
                 </td>
@@ -261,15 +292,28 @@
             <div class="saas-card-footer">
                 <span class="price-text" style="font-size: 1rem; color: var(--primary);">{{ product.price_display }}</span>
                 <div class="table-actions">
-                    <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon" title="View Details">👁️</a>
-                    <a href="{% url 'products:product_update' product.id %}" class="action-btn-icon" title="Edit">✏️</a>
+                    <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon" title="View Details">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </a>
+                    <a href="{% url 'products:product_update' product.id %}" class="action-btn-icon" title="Edit">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </a>
                     <button 
                         type="button" 
                         class="action-btn-icon" 
                         style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
                         onclick="openDeleteModal('{{ product.name|escapejs }}', 'Product', '{% url 'products:product_delete' product.id %}', '{% if product.has_variants %}All {{ product.variants.count }} associated sizes will also be deleted.{% endif %}')"
                         title="Delete Product">
-                        🗑️
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -317,8 +361,12 @@
         <button type="button" class="bulk-btn-clear" onclick="clearAllSelections()">
             Deselect All
         </button>
-        <button type="button" class="bulk-btn-delete" onclick="openBulkDeleteModal('Product', '{% url 'products:product_bulk_delete' %}', 'All associated sizes and pricing for selected products will be permanently removed.')">
-            🗑️ Delete Selected
+        <button type="button" class="bulk-btn-delete" onclick="openBulkDeleteModal('Product', '{% url 'products:product_bulk_delete' %}', 'All associated sizes and pricing for selected products will be permanently removed.')" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete Selected
         </button>
     </div>
 </div>

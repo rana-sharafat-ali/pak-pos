@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Team & User Management | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- TOP HEADER BAR -->
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">
+            Team & Operator Management
+        </h1>
+        <p style="font-size: 0.88rem; color: var(--muted-text); margin-top: 0.25rem;">
+            Manage operator accounts, assign roles, reset passwords, and control access permissions.
+        </p>
+    </div>
+
+    <a href="{% url 'users:user_create' %}" class="btn-add-product">
+        <span>+</span> Add Team Member
+    </a>
+</div>
+
+<!-- ACTION & FILTERS TOOLBAR -->
+<div class="action-toolbar">
+    <div class="toolbar-left">
+        <span class="filter-label">
+            Filters:
+        </span>
+
+        <form method="GET" action="{% url 'users:user_list' %}" id="filter-form" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+
+            <!-- Role Dropdown -->
+            <select name="role" class="select-filter" onchange="document.getElementById('filter-form').submit();">
+                <option value="">All Roles</option>
+                {% for r_val, r_label in roles %}
+                <option value="{{ r_val }}" {% if selected_role == r_val %}selected{% endif %}>
+                    {{ r_label }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <!-- Status Dropdown -->
+            <select name="status" class="select-filter" onchange="document.getElementById('filter-form').submit();">
+                <option value="">All Status</option>
+                <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+
+            {% if selected_role or selected_status or query %}
+                <a href="{% url 'users:user_list' %}" class="action-btn-icon" style="text-decoration: none;" title="Reset Filters">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="toolbar-right">
+        <form method="GET" action="{% url 'users:user_list' %}" class="table-search-form">
+            {% if selected_role %}<input type="hidden" name="role" value="{{ selected_role }}">{% endif %}
+            {% if selected_status %}<input type="hidden" name="status" value="{{ selected_status }}">{% endif %}
+            <div class="table-search-wrap">
+                <span class="table-search-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </span>
+                <input 
+                    type="text" 
+                    name="q" 
+                    value="{{ query }}" 
+                    placeholder="Search by name, email, or username..." 
+                    class="table-search-input"
+                >
+                {% if query %}
+                    <a href="{% url 'users:user_list' %}" class="table-search-clear" title="Reset Search">✕</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- USERS TABLE -->
+<div class="table-card">
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th style="min-width: 220px;">Operator / Name</th>
+                <th style="min-width: 180px;">Email & Phone</th>
+                <th style="min-width: 120px;">Role</th>
+                <th style="min-width: 100px;">Status</th>
+                <th style="min-width: 140px;">Joined</th>
+                <th style="text-align: right; min-width: 160px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <!-- Operator Column -->
+                <td>
+                    <div class="product-cell">
+                        <div class="avatar-circle" style="width: 36px; height: 36px; font-size: 0.88rem; font-weight: 800; background: {% if u.role == 'admin' %}#eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;{% else %}#f8fafc; color: #475569; border: 1px solid #e2e8f0;{% endif %}">
+                            {{ u.first_name|first|default:u.username|first|upper }}
+                        </div>
+                        <div class="product-info">
+                            <strong style="color: var(--secondary); font-size: 0.92rem;">
+                                {{ u.get_full_name|default:u.username }}
+                            </strong>
+                            <span class="product-sku">@{{ u.username }}</span>
+                        </div>
+                    </div>
+                </td>
+
+                <!-- Email & Phone -->
+                <td>
+                    <div style="font-size: 0.88rem; color: var(--secondary-text); font-weight: 500;">
+                        {{ u.email }}
+                    </div>
+                    {% if u.phone_number %}
+                    <span style="font-size: 0.78rem; color: var(--muted-text);">
+                        {{ u.phone_number }}
+                    </span>
+                    {% endif %}
+                </td>
+
+                <!-- Role Badge -->
+                <td>
+                    <span class="pill-variant" style="{% if u.role == 'admin' %}background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 700;{% endif %}">
+                        {{ u.get_role_display }}
+                    </span>
+                </td>
+
+                <!-- Status -->
+                <td>
+                    {% if u.is_active %}
+                        <span class="pill-status status-in-stock">Active</span>
+                    {% else %}
+                        <span class="pill-status status-out-stock">Inactive</span>
+                    {% endif %}
+                </td>
+
+                <!-- Joined Date -->
+                <td style="font-size: 0.82rem; color: var(--muted-text);">
+                    {{ u.date_joined|date:"M d, Y" }}
+                </td>
+
+                <!-- Actions -->
+                <td style="text-align: right;">
+                    <div class="table-actions" style="justify-content: flex-end; gap: 0.4rem;">
+                        <!-- Edit Button -->
+                        <a href="{% url 'users:user_update' u.id %}" class="action-btn-icon" title="Edit Profile">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </a>
+
+                        <!-- Reset Password Button -->
+                        <a href="{% url 'users:user_reset_password' u.id %}" class="action-btn-icon" title="Reset Password" style="color: var(--primary);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 2l-2 2m-1.5 1.5L10 13l-4 4H2v-4l4-4 7.5-7.5"></path>
+                                <circle cx="16.5" cy="7.5" r="2.5"></circle>
+                            </svg>
+                        </a>
+                        
+                        <!-- Toggle Status -->
+                        {% if u != request.user %}
+                        <a href="{% url 'users:user_toggle_status' u.id %}" class="action-btn-icon" title="{% if u.is_active %}Deactivate User{% else %}Activate User{% endif %}" style="color: {% if u.is_active %}#d97706{% else %}#16a34a{% endif %};">
+                            {% if u.is_active %}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                            {% else %}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            {% endif %}
+                        </a>
+                        
+                        <!-- Delete User -->
+                        <button 
+                            type="button" 
+                            class="action-btn-icon" 
+                            style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
+                            onclick="openDeleteModal('{{ u.username|escapejs }}', 'User', '{% url 'users:user_delete' u.id %}', 'All operational records associated with this operator will be archived.')"
+                            title="Delete User">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 3.5rem 1rem; color: var(--muted-text);">
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem; color: #94a3b8;">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <strong style="color: var(--secondary);">No team members found</strong>
+                    <p style="font-size: 0.85rem; margin-top: 0.25rem;">Add your first staff member or operator.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="table-footer">
+        <span>Total {{ users.count }} team members configured</span>
+    </div>
+</div>
+
+{% endblock %}

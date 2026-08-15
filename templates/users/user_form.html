@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'users:user_list' %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Team & Users
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ title }}</span>
+    </div>
+</div>
+
+<div class="form-card-container" style="max-width: 680px; margin: 0 auto;">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.75rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+        <div>
+            <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.01em;">
+                {{ title }}
+            </h2>
+            <p style="font-size: 0.85rem; color: var(--muted-text); margin-top: 0.25rem; margin-bottom: 0;">
+                {% if is_create %}
+                    Register a new staff operator or administrator with role-based access permissions.
+                {% else %}
+                    Update profile information and modify access permissions for this team member.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- NON-FIELD ERRORS -->
+    {% if form.non_field_errors %}
+    <div class="alert alert-error auto-dismiss-alert" style="margin-bottom: 1.25rem;">
+        <span>{{ form.non_field_errors.0 }}</span>
+        <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: inherit; margin-left: auto; padding: 0 0.25rem; line-height: 1; opacity: 0.7;">✕</button>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="">
+        {% csrf_token %}
+
+        <!-- NAME ROW -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+            <!-- First Name -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.first_name.id_for_label }}">First Name</label>
+                {{ form.first_name }}
+                {% if form.first_name.errors %}
+                <span class="field-error-text">{{ form.first_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Last Name -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.last_name.id_for_label }}">Last Name</label>
+                {{ form.last_name }}
+                {% if form.last_name.errors %}
+                <span class="field-error-text">{{ form.last_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- USERNAME & EMAIL ROW -->
+        <div style="display: grid; grid-template-columns: {% if is_create %}1fr 1fr{% else %}1fr{% endif %}; gap: 1.25rem; margin-top: 1.25rem;">
+            {% if is_create %}
+            <!-- Username (Create mode) -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.username.id_for_label }}">
+                    <span>Username <span style="color: var(--primary);">*</span></span>
+                </label>
+                {{ form.username }}
+                {% if form.username.errors %}
+                <span class="field-error-text">{{ form.username.errors.0 }}</span>
+                {% endif %}
+                <span class="field-help-text">Unique username for logging in.</span>
+            </div>
+            {% endif %}
+
+            <!-- Email Address -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.email.id_for_label }}">
+                    <span>Email Address <span style="color: var(--primary);">*</span></span>
+                </label>
+                {{ form.email }}
+                {% if form.email.errors %}
+                <span class="field-error-text">{{ form.email.errors.0 }}</span>
+                {% endif %}
+                <span class="field-help-text">Email can also be used to log in.</span>
+            </div>
+        </div>
+
+        <!-- ROLE & PHONE NUMBER ROW -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem;">
+            <!-- Role Selection -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.role.id_for_label }}">
+                    <span>System Role <span style="color: var(--primary);">*</span></span>
+                </label>
+                {{ form.role }}
+                {% if form.role.errors %}
+                <span class="field-error-text">{{ form.role.errors.0 }}</span>
+                {% endif %}
+                <span class="field-help-text">Determines system permissions.</span>
+            </div>
+
+            <!-- Phone Number -->
+            <div class="field-group">
+                <label class="field-label" for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+                {{ form.phone_number }}
+                {% if form.phone_number.errors %}
+                <span class="field-error-text">{{ form.phone_number.errors.0 }}</span>
+                {% endif %}
+                <span class="field-help-text">Optional contact number.</span>
+            </div>
+        </div>
+
+        <!-- INITIAL PASSWORDS (Create mode only) -->
+        {% if is_create %}
+        <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border-subtle);">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div class="field-group">
+                    <label class="field-label" for="{{ form.password.id_for_label }}">
+                        <span>Initial Password <span style="color: var(--primary);">*</span></span>
+                    </label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                    <span class="field-error-text">{{ form.password.errors.0 }}</span>
+                    {% endif %}
+                    <span class="field-help-text">Minimum 6 characters.</span>
+                </div>
+
+                <div class="field-group">
+                    <label class="field-label" for="{{ form.confirm_password.id_for_label }}">
+                        <span>Confirm Password <span style="color: var(--primary);">*</span></span>
+                    </label>
+                    {{ form.confirm_password }}
+                    {% if form.confirm_password.errors %}
+                    <span class="field-error-text">{{ form.confirm_password.errors.0 }}</span>
+                    {% endif %}
+                    <span class="field-help-text">Must match initial password.</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ACCOUNT ACTIVE STATUS TOGGLE CARD (Edit mode only) -->
+        {% if not is_create %}
+        <div style="margin-top: 1.5rem;" class="form-checkbox-card">
+            <div class="toggle-info">
+                <strong>Account Status</strong>
+                <span>Deactivated accounts cannot log in to POS or manage products.</span>
+            </div>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 700; color: var(--secondary); font-size: 0.88rem;">
+                {{ form.is_active }}
+                <span>Active</span>
+            </label>
+        </div>
+        {% endif %}
+
+        <!-- FORM ACTION BUTTONS -->
+        <div class="form-actions-bar">
+            <a href="{% url 'users:user_list' %}" class="btn btn-outline">Cancel</a>
+            <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.6rem;">
+                {% if is_create %}Create Member{% else %}Save Changes{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

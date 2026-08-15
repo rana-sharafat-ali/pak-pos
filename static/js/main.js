@@ -200,3 +200,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2500);
     });
 });
+
+// ================= USER SETTINGS DROPDOWN CONTROLLER =================
+function toggleUserDropdown(event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    const dropdown = document.getElementById('userSettingsDropdown');
+    const toggleBtn = document.getElementById('userSettingsToggle');
+    if (dropdown) {
+        const isShowing = dropdown.classList.toggle('show');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('aria-expanded', isShowing ? 'true' : 'false');
+        }
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('userSettingsDropdown');
+    const toggleBtn = document.getElementById('userSettingsToggle');
+    if (dropdown && dropdown.classList.contains('show')) {
+        if (!dropdown.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+            dropdown.classList.remove('show');
+            if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+    }
+});

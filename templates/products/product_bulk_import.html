@@ -152,12 +152,18 @@
                         placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5.../edit?usp=sharing"
                     >
                     <span style="font-size: 0.78rem; color: var(--muted-text); display: block; margin-top: 0.4rem;">
-                        💡 Make sure link access is set to <strong>"Anyone with the link can view"</strong> in Google Sheets.
+                        Make sure link access is set to <strong>"Anyone with the link can view"</strong> in Google Sheets.
                     </span>
                 </div>
 
                 <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 0.85rem 1rem; margin-top: 1.25rem; display: flex; align-items: flex-start; gap: 0.75rem;">
-                    <span style="font-size: 1.25rem;">✨</span>
+                    <div style="color: var(--primary); margin-top: 2px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                    </div>
                     <div style="font-size: 0.82rem; color: #1e40af; line-height: 1.45;">
                         <strong>Automatic Category Creation:</strong><br>
                         If your Google Sheet contains a Category that does not exist in {{ APP_NAME }}, the system will automatically create it for you!
@@ -168,7 +174,14 @@
             <!-- MODE 2: CSV FILE UPLOAD -->
             <div id="import-section-file" style="display: none;">
                 <div class="file-drop-zone" onclick="document.getElementById('csv_file_input').click()">
-                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📂</div>
+                    <div style="margin-bottom: 0.5rem; color: #94a3b8;">
+                        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="12" y1="18" x2="12" y2="12"></line>
+                            <line x1="9" y1="15" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
                     <strong style="font-size: 0.95rem; color: var(--secondary); display: block; margin-bottom: 0.25rem;">
                         Click to select CSV File
                     </strong>
@@ -181,8 +194,13 @@
 
             <!-- SUBMIT ACTION BAR -->
             <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: flex-end; border-top: 1px solid var(--border-card); padding-top: 1.25rem;">
-                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.8rem; font-weight: 700;">
-                    🚀 Start Import
+                <button type="submit" class="btn btn-primary" style="padding: 0.65rem 1.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Start Import
                 </button>
             </div>
         </form>
@@ -192,7 +210,7 @@
     <!-- RIGHT COLUMN: GUIDELINES & SAMPLE COLUMNS -->
     <div class="import-card" style="background: #f8fafc;">
         <h3 style="font-size: 1rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.75rem;">
-            📊 Column Format Guidelines
+            Column Format Guidelines
         </h3>
 
         <p style="font-size: 0.82rem; color: var(--muted-text); line-height: 1.5; margin-bottom: 1rem;">

@@ -1,0 +1,433 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | {{ APP_NAME }}</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    
+    <!-- Base Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    
+    <style>
+        :root {
+            --primary: {{ APP_PRIMARY_COLOR|default:"#2563eb" }} !important;
+            --primary-hover: {{ APP_PRIMARY_COLOR|default:"#1d4ed8" }} !important;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #0f172a;
+            box-sizing: border-box;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 1.5rem;
+            box-sizing: border-box;
+        }
+
+        .auth-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            text-align: center;
+        }
+
+        .brand-logo-text {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle-text {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            margin-top: 0.35rem;
+            display: block;
+        }
+
+        .auth-heading {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 1.75rem 0 0.4rem 0;
+            letter-spacing: -0.02em;
+        }
+
+        .auth-subheading {
+            font-size: 0.88rem;
+            color: #64748b;
+            margin: 0 0 2rem 0;
+            line-height: 1.4;
+        }
+
+        .auth-field-group {
+            text-align: left;
+            margin-bottom: 1.25rem;
+        }
+
+        .auth-label {
+            display: block;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.45rem;
+        }
+
+        .auth-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            padding-right: 2.75rem;
+            font-size: 0.92rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .auth-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #94a3b8;
+            padding: 0.35rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s;
+        }
+
+        .password-toggle-btn:hover {
+            color: #334155;
+        }
+
+        .auth-options-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.84rem;
+        }
+
+        .remember-me-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #475569;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .remember-checkbox {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .forgot-password-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.15s;
+        }
+
+        .forgot-password-link:hover {
+            text-decoration: underline;
+        }
+
+        .btn-signin {
+            width: 100%;
+            padding: 0.78rem 1rem;
+            background: var(--primary);
+            color: #ffffff;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);
+        }
+
+        .btn-signin:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        .btn-signin:active {
+            transform: translateY(0);
+        }
+
+        .auth-footer-text {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 1.75rem;
+            margin-bottom: 0;
+        }
+
+        .auth-footer-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Demo Pill Helpers */
+        .demo-bar {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px dashed #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+        }
+
+        .demo-pill {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.78rem;
+            font-weight: 700;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .demo-pill:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        
+        <div class="auth-card">
+            
+            <!-- BRAND HEADER -->
+            <div class="brand-logo-text">
+                {{ APP_NAME }}
+            </div>
+            <span class="brand-subtitle-text">
+                {{ APP_SUBTITLE }}
+            </span>
+
+            <!-- WELCOME TEXT -->
+            <h1 class="auth-heading">
+                Welcome Back
+            </h1>
+            <p class="auth-subheading">
+                Please enter your details to sign in.
+            </p>
+
+            <!-- FLASH ALERTS -->
+            {% if messages %}
+            <div id="flash-messages-container" style="margin-bottom: 1.25rem;">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %} auto-dismiss-alert" style="margin-bottom: 0.5rem; text-align: left;">
+                    <span>{{ message }}</span>
+                    <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: inherit; margin-left: auto; padding: 0 0.25rem; line-height: 1; opacity: 0.7;">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- LOGIN FORM -->
+            <form method="POST" action="{% url 'users:login' %}{% if next %}?next={{ next }}{% endif %}" id="login-form">
+                {% csrf_token %}
+
+                <!-- Email Address / Username -->
+                <div class="auth-field-group">
+                    <label class="auth-label" for="{{ form.username_or_email.id_for_label }}">
+                        Email Address
+                    </label>
+                    <div class="auth-input-wrapper">
+                        <input 
+                            type="text" 
+                            name="username_or_email" 
+                            id="{{ form.username_or_email.id_for_label }}" 
+                            class="auth-input" 
+                            placeholder="name@company.com" 
+                            value="{{ form.username_or_email.value|default:'' }}"
+                            autocomplete="username" 
+                            required 
+                            autofocus
+                        >
+                    </div>
+                    {% if form.username_or_email.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem; margin-top: 0.35rem; display: block; text-align: left;">
+                        {{ form.username_or_email.errors.0 }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Password -->
+                <div class="auth-field-group">
+                    <label class="auth-label" for="{{ form.password.id_for_label }}">
+                        Password
+                    </label>
+                    <div class="auth-input-wrapper">
+                        <input 
+                            type="password" 
+                            name="password" 
+                            id="password-input-field" 
+                            class="auth-input" 
+                            placeholder="••••••••" 
+                            autocomplete="current-password" 
+                            required
+                        >
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility()" title="Toggle Password Visibility">
+                            <svg id="eye-icon-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg id="eye-icon-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    {% if form.password.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem; margin-top: 0.35rem; display: block; text-align: left;">
+                        {{ form.password.errors.0 }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Options Row: Remember Me & Forgot Password -->
+                <div class="auth-options-row">
+                    <label class="remember-me-label">
+                        <input 
+                            type="checkbox" 
+                            name="remember_me" 
+                            id="remember-me-checkbox" 
+                            class="remember-checkbox" 
+                            checked
+                        >
+                        <span>Remember for {{ SESSION_COOKIE_AGE_DAYS|default:30 }} days</span>
+                    </label>
+
+                    <a href="#" class="forgot-password-link" onclick="alert('Please contact your administrator to reset your password.'); return false;">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-signin">
+                    Sign In
+                </button>
+
+                <!-- Footer Text -->
+                <p class="auth-footer-text">
+                    Don't have an account? 
+                    <a href="#" class="auth-footer-link" onclick="alert('New operator accounts must be created by an Administrator in Team Management.'); return false;">
+                        Contact your administrator
+                    </a>.
+                </p>
+            </form>
+
+            <!-- Quick Demo Accounts (Discreet Pill Helpers) -->
+            <div class="demo-bar">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Demo:</span>
+                <button type="button" class="demo-pill" onclick="fillDemoCredentials('admin', 'admin123')">
+                    Admin
+                </button>
+                <button type="button" class="demo-pill" onclick="fillDemoCredentials('manager', 'manager123')">
+                    Manager
+                </button>
+                <button type="button" class="demo-pill" onclick="fillDemoCredentials('cashier', 'cashier123')">
+                    Cashier
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('password-input-field');
+            const eyeOpen = document.getElementById('eye-icon-open');
+            const eyeClosed = document.getElementById('eye-icon-closed');
+            if (passInput) {
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    eyeOpen.style.display = 'none';
+                    eyeClosed.style.display = 'block';
+                } else {
+                    passInput.type = 'password';
+                    eyeOpen.style.display = 'block';
+                    eyeClosed.style.display = 'none';
+                }
+            }
+        }
+
+        function fillDemoCredentials(user, pass) {
+            const userInput = document.getElementById('{{ form.username_or_email.id_for_label }}');
+            const passInput = document.getElementById('password-input-field');
+            if (userInput && passInput) {
+                userInput.value = user;
+                passInput.value = pass;
+                document.getElementById('login-form').submit();
+            }
+        }
+    </script>
+</body>
+</html>
