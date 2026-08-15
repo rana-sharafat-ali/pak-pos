@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+
+{% block title %}Categories | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">Categories</h1>
+        <span class="pill-variant" style="font-size: 0.82rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px;">
+            {{ total_count }} categories
+        </span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.85rem;">
+        <!-- View Toggle (Grid / List) -->
+        <div class="view-toggle-group">
+            <button type="button" class="view-toggle-btn active" id="btn-cat-view-list" onclick="setCategoryView('list')" title="List / Table View">
+                ☰ List
+            </button>
+            <button type="button" class="view-toggle-btn" id="btn-cat-view-grid" onclick="setCategoryView('grid')" title="Grid Cards View">
+                🔲 Grid
+            </button>
+        </div>
+
+        <a href="{% url 'products:category_create' %}" class="btn-add-product">
+            <span>+</span> Add Category
+        </a>
+    </div>
+</div>
+
+<!-- ACTION & SEARCH TOOLBAR -->
+<div class="action-toolbar">
+    <div class="toolbar-left">
+        <form method="GET" action="{% url 'products:category_list' %}" style="display: flex; gap: 0.6rem; align-items: center;">
+            <input 
+                type="text" 
+                name="q" 
+                value="{{ query }}" 
+                placeholder="Search categories..." 
+                class="form-input" 
+                style="padding: 0.45rem 0.85rem; font-size: 0.85rem; width: 260px;"
+            >
+            <button type="submit" class="btn btn-outline btn-sm">Search</button>
+            {% if query %}
+                <a href="{% url 'products:category_list' %}" class="action-btn-icon" style="text-decoration: none;" title="Reset Search">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- ================= 1. LIST / TABLE VIEW ================= -->
+<div id="category-list-view" class="table-card">
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th style="width: 40px; text-align: center;">
+                    <input type="checkbox" id="select-all-checkbox" onclick="toggleSelectAll(this)" title="Select All">
+                </th>
+                <th style="width: 8%;">Icon</th>
+                <th style="width: 25%;">Category Name</th>
+                <th style="width: 35%;">Description</th>
+                <th style="width: 15%;">Products Count</th>
+                <th style="width: 17%; text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <!-- Selection Checkbox -->
+                <td style="text-align: center;">
+                    <input type="checkbox" class="item-select-checkbox" value="{{ cat.id }}" onchange="handleItemSelect()">
+                </td>
+
+                <!-- Emoji / Icon -->
+                <td>
+                    <div class="product-thumb-box" style="font-size: 1.5rem; width: 42px; height: 42px;">
+                        {{ cat.icon|default:"📦" }}
+                    </div>
+                </td>
+
+                <!-- Category Name -->
+                <td>
+                    <a href="{% url 'products:product_list' %}?category={{ cat.id }}" style="font-weight: 700; color: var(--secondary); font-size: 0.95rem;">
+                        {{ cat.name }}
+                    </a>
+                </td>
+
+                <!-- Description -->
+                <td style="color: var(--muted-text); font-size: 0.85rem;">
+                    {{ cat.description|default:"No description provided." }}
+                </td>
+
+                <!-- Products Count -->
+                <td>
+                    <span class="pill-variant" style="font-weight: 700; font-size: 0.78rem;">
+                        {{ cat.product_count }} items
+                    </span>
+                </td>
+
+                <!-- Actions -->
+                <td style="text-align: right;">
+                    <div class="table-actions" style="justify-content: flex-end;">
+                        <a href="{% url 'products:product_list' %}?category={{ cat.id }}" class="action-btn-icon" title="View Products in Category">👁️</a>
+                        <a href="{% url 'products:category_update' cat.id %}" class="action-btn-icon" title="Edit Category">✏️</a>
+                        <button 
+                            type="button" 
+                            class="action-btn-icon" 
+                            style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
+                            onclick="openDeleteModal('{{ cat.name|escapejs }}', 'Category', '{% url 'products:category_delete' cat.id %}', '{% if cat.product_count > 0 %}{{ cat.product_count }} products in this category will be set to Uncategorized.{% endif %}')"
+                            title="Delete Category">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 3.5rem 1rem; color: var(--muted-text);">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🗂️</div>
+                    <strong style="color: var(--secondary);">No categories found</strong>
+                    <p style="font-size: 0.85rem; margin-top: 0.25rem;">Start by adding your first product category.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ================= 2. GRID CARDS VIEW ================= -->
+<div id="category-grid-view" style="display: none;">
+    <!-- Grid View Select All Header Bar -->
+    <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid var(--border-card); border-radius: 10px; padding: 0.75rem 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-xs);">
+        <label style="display: flex; align-items: center; gap: 0.65rem; font-weight: 700; font-size: 0.88rem; color: var(--secondary); cursor: pointer; user-select: none;">
+            <input type="checkbox" class="select-all-master-checkbox" onclick="toggleSelectAll(this)" style="cursor: pointer;">
+            <span>Select All Categories</span>
+        </label>
+        <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: 500;">
+            Multi-Select Grid Mode
+        </span>
+    </div>
+
+    <div class="product-grid-layout">
+        {% for cat in categories %}
+        <div class="product-saas-card">
+            <div>
+                <div class="saas-card-top">
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <input type="checkbox" class="item-select-checkbox" value="{{ cat.id }}" onchange="handleItemSelect()" style="cursor: pointer;">
+                        <div class="product-thumb-box">
+                            {{ cat.icon|default:"📦" }}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.15rem 0.55rem;">Active</span>
+                    </div>
+                </div>
+
+                <a href="{% url 'products:product_list' %}?category={{ cat.id }}" class="saas-card-title">
+                    {{ cat.name }}
+                </a>
+                
+                <span class="product-sku" style="display: block; margin-bottom: 0.5rem;">
+                    {{ cat.product_count }} Associated Items
+                </span>
+
+                <div class="saas-card-desc">
+                    {{ cat.description|default:"No description provided." }}
+                </div>
+
+                <div class="variant-badges-container" style="margin-bottom: 0.85rem;">
+                    <span class="pill-variant" style="font-size: 0.72rem;">{{ cat.product_count }} Products</span>
+                    <span class="pill-variant-single" style="font-size: 0.72rem;">Menu Category</span>
+                </div>
+            </div>
+
+            <div class="saas-card-footer">
+                <a href="{% url 'products:product_list' %}?category={{ cat.id }}" class="price-text" style="font-size: 0.88rem; color: var(--primary); text-decoration: none;">
+                    View Products &rarr;
+                </a>
+                <div class="table-actions">
+                    <a href="{% url 'products:product_list' %}?category={{ cat.id }}" class="action-btn-icon" title="View Products">👁️</a>
+                    <a href="{% url 'products:category_update' cat.id %}" class="action-btn-icon" title="Edit Category">✏️</a>
+                    <button 
+                        type="button" 
+                        class="action-btn-icon" 
+                        style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
+                        onclick="openDeleteModal('{{ cat.name|escapejs }}', 'Category', '{% url 'products:category_delete' cat.id %}', '{% if cat.product_count > 0 %}{{ cat.product_count }} products in this category will be set to Uncategorized.{% endif %}')"
+                        title="Delete Category">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="table-card" style="grid-column: 1 / -1; padding: 3.5rem 1rem; text-align: center; color: var(--muted-text);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🗂️</div>
+            <strong style="color: var(--secondary);">No categories found</strong>
+            <p style="font-size: 0.85rem; margin-top: 0.25rem;">Start by adding your first product category.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- FLOATING BULK ACTIONS TOOLBAR -->
+<div id="bulk-actions-bar" class="bulk-actions-toolbar">
+    <span id="bulk-selected-count" class="bulk-select-count">
+        0 Selected
+    </span>
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <button type="button" class="bulk-btn-clear" onclick="clearAllSelections()">
+            Deselect All
+        </button>
+        <button type="button" class="bulk-btn-delete" onclick="openBulkDeleteModal('Category', '{% url 'products:category_bulk_delete' %}', 'All associated products in the selected categories will be set to Uncategorized.')">
+            🗑️ Delete Selected
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setCategoryView(mode) {
+        const listView = document.getElementById('category-list-view');
+        const gridView = document.getElementById('category-grid-view');
+        const btnList = document.getElementById('btn-cat-view-list');
+        const btnGrid = document.getElementById('btn-cat-view-grid');
+
+        if (mode === 'grid') {
+            if (listView) listView.style.display = 'none';
+            if (gridView) gridView.style.display = 'block';
+            if (btnGrid) btnGrid.classList.add('active');
+            if (btnList) btnList.classList.remove('active');
+            localStorage.setItem('category_view_preference', 'grid');
+        } else {
+            if (listView) listView.style.display = 'block';
+            if (gridView) gridView.style.display = 'none';
+            if (btnList) btnList.classList.add('active');
+            if (btnGrid) btnGrid.classList.remove('active');
+            localStorage.setItem('category_view_preference', 'list');
+        }
+    }
+
+    // Restore saved view preference
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedView = localStorage.getItem('category_view_preference') || 'list';
+        setCategoryView(savedView);
+    });
+</script>
+{% endblock %}

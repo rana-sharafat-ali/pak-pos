@@ -1,0 +1,742 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .retailos-form-grid {
+        display: grid;
+        grid-template-columns: 2.1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+        margin-top: 1rem;
+    }
+
+    .retailos-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        padding: 1.5rem 1.75rem;
+        box-shadow: var(--shadow-xs);
+        margin-bottom: 1.5rem;
+    }
+
+    .retailos-card:last-child {
+        margin-bottom: 0;
+    }
+
+    .retailos-card-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--secondary);
+        margin-bottom: 1.25rem;
+        letter-spacing: -0.01em;
+    }
+
+    .field-group {
+        margin-bottom: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .field-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .field-label {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: var(--secondary);
+    }
+
+    .field-input {
+        width: 100%;
+        padding: 0.65rem 0.95rem;
+        font-size: 0.88rem;
+        font-family: inherit;
+        color: var(--secondary);
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 8px;
+        outline: none;
+        transition: all 0.15s ease;
+    }
+
+    .field-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .field-input.has-error {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+    }
+
+    .field-textarea {
+        width: 100%;
+        padding: 0.65rem 0.95rem;
+        font-size: 0.88rem;
+        font-family: inherit;
+        color: var(--secondary);
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 8px;
+        outline: none;
+        resize: vertical;
+        min-height: 110px;
+        transition: all 0.15s ease;
+    }
+
+    .field-textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .input-with-prefix {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-prefix-tag {
+        position: absolute;
+        left: 0.85rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--muted-text);
+        pointer-events: none;
+    }
+
+    .input-with-prefix .field-input {
+        padding-left: 2.85rem;
+    }
+
+    .field-error-badge {
+        margin-top: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #dc2626;
+        font-size: 0.82rem;
+        font-weight: 600;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+    }
+
+    /* Variant Card Style */
+    .variant-item-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+        transition: all 0.15s ease;
+    }
+
+    .variant-item-card:hover {
+        border-color: #cbd5e1;
+    }
+
+    .variant-card-header {
+        background: #f1f5f9;
+        padding: 0.65rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--secondary);
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .variant-card-body {
+        padding: 1rem;
+        display: grid;
+        grid-template-columns: 1.5fr 1fr 1fr;
+        gap: 0.85rem;
+    }
+
+    /* iOS-style toggle switch */
+    .switch-toggle-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .switch-pill {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        background: #cbd5e1;
+        border-radius: 9999px;
+        transition: background 0.2s ease;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .switch-pill::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: #ffffff;
+        border-radius: 50%;
+        transition: transform 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    input[type="checkbox"]:checked + .switch-pill {
+        background: #2563eb;
+    }
+
+    input[type="checkbox"]:checked + .switch-pill::after {
+        transform: translateX(20px);
+    }
+
+    /* POS Live Preview Card */
+    .live-preview-box {
+        background: #f8fafc;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: 1.25rem;
+        text-align: center;
+    }
+
+    @media (max-width: 992px) {
+        .retailos-form-grid {
+            grid-template-columns: 1fr;
+        }
+        .variant-card-body {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="" id="product-form">
+    {% csrf_token %}
+
+    <!-- TOP ACTION BAR -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">
+                {{ title }}
+            </h1>
+            <p style="font-size: 0.88rem; color: var(--muted-text); margin-top: 0.25rem;">
+                Configure product name, category, and pricing / size variations.
+            </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <a href="{% url 'products:product_list' %}" class="btn btn-outline">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="padding: 0.55rem 1.4rem;">
+                Save Product
+            </button>
+        </div>
+    </div>
+
+    <!-- NON-FIELD ERRORS -->
+    {% if form.non_field_errors %}
+    <div class="alert alert-error" style="margin-bottom: 1.25rem;">
+        <span>{{ form.non_field_errors.0 }}</span>
+    </div>
+    {% endif %}
+
+    <!-- 2-COLUMN MAIN CONTENT GRID -->
+    <div class="retailos-form-grid">
+        
+        <!-- LEFT COLUMN (~70% width) -->
+        <div>
+            
+            <!-- CARD 1: GENERAL INFORMATION -->
+            <div class="retailos-card">
+                <h2 class="retailos-card-title">General Information</h2>
+
+                <!-- Product Name -->
+                <div class="field-group">
+                    <label class="field-label" for="{{ form.name.id_for_label }}">
+                        Product Name <span style="color: var(--danger);">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        name="name" 
+                        id="{{ form.name.id_for_label }}"
+                        value="{{ form.name.value|default:'' }}" 
+                        class="field-input {% if form.name.errors %}has-error{% endif %}" 
+                        placeholder="e.g. Essential Cotton T-Shirt, Chicken Tikka Pizza" 
+                        oninput="updateLivePreview()"
+                        required
+                    >
+                    {% if form.name.errors %}
+                    <div class="field-error-badge">
+                        <span>⚠️</span> {{ form.name.errors.0 }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Description -->
+                <div class="field-group" style="margin-top: 1.25rem;">
+                    <label class="field-label" for="{{ form.description.id_for_label }}">
+                        Description
+                    </label>
+                    <textarea 
+                        name="description" 
+                        id="{{ form.description.id_for_label }}" 
+                        class="field-textarea" 
+                        placeholder="Describe the product, ingredients, or notes..."
+                        oninput="updateLivePreview()"
+                    >{{ form.description.value|default:'' }}</textarea>
+                </div>
+            </div>
+
+            <!-- CARD 2: PRICING & INVENTORY -->
+            <div class="retailos-card">
+                <h2 class="retailos-card-title">Pricing & Category</h2>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                    <!-- Standard Selling Price -->
+                    <div class="field-group" id="base-price-field-group">
+                        <label class="field-label" for="{{ form.base_price.id_for_label }}">
+                            Standard Selling Price <span style="color: var(--danger);" id="base-price-required-star">*</span>
+                        </label>
+                        <div class="input-with-prefix">
+                            <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                min="0" 
+                                name="base_price" 
+                                id="{{ form.base_price.id_for_label }}"
+                                value="{{ form.base_price.value|default:'' }}" 
+                                class="field-input {% if form.base_price.errors %}has-error{% endif %}" 
+                                placeholder="0.00"
+                                oninput="updateLivePreview()"
+                            >
+                        </div>
+                        {% if form.base_price.errors %}
+                        <div class="field-error-badge">
+                            <span>⚠️</span> {{ form.base_price.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Category -->
+                    <div class="field-group">
+                        <label class="field-label" for="{{ form.category.id_for_label }}">
+                            Category
+                        </label>
+                        <select name="category" id="{{ form.category.id_for_label }}" class="field-input select-filter" style="width: 100%;" onchange="updateLivePreview()">
+                            <option value="" data-icon="📦">Select Category</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}" data-icon="{{ cat.icon|default:'📦' }}" {% if form.category.value|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ cat.icon }} {{ cat.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.category.errors %}
+                        <div class="field-error-badge">
+                            <span>⚠️</span> {{ form.category.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Cost Price & Stock Quantity row -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1rem;">
+                    <div class="field-group">
+                        <label class="field-label" for="{{ form.cost_price.id_for_label }}">
+                            Cost Price (Optional)
+                        </label>
+                        <div class="input-with-prefix">
+                            <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                min="0" 
+                                name="cost_price" 
+                                id="{{ form.cost_price.id_for_label }}"
+                                value="{{ form.cost_price.value|default:'' }}" 
+                                class="field-input" 
+                                placeholder="0.00"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="{{ form.stock_quantity.id_for_label }}">
+                            Stock Quantity
+                        </label>
+                        <input 
+                            type="number" 
+                            min="0" 
+                            name="stock_quantity" 
+                            id="{{ form.stock_quantity.id_for_label }}"
+                            value="{{ form.stock_quantity.value|default:0 }}" 
+                            class="field-input" 
+                            placeholder="0"
+                        >
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 3: VARIANTS -->
+            <div class="retailos-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                    <div>
+                        <h2 class="retailos-card-title" style="margin-bottom: 0;">Variants / Sizes</h2>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="addVariantCard()" style="font-weight: 700; color: var(--primary); border-color: #bfdbfe; background: #eff6ff;">
+                            <span>+</span> Add Option
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Enable Multi-Size Toggle -->
+                <div style="background: #f8fafc; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <strong style="font-size: 0.92rem; color: var(--secondary); display: block;">🍕 Has Multiple Sizes / Variations?</strong>
+                        <span style="font-size: 0.78rem; color: var(--muted-text);">Enable this if this item has multiple options (e.g. Small, Medium, Large).</span>
+                    </div>
+
+                    <label class="switch-toggle-wrapper">
+                        <input type="checkbox" name="has_variants" id="id_has_variants" {% if form.has_variants.value %}checked{% endif %} style="display: none;">
+                        <span class="switch-pill"></span>
+                    </label>
+                </div>
+
+                <!-- Variants Container -->
+                <div id="variants-wrapper" style="display: none;">
+                    {{ formset.management_form }}
+
+                    <!-- Quick Presets -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.78rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase;">Presets:</span>
+                        <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;" onclick="applyPreset(['Small', 'Medium', 'Large'])">🍕 Small, Med, Large</button>
+                        <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;" onclick="applyPreset(['Half', 'Full'])">🍗 Half, Full</button>
+                        <button type="button" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;" onclick="applyPreset(['Regular', 'Large'])">🥤 Regular, Large</button>
+                    </div>
+
+                    <div id="variants-list-container">
+                        {% for vform in formset %}
+                        <div class="variant-item-card">
+                            <div class="variant-card-header">
+                                <span>Size Option #{{ forloop.counter }}</span>
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    {% if vform.instance.pk %}
+                                        <label style="font-size: 0.8rem; font-weight: 700; color: var(--danger); cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                                            {{ vform.DELETE }} Delete
+                                        </label>
+                                    {% else %}
+                                        <button type="button" class="action-btn-icon" style="color: var(--danger);" onclick="removeVariantCard(this)" title="Remove this option">🗑️</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="variant-card-body">
+                                {% for hidden in vform.hidden_fields %}{{ hidden }}{% endfor %}
+                                <input type="hidden" name="{{ vform.prefix }}-is_active" value="on">
+                                
+                                <div class="field-group">
+                                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Size / Option Name *</label>
+                                    <input type="text" name="{{ vform.name.html_name }}" value="{{ vform.name.value|default:'' }}" class="field-input variant-name-input" placeholder="e.g. Small, Medium, Large" oninput="updateLivePreview()" required>
+                                </div>
+
+                                <div class="field-group">
+                                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Selling Price *</label>
+                                    <div class="input-with-prefix">
+                                        <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                                        <input type="number" step="0.01" min="0" name="{{ vform.selling_price.html_name }}" value="{{ vform.selling_price.value|default:'' }}" class="field-input" placeholder="0.00" oninput="updateLivePreview()" required>
+                                    </div>
+                                </div>
+
+                                <div class="field-group">
+                                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Cost Price</label>
+                                    <div class="input-with-prefix">
+                                        <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                                        <input type="number" step="0.01" min="0" name="{{ vform.cost_price.html_name }}" value="{{ vform.cost_price.value|default:'' }}" class="field-input" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM ACTION BAR -->
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; padding: 1.25rem 0; border-top: 1px solid var(--border-card); margin-top: 1.5rem;">
+                <a href="{% url 'products:product_list' %}" class="btn btn-outline">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.6rem;">
+                    Save Product
+                </button>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN (~30% width) -->
+        <div>
+            
+            <!-- CARD 1: STATUS -->
+            <div class="retailos-card">
+                <h2 class="retailos-card-title">Status</h2>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+                    <label class="switch-toggle-wrapper" for="id_is_active">
+                        <input type="checkbox" name="is_active" id="id_is_active" {% if form.is_active.value or form.is_active.value is None %}checked{% endif %} style="display: none;">
+                        <span class="switch-pill"></span>
+                        <strong id="status-label-text" style="font-size: 0.95rem; color: var(--secondary);">
+                            Active
+                        </strong>
+                    </label>
+                </div>
+
+                <p style="font-size: 0.82rem; color: var(--muted-text); line-height: 1.45; margin: 0;">
+                    This product will be visible across all sales channels and POS.
+                </p>
+            </div>
+
+            <!-- CARD 2: LIVE POS PREVIEW -->
+            <div class="retailos-card">
+                <h2 class="retailos-card-title">Live Preview</h2>
+                
+                <div class="live-preview-box">
+                    <div id="preview-emoji-box" class="product-thumb-box" style="width: 48px; height: 48px; font-size: 1.85rem; margin: 0 auto 0.75rem auto;">
+                        📦
+                    </div>
+
+                    <strong id="preview-product-name" style="font-size: 1rem; color: var(--secondary); display: block; line-height: 1.3;">
+                        Product Name
+                    </strong>
+
+                    <span id="preview-category-name" class="product-sku" style="display: block; margin: 0.25rem 0 0.65rem 0;">
+                        Category: General
+                    </span>
+
+                    <div style="display: flex; justify-content: center; gap: 0.5rem; align-items: center;">
+                        <span id="preview-price-tag" class="price-text" style="font-size: 1.05rem; color: var(--primary);">
+                            {{ APP_CURRENCY }} 0.00
+                        </span>
+                        <span id="preview-status-pill" class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                            Active
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 3: QUICK TIPS -->
+            <div class="retailos-card" style="background: #f8fafc;">
+                <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem;">
+                    💡 Tips & Guidelines
+                </h3>
+                <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.8rem; color: var(--muted-text); line-height: 1.5;">
+                    <li>For single items (e.g. Drinks, Fries), enter the <strong>Standard Selling Price</strong>.</li>
+                    <li>For multi-size items (e.g. Pizza), enable <strong>Sizes & Variations</strong>.</li>
+                    <li>Category emoji will automatically appear on receipts and POS tiles.</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const hasVariantsSwitch = document.getElementById('id_has_variants');
+    const variantsWrapper = document.getElementById('variants-wrapper');
+    const basePriceFieldGroup = document.getElementById('base-price-field-group');
+    const basePriceInput = document.getElementById('{{ form.base_price.id_for_label }}');
+    const basePriceStar = document.getElementById('base-price-required-star');
+    const totalFormsInput = document.querySelector('[name$="-TOTAL_FORMS"]');
+    const variantsContainer = document.getElementById('variants-list-container');
+    const statusCheckbox = document.getElementById('id_is_active');
+    const statusLabelText = document.getElementById('status-label-text');
+
+    // Live Preview Elements
+    const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    const previewEmoji = document.getElementById('preview-emoji-box');
+    const previewName = document.getElementById('preview-product-name');
+    const previewCategory = document.getElementById('preview-category-name');
+    const previewPrice = document.getElementById('preview-price-tag');
+    const previewStatus = document.getElementById('preview-status-pill');
+
+    function updateLivePreview() {
+        if (previewName && nameInput) {
+            previewName.textContent = nameInput.value.trim() || 'Product Name';
+        }
+        if (categorySelect && previewEmoji && previewCategory) {
+            const selectedOpt = categorySelect.options[categorySelect.selectedIndex];
+            const icon = selectedOpt ? selectedOpt.getAttribute('data-icon') || '📦' : '📦';
+            const catText = selectedOpt && selectedOpt.value ? selectedOpt.text.trim() : 'General';
+            previewEmoji.textContent = icon;
+            previewCategory.textContent = 'Category: ' + catText;
+        }
+        if (previewPrice) {
+            if (hasVariantsSwitch && hasVariantsSwitch.checked) {
+                const count = variantsContainer ? variantsContainer.querySelectorAll('.variant-item-card').length : 0;
+                previewPrice.textContent = count > 0 ? `${count} Sizes` : 'Multi-Size';
+            } else if (basePriceInput) {
+                const val = basePriceInput.value.trim();
+                previewPrice.textContent = '{{ APP_CURRENCY }} ' + (val ? val : '0.00');
+            }
+        }
+        if (previewStatus && statusCheckbox) {
+            if (statusCheckbox.checked) {
+                previewStatus.className = 'pill-status status-in-stock';
+                previewStatus.textContent = 'Active';
+            } else {
+                previewStatus.className = 'pill-status status-out-stock';
+                previewStatus.textContent = 'Inactive';
+            }
+        }
+    }
+
+    // Toggle Status Label Text
+    if (statusCheckbox && statusLabelText) {
+        statusCheckbox.addEventListener('change', () => {
+            statusLabelText.textContent = statusCheckbox.checked ? 'Active' : 'Inactive';
+            updateLivePreview();
+        });
+    }
+
+    // Reindex formset card names, ids and TOTAL_FORMS
+    function reindexVariantCards() {
+        if (!totalFormsInput || !variantsContainer) return;
+        const prefix = totalFormsInput.name.replace('-TOTAL_FORMS', '');
+        const cards = variantsContainer.querySelectorAll('.variant-item-card');
+        let activeCount = 0;
+
+        cards.forEach((card, idx) => {
+            const headerSpan = card.querySelector('.variant-card-header span');
+            if (headerSpan) {
+                headerSpan.textContent = `Size Option #${idx + 1}`;
+            }
+
+            card.querySelectorAll('input, select, textarea').forEach((input) => {
+                if (input.name) {
+                    input.name = input.name.replace(new RegExp(`${prefix}-\\d+-`), `${prefix}-${idx}-`);
+                }
+                if (input.id) {
+                    input.id = input.id.replace(new RegExp(`id_${prefix}-\\d+-`), `id_${prefix}-${idx}-`);
+                }
+            });
+            activeCount++;
+        });
+
+        totalFormsInput.value = activeCount;
+        updateLivePreview();
+    }
+
+    // Toggle Variants Section & Base Price
+    function toggleVariantSection() {
+        if (hasVariantsSwitch && variantsWrapper) {
+            if (hasVariantsSwitch.checked) {
+                variantsWrapper.style.display = 'block';
+                if (basePriceFieldGroup) {
+                    basePriceFieldGroup.style.opacity = '0.45';
+                    basePriceFieldGroup.style.pointerEvents = 'none';
+                    if (basePriceInput) basePriceInput.required = false;
+                    if (basePriceStar) basePriceStar.style.display = 'none';
+                }
+                if (variantsContainer && variantsContainer.children.length === 0) {
+                    applyPreset(['Small', 'Medium', 'Large']);
+                }
+            } else {
+                variantsWrapper.style.display = 'none';
+                if (basePriceFieldGroup) {
+                    basePriceFieldGroup.style.opacity = '1';
+                    basePriceFieldGroup.style.pointerEvents = 'auto';
+                    if (basePriceInput) basePriceInput.required = true;
+                    if (basePriceStar) basePriceStar.style.display = 'inline';
+                }
+            }
+            updateLivePreview();
+        }
+    }
+
+    if (hasVariantsSwitch) {
+        hasVariantsSwitch.addEventListener('change', toggleVariantSection);
+        toggleVariantSection();
+    }
+
+    function addVariantCard(name = '', sellPrice = '', costPrice = '') {
+        const formIdx = parseInt(totalFormsInput.value) || 0;
+        const prefix = totalFormsInput.name.replace('-TOTAL_FORMS', '');
+
+        const card = document.createElement('div');
+        card.className = 'variant-item-card';
+        card.innerHTML = `
+            <div class="variant-card-header">
+                <span>Size Option #${formIdx + 1}</span>
+                <button type="button" class="action-btn-icon" style="color: var(--danger);" onclick="removeVariantCard(this)" title="Remove this option">🗑️</button>
+            </div>
+            <div class="variant-card-body">
+                <input type="hidden" name="${prefix}-${formIdx}-is_active" value="on">
+                <div class="field-group">
+                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Size / Option Name *</label>
+                    <input type="text" name="${prefix}-${formIdx}-name" value="${name}" class="field-input variant-name-input" placeholder="e.g. Small, Medium, Large" oninput="updateLivePreview()" required>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Selling Price *</label>
+                    <div class="input-with-prefix">
+                        <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                        <input type="number" step="0.01" min="0" name="${prefix}-${formIdx}-selling_price" value="${sellPrice}" class="field-input" placeholder="0.00" oninput="updateLivePreview()" required>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label class="field-label" style="font-size: 0.78rem; text-transform: uppercase; color: var(--muted-text);">Cost Price</label>
+                    <div class="input-with-prefix">
+                        <span class="input-prefix-tag">{{ APP_CURRENCY }}</span>
+                        <input type="number" step="0.01" min="0" name="${prefix}-${formIdx}-cost_price" value="${costPrice}" class="field-input" placeholder="0.00">
+                    </div>
+                </div>
+            </div>
+        `;
+        variantsContainer.appendChild(card);
+        reindexVariantCards();
+    }
+
+    function removeVariantCard(btn) {
+        const card = btn.closest('.variant-item-card');
+        const deleteCheckbox = card.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+            card.style.display = 'none';
+            updateLivePreview();
+        } else {
+            card.remove();
+            reindexVariantCards();
+        }
+    }
+
+    function applyPreset(sizes) {
+        variantsContainer.innerHTML = '';
+        totalFormsInput.value = 0;
+        sizes.forEach(size => {
+            addVariantCard(size);
+        });
+    }
+
+    // Initial Live Preview call
+    document.addEventListener('DOMContentLoaded', () => {
+        updateLivePreview();
+    });
+</script>
+{% endblock %}

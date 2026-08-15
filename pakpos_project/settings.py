@@ -32,6 +32,13 @@ DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '').split(',') if host.strip()]
 
+# Application Branding & Global Configuration (Default: PakPOS)
+APP_NAME = os.getenv('APP_NAME', 'PakPOS')
+APP_SUBTITLE = os.getenv('APP_SUBTITLE', 'Management Portal')
+APP_CURRENCY = os.getenv('APP_CURRENCY', 'PKR')
+APP_FOOTER_TEXT = os.getenv('APP_FOOTER_TEXT', 'PakPOS — Modern Point of Sale System.')
+PRODUCTS_PER_PAGE = int(os.getenv('PRODUCTS_PER_PAGE', '50'))
+
 
 # Application definition
 
@@ -71,6 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'pakpos_project.apps.core.context_processors.branding',
             ],
         },
     },

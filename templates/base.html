@@ -4,68 +4,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PakPOS - Point of Sale{% endblock %}</title>
+    <title>{% block title %}{{ APP_NAME }} | {{ APP_SUBTITLE }}{% endblock %}</title>
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     
-    <!-- Custom Style -->
+    <!-- Stylesheet -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     
     {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-    <!-- Top Navigation Bar -->
-    <header class="navbar">
-        <div class="nav-container">
-            <a href="{% url 'core:home' %}" class="brand-logo">
-                <span class="brand-badge">POS</span>
-                <span>PakPOS</span>
-            </a>
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <aside class="app-sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-brand">
+                    <div class="brand-title">{{ APP_NAME }}</div>
+                    <div class="brand-subtitle">{{ APP_SUBTITLE }}</div>
+                </div>
 
-            <nav>
-                <ul class="nav-links">
-                    <li>
-                        <a href="{% url 'core:home' %}" class="nav-link {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
-                            📊 Dashboard
+                <ul class="sidebar-menu">
+                    <li class="menu-item {% if request.resolver_match.app_name == 'core' %}active{% endif %}">
+                        <a href="{% url 'core:home' %}">
+                            <span class="menu-icon">⊞</span>
+                            <span>Dashboard</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="{% url 'products:product_list' %}" class="nav-link {% if request.resolver_match.app_name == 'products' %}active{% endif %}">
-                            📦 Products
+                    <li class="menu-item {% if request.resolver_match.url_name == 'product_list' or request.resolver_match.url_name == 'product_detail' or request.resolver_match.url_name == 'product_create' or request.resolver_match.url_name == 'product_update' %}active{% endif %}">
+                        <a href="{% url 'products:product_list' %}">
+                            <span class="menu-icon">📦</span>
+                            <span>Products</span>
                         </a>
                     </li>
-                    <li>
-                        <a href="/admin/" class="nav-link" target="_blank">
-                            ⚙️ Admin
+                    <li class="menu-item {% if 'category' in request.resolver_match.url_name %}active{% endif %}">
+                        <a href="{% url 'products:category_list' %}">
+                            <span class="menu-icon">🗂️</span>
+                            <span>Categories</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="/admin/" target="_blank">
+                            <span class="menu-icon">⚙️</span>
+                            <span>Admin Settings</span>
                         </a>
                     </li>
                 </ul>
-            </nav>
-
-            <div class="nav-actions">
-                <a href="{% url 'products:product_list' %}" class="btn btn-primary btn-sm">
-                    + New Sale
-                </a>
             </div>
+
+            <!-- Operator Footer -->
+            <div class="sidebar-footer">
+                <div class="user-profile-pill">
+                    <div class="avatar-circle">
+                        👤
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">Operator</span>
+                        <span class="user-role">Active Session</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Wrapper -->
+        <div class="app-main">
+            <!-- Top Search & Utility Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Navigation Sidebar">
+                        ☰
+                    </button>
+                    <form method="GET" action="{% url 'products:product_list' %}" class="header-search">
+                        <span class="search-icon-svg">🔍</span>
+                        <input 
+                            type="text" 
+                            name="q" 
+                            value="{{ request.GET.q|default:'' }}" 
+                            placeholder="Search products, SKUs, or categories..."
+                        >
+                    </form>
+                </div>
+
+                <div class="header-actions">
+                    <button type="button" class="header-icon-btn" title="Notifications">🔔</button>
+                    <button type="button" class="header-icon-btn" title="Help & Support">❓</button>
+                    <button type="button" class="header-icon-btn" title="Account">👤</button>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% if messages %}
+            <div id="flash-messages-container" style="padding: 1.5rem 2.25rem 0 2.25rem;">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %} auto-dismiss-alert">
+                    <span>{{ message }}</span>
+                    <button type="button" onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: inherit; margin-left: auto; padding: 0 0.25rem; line-height: 1; opacity: 0.7;">✕</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Viewport Body -->
+            <main class="view-body">
+                {% block content %}
+                {% endblock %}
+            </main>
         </div>
-    </header>
+    </div>
 
-    <!-- Main Content Area -->
-    <main class="main-wrapper">
-        {% block content %}
-        {% endblock %}
-    </main>
+    <!-- GLOBAL DELETE CONFIRMATION MODAL -->
+    <div id="global-delete-modal" class="custom-modal-backdrop" style="display: none;">
+        <div class="custom-modal-dialog" style="text-align: center; border-color: #fecaca;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #fee2e2; color: #dc2626; font-size: 1.75rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; border: 4px solid #fef2f2;">
+                🗑️
+            </div>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <p>&copy; {% now "Y" %} <strong>PakPOS</strong>. All rights reserved.</p>
-    </footer>
+            <h3 id="delete-modal-title" style="font-size: 1.25rem; font-weight: 800; color: var(--secondary); margin-bottom: 0.5rem;">
+                Delete Item?
+            </h3>
 
-    <!-- Main JS -->
+            <p id="delete-modal-message" style="color: var(--muted-text); font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.75rem;">
+                Are you sure you want to delete this item?
+            </p>
+
+            <div id="delete-modal-warning" style="display: none; background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; font-size: 0.82rem; font-weight: 600; padding: 0.5rem 0.75rem; border-radius: 8px; margin-bottom: 1.25rem; text-align: left; align-items: center; gap: 0.4rem;">
+                <span>⚠️</span> <span id="delete-modal-warning-text"></span>
+            </div>
+
+            <form id="global-delete-form" method="POST" action="">
+                {% csrf_token %}
+                <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.25rem;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="closeDeleteModal()" style="flex: 1; padding: 0.6rem 1rem;">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger btn-sm" style="flex: 1; padding: 0.6rem 1rem;">
+                        Yes, Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="{% static 'js/main.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>

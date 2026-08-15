@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMB & ACTION BAR -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'products:product_list' %}">
+            <span>&larr;</span> Catalog
+        </a>
+        <span>&rsaquo;</span>
+        <a href="{% url 'products:product_list' %}{% if product.category %}?category={{ product.category.id }}{% endif %}">
+            {{ product.category.name|default:"General" }}
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ product.name }}</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <a href="{% url 'products:product_update' product.id %}" class="btn btn-outline btn-sm" title="Edit this product">
+            <span>✏️</span> Edit Product
+        </a>
+        <button 
+            type="button" 
+            class="btn btn-outline btn-sm" 
+            style="color: var(--danger); border-color: #fee2e2;" 
+            onclick="openDeleteModal('{{ product.name|escapejs }}', 'Product', '{% url 'products:product_delete' product.id %}', '{% if product.has_variants %}All {{ product.variants.count }} associated sizes will also be deleted.{% endif %}')"
+            title="Delete this product">
+            <span>🗑️</span> Delete
+        </button>
+    </div>
+</div>
+
+<!-- 2-COLUMN MAIN CONTENT GRID -->
+<div class="detail-grid-layout">
+    
+    <!-- LEFT COLUMN (~65% width) -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- 1. Available Sizes & Pricing Card -->
+        <div class="saas-detail-card">
+            <h2 class="detail-card-header">
+                {% if product.has_variants %}Available Sizes & Pricing{% else %}Product Pricing{% endif %}
+            </h2>
+
+            <div style="overflow-x: auto;">
+                <table class="saas-table" style="margin-top: 0.5rem;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 0.85rem 1rem; text-align: left;">Size / Variation</th>
+                            <th style="padding: 0.85rem 1rem; text-align: left;">Selling Price</th>
+                            <th style="padding: 0.85rem 1rem; text-align: left;">Cost Price</th>
+                            <th style="padding: 0.85rem 1rem; text-align: left;">Profit Margin</th>
+                            <th style="padding: 0.85rem 1rem; text-align: left;">Status</th>
+                            <th style="padding: 0.85rem 1rem; text-align: right;">Barcode Label</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if product.has_variants %}
+                            {% for variant in variants %}
+                            <tr>
+                                <td>
+                                    <strong style="color: var(--secondary); font-size: 0.95rem;">{{ variant.name }}</strong>
+                                </td>
+                                <td>
+                                    <strong style="color: var(--primary); font-size: 0.95rem;">{{ APP_CURRENCY }} {{ variant.selling_price }}</strong>
+                                </td>
+                                <td style="color: var(--muted-text);">
+                                    {{ APP_CURRENCY }} {{ variant.cost_price }}
+                                </td>
+                                <td>
+                                    {% if variant.profit_margin > 0 %}
+                                        <span class="pill-status status-in-stock" style="font-size: 0.75rem; padding: 0.15rem 0.55rem; font-weight: 700;">
+                                            +{{ variant.profit_margin }}%
+                                        </span>
+                                    {% else %}
+                                        <span style="color: var(--muted-text); font-size: 0.82rem;">0%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if variant.is_active %}
+                                        <span style="color: var(--secondary); font-size: 0.85rem; font-weight: 500;">Active</span>
+                                    {% else %}
+                                        <span style="color: var(--muted-text); font-size: 0.85rem;">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <button 
+                                        type="button" 
+                                        class="btn-label-print" 
+                                        onclick="openLabelModal('{{ product.name|escapejs }}', '{{ variant.name|escapejs }}', '{{ variant.selling_price }}', '{{ product.id }}', '{{ variant.id }}')"
+                                        title="Print Barcode Label for {{ variant.name }}">
+                                        <span>🖨</span> Print Label
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--muted-text); padding: 2rem;">
+                                    No sizes configured yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td>
+                                    <strong style="color: var(--secondary); font-size: 0.95rem;">Standard</strong>
+                                </td>
+                                <td>
+                                    <strong style="color: var(--primary); font-size: 0.95rem;">{{ APP_CURRENCY }} {{ product.base_price }}</strong>
+                                </td>
+                                <td style="color: var(--muted-text);">
+                                    {{ APP_CURRENCY }} {{ product.cost_price }}
+                                </td>
+                                <td>
+                                    {% if product.profit_margin > 0 %}
+                                        <span class="pill-status status-in-stock" style="font-size: 0.75rem; padding: 0.15rem 0.55rem; font-weight: 700;">
+                                            +{{ product.profit_margin }}%
+                                        </span>
+                                    {% else %}
+                                        <span style="color: var(--muted-text); font-size: 0.82rem;">0%</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if product.is_active %}
+                                        <span style="color: var(--secondary); font-size: 0.85rem; font-weight: 500;">Active</span>
+                                    {% else %}
+                                        <span style="color: var(--muted-text); font-size: 0.85rem;">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td style="text-align: right;">
+                                    <button 
+                                        type="button" 
+                                        class="btn-label-print" 
+                                        onclick="openLabelModal('{{ product.name|escapejs }}', 'Standard', '{{ product.base_price }}', '{{ product.id }}', '0')"
+                                        title="Print Barcode Label">
+                                        <span>🖨</span> Print Label
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. Description Card -->
+        <div class="saas-detail-card">
+            <h2 class="detail-card-header">Description</h2>
+            <p style="color: var(--secondary-text); font-size: 0.92rem; line-height: 1.6; margin: 0;">
+                {{ product.description|default:"No description provided." }}
+            </p>
+        </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN (~35% width) -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- 1. Product Summary Accent Card -->
+        <div class="saas-detail-card card-accent-border">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                <span class="pill-status status-in-stock" style="font-family: var(--font-mono); font-size: 0.72rem; padding: 0.2rem 0.55rem; letter-spacing: 0.05em; font-weight: 700;">
+                    {% if product.is_active %}ACTIVE FOR SALE{% else %}INACTIVE{% endif %}
+                </span>
+                
+                <span style="font-size: 0.78rem; color: var(--muted-text); display: flex; align-items: center; gap: 0.3rem;">
+                    <span>◬</span> {% if product.has_variants %}Multi-Size Product{% else %}Single Product{% endif %}
+                </span>
+            </div>
+
+            <h2 style="font-size: 1.45rem; font-weight: 800; color: var(--secondary); margin: 0.9rem 0 0.35rem 0; line-height: 1.25; letter-spacing: -0.02em;">
+                {{ product.name }}
+            </h2>
+
+            <span style="font-size: 0.82rem; color: var(--muted-text); display: block;">
+                Category: {{ product.category.name|default:"General" }}
+            </span>
+        </div>
+
+        <!-- 2. POS Quick Info & Menu Status Card -->
+        <div class="saas-detail-card">
+            <h2 class="detail-card-header">POS & Menu Status</h2>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="inventory-status-row">
+                    <div class="inventory-info-left">
+                        <div class="kpi-icon-box" style="background: var(--primary-light); color: var(--primary); width: 44px; height: 44px; border-radius: 8px;">
+                            🏷️
+                        </div>
+                        <div>
+                            <span style="font-size: 0.78rem; color: var(--muted-text); font-weight: 500; display: block;">Pricing Range</span>
+                            <span style="font-size: 1.15rem; font-weight: 800; color: var(--primary);">
+                                {{ product.price_display }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'products:product_update' product.id %}" class="action-btn-icon" title="Edit Pricing & Sizes">
+                        ✏️
+                    </a>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.75rem 0.9rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.82rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="color: var(--muted-text);">Variation Count:</span>
+                        <strong style="color: var(--secondary);">
+                            {% if product.has_variants %}{{ product.variant_count }} Sizes{% else %}Single Item{% endif %}
+                        </strong>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span style="color: var(--muted-text);">POS Availability:</span>
+                        <span style="color: var(--badge-green-text); font-weight: 700; display: flex; align-items: center; gap: 0.3rem;">
+                            <span style="width: 7px; height: 7px; border-radius: 50%; background: #16a34a; display: inline-block;"></span>
+                            {% if product.is_active %}Active in POS{% else %}Disabled in POS{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- BOTTOM METADATA FOOTER -->
+<div class="detail-meta-footer">
+    <span>Created: {{ product.created_at|date:"M d, Y H:i" }}</span>
+    <span>Last Updated: {{ product.updated_at|date:"M d, Y H:i" }}</span>
+</div>
+
+<!-- ================= BARCODE LABEL PREVIEW MODAL ================= -->
+<div id="barcode-modal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">🖨 Barcode Sticker Preview</h3>
+            <button type="button" onclick="closeLabelModal()" class="action-btn-icon" style="font-size: 1.1rem; border: none; background: transparent;">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Live Thermal Label Card -->
+            <div id="thermal-sticker-preview" class="thermal-sticker-card">
+                <div class="sticker-store-name">{{ APP_NAME }}</div>
+                <div id="modal-item-name" class="sticker-product-title">Product Name</div>
+                <div class="sticker-barcode-wrapper">
+                    <svg id="barcode-svg"></svg>
+                </div>
+                <div id="modal-item-price" class="sticker-price-tag">{{ APP_CURRENCY }} 0.00</div>
+            </div>
+
+            <!-- Number of Copies Selector -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; width: 100%; max-width: 280px; justify-content: space-between; margin-top: 0.5rem;">
+                <label for="label-copies" style="font-size: 0.85rem; font-weight: 600; color: var(--secondary);">Print Copies:</label>
+                <select id="label-copies" class="form-select" style="width: 100px; padding: 0.35rem 0.65rem; font-size: 0.85rem;">
+                    <option value="1" selected>1 copy</option>
+                    <option value="2">2 copies</option>
+                    <option value="5">5 copies</option>
+                    <option value="10">10 copies</option>
+                    <option value="20">20 copies</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" onclick="closeLabelModal()" class="btn btn-outline btn-sm">Cancel</button>
+            <button type="button" onclick="printThermalStickers()" class="btn btn-primary btn-sm" style="padding: 0.55rem 1.25rem;">
+                <span>🖨</span> Print Stickers
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden Printable Area for Clean Thermal Print -->
+<div id="printable-sticker-area" style="display: none;"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- JsBarcode CDN for Code128 Barcode generation -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+<script>
+    let currentLabelData = {
+        name: '',
+        variant: '',
+        price: '',
+        barcode: ''
+    };
+
+    function openLabelModal(productName, variantName, price, prodId, varId) {
+        const modal = document.getElementById('barcode-modal');
+        const modalItemName = document.getElementById('modal-item-name');
+        const modalItemPrice = document.getElementById('modal-item-price');
+
+        const fullName = variantName && variantName !== 'Standard' 
+            ? `${productName} (${variantName})` 
+            : productName;
+
+        // Generate Code128 Barcode number: 800 + Pad(ProdId, 3) + Pad(VarId, 2)
+        const pIdPad = String(prodId).padStart(3, '0');
+        const vIdPad = String(varId).padStart(2, '0');
+        const barcodeValue = `800${pIdPad}${vIdPad}`;
+
+        currentLabelData = {
+            name: fullName,
+            price: `{{ APP_CURRENCY }} ${parseFloat(price).toFixed(2)}`,
+            barcode: barcodeValue
+        };
+
+        modalItemName.textContent = fullName;
+        modalItemPrice.textContent = currentLabelData.price;
+
+        // Render Barcode with JsBarcode
+        try {
+            JsBarcode("#barcode-svg", barcodeValue, {
+                format: "CODE128",
+                width: 1.6,
+                height: 48,
+                displayValue: true,
+                fontSize: 12,
+                font: "monospace",
+                textMargin: 3,
+                margin: 2
+            });
+        } catch (e) {
+            console.error("Barcode generation error:", e);
+        }
+
+        modal.classList.add('active');
+    }
+
+    function closeLabelModal() {
+        const modal = document.getElementById('barcode-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    function printThermalStickers() {
+        const copies = parseInt(document.getElementById('label-copies').value) || 1;
+        const printableArea = document.getElementById('printable-sticker-area');
+        const previewCard = document.getElementById('thermal-sticker-preview');
+
+        printableArea.innerHTML = '';
+        printableArea.style.display = 'flex';
+
+        // Duplicate the exact sticker card based on selected copies count
+        for (let i = 0; i < copies; i++) {
+            const clone = previewCard.cloneNode(true);
+            clone.id = '';
+            printableArea.appendChild(clone);
+        }
+
+        // Trigger browser print dialog (Styled via @media print to only print the stickers)
+        window.print();
+
+        setTimeout(() => {
+            printableArea.style.display = 'none';
+            printableArea.innerHTML = '';
+        }, 1000);
+    }
+
+    // Close modal on Escape key or outside click
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLabelModal();
+    });
+</script>
+{% endblock %}

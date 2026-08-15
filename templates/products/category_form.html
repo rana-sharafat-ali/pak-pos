@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'products:category_list' %}">
+            <span>&larr;</span> Categories
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ title }}</span>
+    </div>
+</div>
+
+<div class="form-card-container" style="max-width: 680px; margin: 0 auto;">
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin-bottom: 1.5rem;">
+        {{ title }}
+    </h2>
+
+    <form method="POST" id="category-form">
+        {% csrf_token %}
+
+        <!-- Category Name -->
+        <div class="form-group">
+            <label class="form-label" for="{{ form.name.id_for_label }}">Category Name *</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.name.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Category Emoji / Icon Picker -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label">Category Emoji / Icon</label>
+            
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.85rem;">
+                <!-- Selected Preview -->
+                <div id="emoji-live-preview" class="product-thumb-box" style="width: 54px; height: 54px; font-size: 2rem; border-color: var(--primary);">
+                    {{ form.icon.value|default:"🍕" }}
+                </div>
+                
+                <div>
+                    {{ form.icon }}
+                    <span style="font-size: 0.78rem; color: var(--muted-text); display: block; margin-top: 0.2rem;">
+                        Click a preset below or type any custom emoji.
+                    </span>
+                </div>
+            </div>
+
+            <!-- Emoji Presets Palette -->
+            <div style="background: #f8fafc; border: 1px solid var(--border-card); border-radius: 10px; padding: 0.85rem;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">
+                    Quick Select Presets:
+                </span>
+                <div class="emoji-picker-grid" style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                    {% for emo in "🍕 🍔 🥤 🍟 🍗 🥪 🍢 🍰 🍦 🍩 ☕ 🧃 🍞 🍱 🥗 🍜 🥟 🥩 🧀 🍿 🍫 🍳 🥘 🥞 🧇 📦"|make_list %}
+                        {% if emo != " " %}
+                        <button 
+                            type="button" 
+                            class="emoji-preset-btn" 
+                            onclick="selectEmoji('{{ emo }}')"
+                            style="width: 38px; height: 38px; font-size: 1.35rem; border: 1px solid var(--border-card); background: #ffffff; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease;"
+                            title="Select {{ emo }}">
+                            {{ emo }}
+                        </button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% if form.icon.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.icon.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.description.id_for_label }}">Description (Optional)</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.description.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border-card);">
+            <a href="{% url 'products:category_list' %}" class="btn btn-outline btn-sm">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.55rem 1.35rem;">
+                {% if is_edit %}Save Changes{% else %}+ Create Category{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function selectEmoji(emoji) {
+        const input = document.getElementById('id_category_icon');
+        const preview = document.getElementById('emoji-live-preview');
+        if (input) {
+            input.value = emoji;
+        }
+        if (preview) {
+            preview.textContent = emoji;
+        }
+    }
+
+    // Sync typing with live preview
+    document.addEventListener('DOMContentLoaded', () => {
+        const input = document.getElementById('id_category_icon');
+        const preview = document.getElementById('emoji-live-preview');
+        if (input && preview) {
+            input.addEventListener('input', (e) => {
+                preview.textContent = e.target.value.trim() || '📦';
+            });
+        }
+    });
+</script>
+{% endblock %}

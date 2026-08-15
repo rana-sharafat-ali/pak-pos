@@ -1,110 +1,103 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard | PakPOS{% endblock %}
+{% block title %}Dashboard | {{ APP_NAME }}{% endblock %}
 
 {% block content %}
-<!-- Hero / Header Section -->
-<section class="hero-banner">
-    <h1 class="hero-title">Welcome to PakPOS System 👋</h1>
-    <p class="hero-subtitle">Fast, lightweight, and modern Point of Sale platform for managing inventory, transactions, and real-time sales.</p>
-</section>
 
-<!-- Analytics / Metrics Cards -->
-<section class="metrics-grid">
-    <div class="metric-card">
-        <div class="metric-info">
-            <h3>Today's Sales</h3>
-            <div class="metric-value">PKR 0.00</div>
+<!-- 3 CONCISE KPI CARDS -->
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-blue">
+            📦
         </div>
-        <div class="metric-icon icon-blue">💰</div>
+        <div class="kpi-content">
+            <span class="kpi-title">Total Products</span>
+            <span class="kpi-number">{{ total_products }}</span>
+        </div>
     </div>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <h3>Total Orders</h3>
-            <div class="metric-value">0</div>
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-red">
+            ⚠️
         </div>
-        <div class="metric-icon icon-green">🛍️</div>
+        <div class="kpi-content">
+            <span class="kpi-title">Multi-Size Items (Pizza)</span>
+            <span class="kpi-number">{{ variant_products_count }}</span>
+        </div>
     </div>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <h3>Active Products</h3>
-            <div class="metric-value">0</div>
+    <div class="kpi-card">
+        <div class="kpi-icon-box kpi-orange">
+            🥤
         </div>
-        <div class="metric-icon icon-orange">📦</div>
+        <div class="kpi-content">
+            <span class="kpi-title">Single Price Items</span>
+            <span class="kpi-number">{{ simple_products_count }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- ACTION TOOLBAR -->
+<div class="action-toolbar">
+    <div class="toolbar-left">
+        <span class="filter-label">
+            <span>⚡</span> Quick Links
+        </span>
+        <a href="{% url 'products:product_list' %}" class="action-btn-icon" style="text-decoration: none;">📦 Browse Products</a>
+        <a href="/admin/" target="_blank" class="action-btn-icon" style="text-decoration: none;">⚙️ Admin Settings</a>
     </div>
 
-    <div class="metric-card">
-        <div class="metric-info">
-            <h3>Customers</h3>
-            <div class="metric-value">0</div>
-        </div>
-        <div class="metric-icon icon-purple">👥</div>
-    </div>
-</section>
+    <a href="{% url 'products:product_create' %}" class="btn-add-product">
+        <span>+</span> Add Product
+    </a>
+</div>
 
-<!-- Content Section: Quick Actions & Status -->
-<section class="grid-2">
-    <!-- Quick Actions -->
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">Quick Actions</h2>
-            <span class="badge badge-primary">Shortcuts</span>
-        </div>
-        <div class="card-body">
-            <div class="quick-action-list">
-                <a href="{% url 'products:product_list' %}" class="quick-action-item">
-                    <div class="quick-action-info">
-                        <span>📦</span>
-                        <div>
-                            <strong>Manage Products</strong>
-                            <p style="font-size: 0.8rem; color: var(--text-secondary);">View and add items to your catalog</p>
+<!-- RECENT ACTIVITY TABLE -->
+<div class="table-card">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-card); display: flex; justify-content: space-between; align-items: center;">
+        <strong style="color: var(--secondary); font-size: 0.95rem;">Recent Products</strong>
+        <a href="{% url 'products:product_list' %}" style="font-size: 0.82rem; color: var(--primary); font-weight: 600;">View All &rarr;</a>
+    </div>
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in recent_products %}
+            <tr>
+                <td>
+                    <div class="product-cell">
+                        <div class="product-thumb-box">
+                            {{ product.category.icon|default:"📦" }}
+                        </div>
+                        <div class="product-info">
+                            <a href="{% url 'products:product_detail' product.id %}" class="product-name">
+                                {{ product.name }}
+                            </a>
+                            <span class="product-sku">{{ product.category.name|default:"General" }}</span>
                         </div>
                     </div>
-                    <span class="btn btn-outline btn-sm">Open</span>
-                </a>
+                </td>
+                <td>{{ product.category.name|default:"-" }}</td>
+                <td><strong style="color: var(--secondary);">{{ product.price_display }}</strong></td>
+                <td style="text-align: right;">
+                    <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon">View 👁️</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--muted-text);">
+                    No products added yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-                <a href="/admin/" target="_blank" class="quick-action-item">
-                    <div class="quick-action-info">
-                        <span>⚙️</span>
-                        <div>
-                            <strong>Django Admin Panel</strong>
-                            <p style="font-size: 0.8rem; color: var(--text-secondary);">Manage users, permissions, and database models</p>
-                        </div>
-                    </div>
-                    <span class="btn btn-outline btn-sm">Manage</span>
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- System Status -->
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title">System Status</h2>
-            <span class="badge badge-success">Online</span>
-        </div>
-        <div class="card-body">
-            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.9rem;">
-                <li style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-secondary);">Core App</span>
-                    <strong style="color: var(--accent);">Active</strong>
-                </li>
-                <li style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-secondary);">Products App</span>
-                    <strong style="color: var(--accent);">Active</strong>
-                </li>
-                <li style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-secondary);">Environment</span>
-                    <strong>Development</strong>
-                </li>
-                <li style="display: flex; justify-content: space-between;">
-                    <span style="color: var(--text-secondary);">Database Engine</span>
-                    <strong>SQLite3</strong>
-                </li>
-            </ul>
-        </div>
-    </div>
-</section>
 {% endblock %}
