@@ -51,7 +51,7 @@ class User(AbstractUser):
     ROLE_REDIRECT_MAP = {
         Role.ADMIN: 'core:home',
         Role.MANAGER: 'core:home',
-        Role.CASHIER: 'products:product_list',
+        Role.CASHIER: 'sales:pos',
     }
 
     email = models.EmailField(unique=True, max_length=255, verbose_name='Email Address')

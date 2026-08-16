@@ -63,24 +63,24 @@ class AuthAndUserManagementTests(TestCase):
             'password': 'staffpassword123'
         })
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('products:product_list'))
+        self.assertEqual(response.url, reverse('sales:pos'))
 
     def test_staff_role_redirect_to_products(self):
-        """Test that Staff login redirects directly to Products Catalog"""
+        """Test that Staff login redirects directly to POS Terminal"""
         response = self.client.post(reverse('users:login'), {
             'username_or_email': 'test_staff',
             'password': 'staffpassword123'
         })
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('products:product_list'))
+        self.assertEqual(response.url, reverse('sales:pos'))
 
     def test_staff_cannot_access_user_management(self):
         """Test that Staff is blocked from accessing Admin User Management page"""
         self.client.force_login(self.staff)
         response = self.client.get(reverse('users:user_list'))
-        # Should redirect to staff home
+        # Should redirect to cashier home (POS)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('products:product_list'))
+        self.assertEqual(response.url, reverse('sales:pos'))
 
     def test_admin_can_access_user_management(self):
         """Test that Admin can access User Management page"""

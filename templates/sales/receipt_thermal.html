@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt - {{ sale.invoice_number }}</title>
+    <style>
+        @page {
+            margin: 0;
+            size: auto;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            font-size: 12px;
+            line-height: 1.35;
+            color: #000000;
+            background: #ffffff;
+            margin: 0;
+            padding: 10px;
+            width: 78mm;
+            box-sizing: border-box;
+        }
+
+        .receipt-container {
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .store-name {
+            font-size: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0 0 2px 0;
+        }
+
+        .store-subtitle {
+            font-size: 10px;
+            text-transform: uppercase;
+            margin: 0 0 4px 0;
+        }
+
+        .invoice-meta {
+            font-size: 11px;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #000000;
+            padding-bottom: 6px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .receipt-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000000;
+            padding: 4px 0;
+        }
+
+        .receipt-table td {
+            padding: 4px 0;
+            vertical-align: top;
+        }
+
+        .col-item { width: 50%; }
+        .col-qty { width: 15%; text-align: center; }
+        .col-price { width: 15%; text-align: right; }
+        .col-total { width: 20%; text-align: right; }
+
+        .receipt-totals {
+            border-top: 1px dashed #000000;
+            padding-top: 6px;
+            margin-bottom: 8px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .grand-total {
+            font-size: 14px;
+            font-weight: 900;
+            border-top: 1px solid #000000;
+            border-bottom: 1px solid #000000;
+            padding: 4px 0;
+            margin: 5px 0;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            border-top: 1px dashed #000000;
+            padding-top: 8px;
+            font-size: 10px;
+        }
+
+        .barcode-box {
+            text-align: center;
+            margin: 6px 0;
+            font-size: 18px;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Manual Print Toolbar (Hidden on Print) -->
+    <div class="no-print" style="margin-bottom: 10px; text-align: center;">
+        <button onclick="window.print()" style="padding: 6px 14px; font-weight: bold; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+            🖨️ Print Receipt
+        </button>
+    </div>
+
+    <div class="receipt-container">
+        
+        <!-- Header -->
+        <div class="receipt-header">
+            <h1 class="store-name">{{ APP_NAME }}</h1>
+            <p class="store-subtitle">{{ APP_SUBTITLE }}</p>
+            <div style="font-size: 10px;">{{ APP_FOOTER_TEXT }}</div>
+        </div>
+
+        <!-- Meta Details -->
+        <div class="invoice-meta">
+            <div class="meta-row">
+                <span>Invoice #:</span>
+                <strong>{{ sale.invoice_number }}</strong>
+            </div>
+            <div class="meta-row">
+                <span>Date & Time:</span>
+                <span>{{ sale.created_at|date:"d M Y, h:i A" }}</span>
+            </div>
+            <div class="meta-row">
+                <span>Cashier:</span>
+                <span>{{ sale.cashier.get_full_name|default:sale.cashier.username }}</span>
+            </div>
+            <div class="meta-row">
+                <span>Customer:</span>
+                <span>{{ sale.customer.name|default:"Walk-in Customer" }}</span>
+            </div>
+            {% if sale.customer and sale.customer.phone %}
+            <div class="meta-row">
+                <span>Phone:</span>
+                <span>{{ sale.customer.phone }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Line Items -->
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th class="col-item">Item</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Price</th>
+                    <th class="col-total">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="col-item">
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.variant_name %}
+                        <div style="font-size: 10px;">Size: {{ item.variant_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="col-qty">{{ item.quantity }}</td>
+                    <td class="col-price">{{ item.unit_price|floatformat:0 }}</td>
+                    <td class="col-total">{{ item.total_price|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Financial Totals -->
+        <div class="receipt-totals">
+            <div class="total-row">
+                <span>Subtotal:</span>
+                <span>PKR {{ sale.subtotal|floatformat:2 }}</span>
+            </div>
+
+            {% if sale.discount_amount > 0 %}
+            <div class="total-row">
+                <span>Discount:</span>
+                <span>- PKR {{ sale.discount_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+
+            {% if sale.tax_amount > 0 %}
+            <div class="total-row">
+                <span>Tax (GST {{ sale.tax_rate }}%):</span>
+                <span>+ PKR {{ sale.tax_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+
+            {% if sale.service_charge_amount > 0 %}
+            <div class="total-row">
+                <span>Service Charges ({{ sale.service_charge_rate }}%):</span>
+                <span>+ PKR {{ sale.service_charge_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+
+            <div class="total-row grand-total">
+                <span>NET TOTAL:</span>
+                <span>PKR {{ sale.total_amount|floatformat:2 }}</span>
+            </div>
+
+            <div class="total-row">
+                <span>Payment ({{ sale.get_payment_method_display }}):</span>
+                <span>PKR {{ sale.amount_tendered|floatformat:2 }}</span>
+            </div>
+
+            {% if sale.change_returned > 0 %}
+            <div class="total-row">
+                <span>Change Returned:</span>
+                <span>PKR {{ sale.change_returned|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Barcode -->
+        <div class="barcode-box">
+            *{{ sale.invoice_number }}*
+        </div>
+
+        <!-- Footer -->
+        <div class="receipt-footer">
+            <p style="margin: 0 0 3px 0; font-weight: bold;">Thank You For Shopping With Us!</p>
+            <p style="margin: 0;">Items once sold can be refunded with original receipt.</p>
+        </div>
+
+    </div>
+
+    <!-- Auto Print Script -->
+    <script>
+        window.addEventListener('load', () => {
+            // Auto trigger print when loaded
+            setTimeout(() => {
+                window.print();
+            }, 350);
+        });
+    </script>
+</body>
+</html>

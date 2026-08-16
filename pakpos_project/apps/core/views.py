@@ -1,10 +1,12 @@
 from django.shortcuts import render
 from pakpos_project.apps.products.models import Product, Category
+from pakpos_project.apps.users.decorators import manager_or_admin_required
 
 
+@manager_or_admin_required
 def home(request):
     """
-    Main Landing / Dashboard View (Core App)
+    Main Landing / Dashboard View (Core App - Manager & Admin Only)
     """
     all_products = Product.objects.all()
     total_products = all_products.filter(is_active=True).count()

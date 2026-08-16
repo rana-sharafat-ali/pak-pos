@@ -39,6 +39,11 @@ APP_CURRENCY = os.getenv('APP_CURRENCY', 'PKR')
 APP_FOOTER_TEXT = os.getenv('APP_FOOTER_TEXT', 'PakPOS — Modern Point of Sale System.')
 PRODUCTS_PER_PAGE = int(os.getenv('PRODUCTS_PER_PAGE', '50'))
 
+# Point of Sale (POS) Settings
+POS_DEFAULT_TAX_PERCENT = float(os.getenv('POS_DEFAULT_TAX_PERCENT', '0'))
+POS_DEFAULT_SERVICE_CHARGE_PERCENT = float(os.getenv('POS_DEFAULT_SERVICE_CHARGE_PERCENT', '0'))
+POS_OPERATION_MODE = os.getenv('POS_OPERATION_MODE', 'retail')
+
 
 # Application definition
 
@@ -54,6 +59,7 @@ INSTALLED_APPS = [
     'pakpos_project.apps.core',
     'pakpos_project.apps.products',
     'pakpos_project.apps.users',
+    'pakpos_project.apps.sales',
 ]
 
 # Custom User Model & Authentication Backends

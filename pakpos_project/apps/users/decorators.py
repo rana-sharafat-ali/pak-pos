@@ -37,3 +37,11 @@ def admin_required(view_func):
     Shortcut decorator for views requiring Admin role
     """
     return role_required(User.Role.ADMIN)(view_func)
+
+
+def manager_or_admin_required(view_func):
+    """
+    Shortcut decorator for views requiring Manager or Admin role
+    """
+    return role_required(User.Role.ADMIN, User.Role.MANAGER)(view_func)
+

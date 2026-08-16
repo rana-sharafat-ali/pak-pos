@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Invoice - {{ sale.invoice_number }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            background: #ffffff;
+            margin: 0;
+            padding: 20px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .invoice-card {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .brand-title {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        .brand-sub {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin: 0.2rem 0 0 0;
+        }
+
+        .invoice-title-tag {
+            text-align: right;
+        }
+
+        .invoice-badge {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #2563eb;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .invoice-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .info-box strong {
+            font-size: 0.82rem;
+            color: #64748b;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 0.35rem;
+        }
+
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+
+        .invoice-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            text-align: left;
+            padding: 0.65rem 0.85rem;
+            border-bottom: 1px solid #cbd5e1;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+        }
+
+        .invoice-table td {
+            padding: 0.75rem 0.85rem;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        .summary-container {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .summary-table {
+            width: 320px;
+            border-collapse: collapse;
+        }
+
+        .summary-table td {
+            padding: 0.4rem 0.6rem;
+        }
+
+        .summary-table .grand-total-row td {
+            border-top: 2px solid #0f172a;
+            font-size: 1.15rem;
+            font-weight: 900;
+            color: #0f172a;
+            padding-top: 0.65rem;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+            .invoice-card {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="max-width: 800px; margin: 0 auto 1.5rem auto; display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button onclick="window.print()" style="padding: 0.55rem 1.25rem; font-weight: 700; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer;">
+            🖨️ Print Invoice
+        </button>
+    </div>
+
+    <div class="invoice-card">
+        
+        <!-- Header -->
+        <div class="invoice-header">
+            <div>
+                <h1 class="brand-title">{{ APP_NAME }}</h1>
+                <p class="brand-sub">{{ APP_SUBTITLE }}</p>
+                <p style="font-size: 0.82rem; color: #64748b; margin: 0.4rem 0 0 0;">{{ APP_FOOTER_TEXT }}</p>
+            </div>
+            <div class="invoice-title-tag">
+                <div class="invoice-badge">TAX INVOICE</div>
+                <div style="font-size: 1rem; font-weight: 800; color: #0f172a; margin-top: 0.25rem;">
+                    {{ sale.invoice_number }}
+                </div>
+                <div style="font-size: 0.82rem; color: #64748b; margin-top: 0.15rem;">
+                    Date: {{ sale.created_at|date:"d M Y, h:i A" }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="invoice-grid">
+            <div class="info-box">
+                <strong>Billed To:</strong>
+                <div style="font-size: 0.95rem; font-weight: 700; color: #0f172a;">
+                    {{ sale.customer.name|default:"Walk-in Customer" }}
+                </div>
+                {% if sale.customer and sale.customer.phone %}
+                <div style="color: #64748b;">Phone: {{ sale.customer.phone }}</div>
+                {% endif %}
+                {% if sale.customer and sale.customer.email %}
+                <div style="color: #64748b;">Email: {{ sale.customer.email }}</div>
+                {% endif %}
+                {% if sale.customer and sale.customer.address %}
+                <div style="color: #64748b;">Address: {{ sale.customer.address }}</div>
+                {% endif %}
+            </div>
+            <div class="info-box" style="text-align: right;">
+                <strong>Order Details:</strong>
+                <div>Cashier: <strong>{{ sale.cashier.get_full_name|default:sale.cashier.username }}</strong></div>
+                <div>Payment Method: <strong>{{ sale.get_payment_method_display }}</strong></div>
+                <div>Status: <span style="font-weight: 700; color: #16a34a;">{{ sale.get_status_display }}</span></div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 50%;">Description / Item</th>
+                    <th style="width: 15%; text-align: center;">Qty</th>
+                    <th style="width: 15%; text-align: right;">Unit Price</th>
+                    <th style="width: 15%; text-align: right;">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ item.product_name }}</strong>
+                        {% if item.variant_name %}
+                        <div style="font-size: 0.8rem; color: #2563eb;">Size: {{ item.variant_name }}</div>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">{{ item.quantity }}</td>
+                    <td style="text-align: right;">PKR {{ item.unit_price|floatformat:2 }}</td>
+                    <td style="text-align: right; font-weight: 700;">PKR {{ item.total_price|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Financial Summary -->
+        <div class="summary-container">
+            <table class="summary-table">
+                <tr>
+                    <td style="color: #64748b;">Subtotal:</td>
+                    <td style="text-align: right; font-weight: 700;">PKR {{ sale.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if sale.discount_amount > 0 %}
+                <tr>
+                    <td style="color: #dc2626;">Discount:</td>
+                    <td style="text-align: right; font-weight: 700; color: #dc2626;">- PKR {{ sale.discount_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if sale.tax_amount > 0 %}
+                <tr>
+                    <td style="color: #64748b;">Tax (GST {{ sale.tax_rate }}%):</td>
+                    <td style="text-align: right; font-weight: 700;">+ PKR {{ sale.tax_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if sale.service_charge_amount > 0 %}
+                <tr>
+                    <td style="color: #64748b;">Service Charges ({{ sale.service_charge_rate }}%):</td>
+                    <td style="text-align: right; font-weight: 700;">+ PKR {{ sale.service_charge_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="grand-total-row">
+                    <td>Net Total:</td>
+                    <td style="text-align: right;">PKR {{ sale.total_amount|floatformat:2 }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid #f1f5f9; text-align: center; font-size: 0.8rem; color: #94a3b8;">
+            This is a computer-generated tax invoice. Thank you for your business!
+        </div>
+
+    </div>
+
+</body>
+</html>

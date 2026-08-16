@@ -1,0 +1,964 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}POS Terminal | {{ APP_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ================= POS TERMINAL SPECIFIC STYLING ================= */
+    .pos-container {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 1.25rem;
+        height: calc(100vh - 105px);
+        min-height: 580px;
+    }
+
+    @media (max-width: 1100px) {
+        .pos-container {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+    }
+
+    /* --- LEFT COLUMN: CATALOG --- */
+    .pos-catalog-pane {
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+    }
+
+    .pos-top-toolbar {
+        padding: 0.85rem 1.15rem;
+        border-bottom: 1px solid var(--border-card);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: #ffffff;
+    }
+
+    .pos-search-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    .pos-search-icon {
+        position: absolute;
+        left: 0.85rem;
+        color: var(--muted-text);
+        pointer-events: none;
+        display: flex;
+    }
+
+    .pos-search-input {
+        width: 100%;
+        padding: 0.65rem 1rem 0.65rem 2.4rem;
+        font-size: 0.9rem;
+        font-family: inherit;
+        border: 1px solid var(--border-card);
+        border-radius: 8px;
+        outline: none;
+        background: #f8fafc;
+        transition: all 0.15s ease;
+    }
+
+    .pos-search-input:focus {
+        background: #ffffff;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .pos-category-bar {
+        padding: 0.65rem 1.15rem;
+        background: #f8fafc;
+        border-bottom: 1px solid var(--border-card);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        overflow-x: auto;
+        white-space: nowrap;
+        scrollbar-width: thin;
+    }
+
+    .pos-cat-pill {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        color: var(--secondary);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .pos-cat-pill:hover {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+    }
+
+    .pos-cat-pill.active {
+        background: var(--primary);
+        color: #ffffff;
+        border-color: var(--primary);
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+
+    /* Product Grid */
+    .pos-product-grid {
+        flex: 1;
+        padding: 1.15rem;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, min-min(145px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+        gap: 0.9rem;
+        align-content: start;
+    }
+
+    .pos-item-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 10px;
+        padding: 0.85rem 0.75rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+        position: relative;
+        text-align: left;
+    }
+
+    .pos-item-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--primary);
+        box-shadow: 0 6px 14px -2px rgba(0, 0, 0, 0.08);
+    }
+
+    .pos-item-card:active {
+        transform: translateY(0);
+    }
+
+    .pos-card-icon-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: #f8fafc;
+        border: 1px solid var(--border-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .pos-card-name {
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: var(--secondary);
+        line-height: 1.25;
+        margin-bottom: 0.35rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .pos-card-price {
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: var(--primary);
+    }
+
+    .pos-variant-tag {
+        font-size: 0.68rem;
+        font-weight: 700;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+        margin-top: 0.35rem;
+        display: inline-block;
+    }
+
+    /* --- RIGHT COLUMN: ACTIVE CART & BILLING --- */
+    .pos-cart-pane {
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+    }
+
+    /* Multi-Cart Tabs */
+    .pos-tab-bar {
+        background: #f1f5f9;
+        border-bottom: 1px solid var(--border-card);
+        display: flex;
+        align-items: center;
+        padding: 0.45rem 0.65rem 0 0.65rem;
+        gap: 0.35rem;
+        overflow-x: auto;
+    }
+
+    .pos-tab-btn {
+        padding: 0.45rem 0.85rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border-radius: 8px 8px 0 0;
+        background: #e2e8f0;
+        color: var(--muted-text);
+        border: 1px solid transparent;
+        border-bottom: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: all 0.15s ease;
+    }
+
+    .pos-tab-btn.active {
+        background: #ffffff;
+        color: var(--secondary);
+        border-color: var(--border-card);
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.03);
+    }
+
+    .pos-tab-close {
+        font-size: 0.75rem;
+        color: var(--muted-text);
+        border-radius: 50%;
+        padding: 0 0.2rem;
+        line-height: 1;
+    }
+
+    .pos-tab-close:hover {
+        color: var(--danger);
+        background: #fee2e2;
+    }
+
+    .pos-tab-add {
+        background: transparent;
+        border: 1px dashed #94a3b8;
+        border-radius: 6px;
+        padding: 0.35rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #475569;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .pos-tab-add:hover {
+        background: #ffffff;
+        border-color: var(--primary);
+        color: var(--primary);
+    }
+
+    /* Customer Info Bar */
+    .pos-customer-bar {
+        padding: 0.65rem 0.95rem;
+        background: #ffffff;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .pos-customer-select-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.65rem;
+        background: #f8fafc;
+        border: 1px solid var(--border-card);
+        border-radius: 6px;
+        font-size: 0.82rem;
+        color: var(--secondary);
+        cursor: pointer;
+        text-align: left;
+    }
+
+    .pos-customer-select-btn:hover {
+        background: #f1f5f9;
+    }
+
+    /* Cart Items Table List */
+    .pos-cart-items-wrapper {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .pos-cart-item-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.6rem 0.5rem;
+        border-bottom: 1px solid var(--border-subtle);
+        gap: 0.5rem;
+        animation: fadeInRow 0.15s ease-out;
+    }
+
+    @keyframes fadeInRow {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .pos-cart-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .pos-item-title-box {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .pos-item-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .pos-item-sub {
+        font-size: 0.76rem;
+        color: var(--muted-text);
+    }
+
+    .pos-qty-control {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #f8fafc;
+        border: 1px solid var(--border-card);
+        border-radius: 6px;
+        padding: 0.15rem;
+    }
+
+    .pos-qty-btn {
+        width: 22px;
+        height: 22px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--secondary);
+    }
+
+    .pos-qty-btn:hover {
+        background: var(--primary);
+        color: #ffffff;
+        border-color: var(--primary);
+    }
+
+    .pos-qty-num {
+        font-size: 0.85rem;
+        font-weight: 700;
+        width: 26px;
+        text-align: center;
+        color: var(--secondary);
+    }
+
+    .pos-item-price-box {
+        text-align: right;
+        min-width: 65px;
+    }
+
+    .pos-item-total {
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: var(--secondary);
+    }
+
+    .pos-item-remove {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 0.95rem;
+        padding: 0 0.2rem;
+    }
+
+    .pos-item-remove:hover {
+        color: var(--danger);
+    }
+
+    /* Cart Calculation & Checkout Area */
+    .pos-calculation-box {
+        padding: 0.85rem 1.15rem;
+        background: #f8fafc;
+        border-top: 1px solid var(--border-card);
+    }
+
+    .pos-calc-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.82rem;
+        color: var(--muted-text);
+        margin-bottom: 0.35rem;
+    }
+
+    .pos-calc-row.row-total {
+        margin-top: 0.65rem;
+        padding-top: 0.65rem;
+        border-top: 1px dashed var(--border-card);
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--secondary);
+    }
+
+    .pos-total-val {
+        color: var(--primary);
+        font-size: 1.25rem;
+        font-weight: 900;
+    }
+
+    .pos-action-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 0.6rem;
+        margin-top: 0.85rem;
+    }
+
+    .btn-pos-clear {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        color: var(--danger);
+        font-size: 0.85rem;
+        font-weight: 700;
+        border-radius: 8px;
+        padding: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
+    .btn-pos-clear:hover {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .btn-pos-pay {
+        background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+        color: #ffffff;
+        border: none;
+        font-size: 1rem;
+        font-weight: 800;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        transition: all 0.15s ease;
+    }
+
+    .btn-pos-pay:hover {
+        background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+    }
+
+    .btn-pos-pay:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* Modal Styling */
+    .pos-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(4px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 1rem;
+    }
+
+    .pos-modal-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 14px;
+        width: 100%;
+        max-width: 520px;
+        box-shadow: var(--shadow-lg);
+        overflow: hidden;
+        animation: modalScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .pos-modal-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-card);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .pos-modal-body {
+        padding: 1.25rem;
+    }
+
+    .pos-modal-footer {
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--border-card);
+        background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* Payment Method Selector Grid */
+    .payment-method-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .payment-method-pill {
+        border: 1.5px solid var(--border-card);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: var(--secondary);
+        transition: all 0.15s ease;
+    }
+
+    .payment-method-pill:hover {
+        border-color: #94a3b8;
+        background: #f8fafc;
+    }
+
+    .payment-method-pill.active {
+        border-color: var(--primary);
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .cash-denominations-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+    }
+
+    .cash-note-btn {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 6px;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--secondary);
+        cursor: pointer;
+    }
+
+    .cash-note-btn:hover {
+        background: #f1f5f9;
+        border-color: var(--primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- TOP POS HEADER -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
+    <div>
+        <h1 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span>Point of Sale (POS)</span>
+            <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                Online • Terminal 01
+            </span>
+        </h1>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <a href="{% url 'sales:ledger' %}" class="btn btn-outline btn-sm" style="background: #ffffff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            Sales History
+        </a>
+        <a href="{% url 'sales:shift_summary' %}" class="btn btn-outline btn-sm" style="background: #ffffff;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Shift Summary
+        </a>
+    </div>
+</div>
+
+<!-- POS SPLIT CONTAINER -->
+<div class="pos-container">
+    
+    <!-- LEFT COLUMN: PRODUCT CATALOG & BARCODE -->
+    <div class="pos-catalog-pane">
+        
+        <!-- Live Barcode & Text Search -->
+        <div class="pos-top-toolbar">
+            <div class="pos-search-wrapper">
+                <span class="pos-search-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </span>
+                <input 
+                    type="text" 
+                    id="pos-search-input" 
+                    placeholder="Scan Barcode or Search Products..." 
+                    class="pos-search-input" 
+                    autofocus
+                >
+            </div>
+        </div>
+
+        <!-- Category Horizontal Filter Ribbon -->
+        <div class="pos-category-bar" id="pos-category-bar">
+            <button type="button" class="pos-cat-pill active" onclick="filterByCategory(0, this)">
+                All Products
+            </button>
+            {% for cat in categories %}
+            <button type="button" class="pos-cat-pill" onclick="filterByCategory({{ cat.id }}, this)">
+                {{ cat.name }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- Dynamic Product Tiles Grid -->
+        <div class="pos-product-grid" id="pos-product-grid">
+            <!-- Rendered dynamically by pos_controller.js -->
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: MULTI-TAB CART & BILLING -->
+    <div class="pos-cart-pane">
+        
+        <!-- Multi-Order Queue Tabs -->
+        <div class="pos-tab-bar" id="pos-tab-bar">
+            <!-- Tabs rendered dynamically -->
+        </div>
+
+        <!-- Customer Selector Bar -->
+        <div class="pos-customer-bar">
+            <button type="button" class="pos-customer-select-btn" onclick="openCustomerModal()" id="current-customer-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span id="pos-customer-display" style="font-weight: 700;">Walk-in Customer</span>
+            </button>
+            <button type="button" class="action-btn-icon" onclick="openCustomerModal()" title="Add / Switch Customer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Cart Items List Table -->
+        <div class="pos-cart-items-wrapper" id="pos-cart-items-container">
+            <!-- Rendered dynamically by pos_controller.js -->
+        </div>
+
+        <!-- Cart Calculation & Checkout Area -->
+        <div class="pos-calculation-box">
+            <div class="pos-calc-row">
+                <span>Subtotal</span>
+                <span id="pos-calc-subtotal" style="font-weight: 700; color: var(--secondary);">PKR 0.00</span>
+            </div>
+
+            <div class="pos-calc-row" style="cursor: pointer;" onclick="openDiscountModal()">
+                <span style="display: flex; align-items: center; gap: 0.3rem;">
+                    <span>Discount</span>
+                    <span id="pos-discount-badge" style="font-size: 0.72rem; color: #2563eb; font-weight: 700;">(Add)</span>
+                </span>
+                <span id="pos-calc-discount" style="color: #dc2626; font-weight: 700;">- PKR 0.00</span>
+            </div>
+
+            <div class="pos-calc-row">
+                <span>Tax (GST {{ default_tax_percent }}%)</span>
+                <span id="pos-calc-tax">PKR 0.00</span>
+            </div>
+
+            <div class="pos-calc-row">
+                <span>Service Charges ({{ default_service_charge_percent }}%)</span>
+                <span id="pos-calc-service">PKR 0.00</span>
+            </div>
+
+            <div class="pos-calc-row row-total">
+                <span>Total Amount</span>
+                <span id="pos-calc-total" class="pos-total-val">PKR 0.00</span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pos-action-grid">
+                <button type="button" class="btn-pos-clear" onclick="clearCurrentCart()" title="Clear Active Order">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Clear
+                </button>
+                <button type="button" class="btn-pos-pay" id="btn-open-payment" onclick="openPaymentModal()" disabled>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                        <line x1="2" y1="10" x2="22" y2="10"></line>
+                    </svg>
+                    Charge Bill
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ================= 1. VARIANT / SIZE SELECTOR MODAL ================= -->
+<div id="modal-variant-selector" class="pos-modal-overlay">
+    <div class="pos-modal-card" style="max-width: 440px;">
+        <div class="pos-modal-header">
+            <h3 id="variant-modal-product-name" style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Select Size
+            </h3>
+            <button type="button" class="action-btn-icon" onclick="closeVariantModal()">✕</button>
+        </div>
+        <div class="pos-modal-body">
+            <p style="font-size: 0.84rem; color: var(--muted-text); margin-bottom: 1rem;">
+                Choose the variation or size to add to the active cart:
+            </p>
+            <div id="variant-options-list" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 2. CUSTOMER LOOKUP & REGISTER MODAL ================= -->
+<div id="modal-customer" class="pos-modal-overlay">
+    <div class="pos-modal-card">
+        <div class="pos-modal-header">
+            <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Customer Management
+            </h3>
+            <button type="button" class="action-btn-icon" onclick="closeCustomerModal()">✕</button>
+        </div>
+        <div class="pos-modal-body">
+            <div class="field-group">
+                <label class="field-label">Customer Search / Phone Number</label>
+                <input 
+                    type="text" 
+                    id="customer-search-input" 
+                    placeholder="Search by Phone (e.g. 03001234567) or Name..." 
+                    class="field-input" 
+                    oninput="handleCustomerSearch(this.value)"
+                >
+            </div>
+
+            <!-- Search Autocomplete Suggestions List -->
+            <div id="customer-search-results" style="max-height: 140px; overflow-y: auto; margin-bottom: 1rem; display: none;"></div>
+
+            <!-- Quick Register Details -->
+            <div style="background: #f8fafc; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.85rem; margin-top: 0.5rem;">
+                <span style="font-size: 0.76rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase; display: block; margin-bottom: 0.6rem;">
+                    Customer Details (Auto-Saves on Checkout)
+                </span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+                    <div class="field-group">
+                        <label class="field-label" style="font-size: 0.78rem;">Name</label>
+                        <input type="text" id="customer-name-field" placeholder="Walk-in Customer" class="field-input" style="padding: 0.45rem 0.75rem; font-size: 0.84rem;">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" style="font-size: 0.78rem;">Phone</label>
+                        <input type="text" id="customer-phone-field" placeholder="0300-1234567" class="field-input" style="padding: 0.45rem 0.75rem; font-size: 0.84rem;">
+                    </div>
+                </div>
+                <div class="field-group" style="margin-top: 0.5rem;">
+                    <label class="field-label" style="font-size: 0.78rem;">Address / Notes (Optional)</label>
+                    <input type="text" id="customer-address-field" placeholder="Street Address / Delivery Note" class="field-input" style="padding: 0.45rem 0.75rem; font-size: 0.84rem;">
+                </div>
+            </div>
+        </div>
+        <div class="pos-modal-footer">
+            <button type="button" class="btn btn-outline btn-sm" onclick="setWalkinCustomer()">Set Walk-in Customer</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="saveCustomerModalSelection()">Apply to Order</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 3. DISCOUNT MODAL ================= -->
+<div id="modal-discount" class="pos-modal-overlay">
+    <div class="pos-modal-card" style="max-width: 400px;">
+        <div class="pos-modal-header">
+            <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Apply Discount
+            </h3>
+            <button type="button" class="action-btn-icon" onclick="closeDiscountModal()">✕</button>
+        </div>
+        <div class="pos-modal-body">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <button type="button" class="btn btn-sm" id="btn-disc-fixed" onclick="setDiscountType('fixed')" style="flex: 1; background: var(--primary); color: #ffffff;">
+                    Fixed (PKR)
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-disc-percent" onclick="setDiscountType('percentage')" style="flex: 1;">
+                    Percentage (%)
+                </button>
+            </div>
+            <div class="field-group">
+                <label class="field-label" id="discount-input-label">Discount Amount (PKR)</label>
+                <input type="number" id="discount-value-input" class="field-input" placeholder="0" min="0" step="any">
+            </div>
+        </div>
+        <div class="pos-modal-footer">
+            <button type="button" class="btn btn-outline btn-sm" onclick="clearDiscount()">Remove Discount</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="applyDiscount()">Apply Discount</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 4. PAYMENT & CASH TENDER ASSISTANT MODAL ================= -->
+<div id="modal-payment" class="pos-modal-overlay">
+    <div class="pos-modal-card" style="max-width: 540px;">
+        <div class="pos-modal-header">
+            <div>
+                <h3 style="font-size: 1.2rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Complete Payment & Billing
+                </h3>
+                <span id="pay-modal-total-display" style="font-size: 0.95rem; font-weight: 800; color: var(--primary);">
+                    Total Payable: PKR 0.00
+                </span>
+            </div>
+            <button type="button" class="action-btn-icon" onclick="closePaymentModal()">✕</button>
+        </div>
+
+        <div class="pos-modal-body">
+            <!-- Payment Method Selector -->
+            <label class="field-label" style="margin-bottom: 0.5rem;">Select Payment Method</label>
+            <div class="payment-method-grid">
+                <div class="payment-method-pill active" id="pay-method-cash" onclick="selectPaymentMethod('cash')">
+                    <span>💵 Cash</span>
+                </div>
+                <div class="payment-method-pill" id="pay-method-card" onclick="selectPaymentMethod('card')">
+                    <span>💳 Debit / Credit Card</span>
+                </div>
+                <div class="payment-method-pill" id="pay-method-wallet" onclick="selectPaymentMethod('wallet')">
+                    <span>📱 EasyPaisa / JazzCash</span>
+                </div>
+                <div class="payment-method-pill" id="pay-method-credit" onclick="selectPaymentMethod('credit')">
+                    <span>📒 Khata / Credit</span>
+                </div>
+            </div>
+
+            <!-- Cash Tender Assistant Section -->
+            <div id="cash-tender-section">
+                <div class="field-group">
+                    <label class="field-label">Cash Received from Customer (PKR)</label>
+                    <input 
+                        type="number" 
+                        id="cash-tendered-input" 
+                        class="field-input" 
+                        style="font-size: 1.15rem; font-weight: 800; color: var(--secondary);" 
+                        placeholder="0.00"
+                        oninput="calculateChangeReturned()"
+                    >
+                </div>
+
+                <!-- Quick Bill Denominations -->
+                <div class="cash-denominations-grid" id="cash-quick-notes">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Return Change Display Box -->
+                <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 10px; padding: 0.85rem 1.15rem; margin-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.9rem; font-weight: 700; color: #1e40af;">
+                        Change to Return:
+                    </span>
+                    <span id="change-returned-display" style="font-size: 1.35rem; font-weight: 900; color: #1d4ed8;">
+                        PKR 0.00
+                    </span>
+                </div>
+            </div>
+
+            <!-- Order Notes / Reference -->
+            <div class="field-group" style="margin-top: 1rem;">
+                <label class="field-label" style="font-size: 0.8rem;">Invoice / Reference Note (Optional)</label>
+                <input type="text" id="order-notes-input" placeholder="e.g. Table 4, Delivery instructions, etc." class="field-input" style="padding: 0.45rem 0.8rem; font-size: 0.84rem;">
+            </div>
+        </div>
+
+        <div class="pos-modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closePaymentModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="btn-complete-checkout" onclick="submitCheckout()" style="padding: 0.65rem 1.5rem; font-weight: 800;">
+                ✓ Complete & Print Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- HIDDEN PRINT IFRAME FOR INSTANT THERMAL PRINTING -->
+<iframe id="receipt-print-frame" style="display: none;"></iframe>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Initial Data Injection for POS JS Engine -->
+<script>
+    window.POS_CATALOG = {{ products_json|safe }};
+    window.DEFAULT_TAX_RATE = {{ default_tax_percent }};
+    window.DEFAULT_SERVICE_CHARGE_RATE = {{ default_service_charge_percent }};
+    window.POS_CHECKOUT_API_URL = "{% url 'sales:api_checkout' %}";
+    window.CUSTOMER_SEARCH_API_URL = "{% url 'sales:api_customer_search' %}";
+</script>
+<script src="{% static 'js/pos_controller.js' %}"></script>
+{% endblock %}

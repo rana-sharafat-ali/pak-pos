@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+
+{% block title %}Sales History & Invoices | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- TOP BAR -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <h1 style="font-size: 1.45rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+            <span>Sales & Order Invoices</span>
+            <span class="pill-status status-in-stock" style="font-size: 0.75rem;">{{ total_sales_count }} Total Records</span>
+        </h1>
+        <p style="font-size: 0.85rem; color: var(--muted-text); margin-top: 0.2rem; margin-bottom: 0;">
+            Track completed transactions, manage returns/refunds, and reprint thermal/A4 receipts.
+        </p>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="{% url 'sales:shift_summary' %}" class="btn btn-outline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Daily Shift
+        </a>
+        <a href="{% url 'sales:pos' %}" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+            Open POS Terminal
+        </a>
+    </div>
+</div>
+
+<!-- KPI SUMMARY CARDS -->
+<div class="kpi-row" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+    <div class="kpi-card">
+        <span class="kpi-title">Total Revenue</span>
+        <div class="kpi-value" style="color: var(--primary);">PKR {{ total_revenue|floatformat:0 }}</div>
+        <span class="kpi-subtitle">Completed sales volume</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Net Profit</span>
+        <div class="kpi-value" style="color: #16a34a;">PKR {{ total_profit|floatformat:0 }}</div>
+        <span class="kpi-subtitle">{{ profit_margin_avg }}% Avg Margin</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Cash in Drawer</span>
+        <div class="kpi-value" style="color: var(--secondary);">PKR {{ cash_revenue|floatformat:0 }}</div>
+        <span class="kpi-subtitle">Physical cash received</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Cards & Digital</span>
+        <div class="kpi-value" style="color: #2563eb;">PKR {{ digital_revenue|floatformat:0 }}</div>
+        <span class="kpi-subtitle">Card & Mobile Wallets</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-title">Total Refunds</span>
+        <div class="kpi-value" style="color: #dc2626;">PKR {{ total_refunds|floatformat:0 }}</div>
+        <span class="kpi-subtitle">Returned / cancelled volume</span>
+    </div>
+</div>
+
+<!-- FILTER BAR -->
+<form method="GET" action="" style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-xs);">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto; gap: 0.75rem; align-items: end;">
+        <!-- Search Input -->
+        <div>
+            <label class="field-label" style="font-size: 0.78rem; margin-bottom: 0.3rem;">Search Invoice / Customer</label>
+            <input type="text" name="q" value="{{ query }}" placeholder="Search Invoice #, Customer Phone..." class="field-input" style="padding: 0.5rem 0.75rem; font-size: 0.84rem;">
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+            <label class="field-label" style="font-size: 0.78rem; margin-bottom: 0.3rem;">Status</label>
+            <select name="status" class="field-input select-filter" style="padding: 0.5rem 0.75rem; font-size: 0.84rem;">
+                <option value="">All Statuses</option>
+                {% for st_val, st_lbl in status_choices %}
+                <option value="{{ st_val }}" {% if status_filter == st_val %}selected{% endif %}>{{ st_lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Payment Method -->
+        <div>
+            <label class="field-label" style="font-size: 0.78rem; margin-bottom: 0.3rem;">Payment</label>
+            <select name="payment" class="field-input select-filter" style="padding: 0.5rem 0.75rem; font-size: 0.84rem;">
+                <option value="">All Methods</option>
+                {% for p_val, p_lbl in payment_choices %}
+                <option value="{{ p_val }}" {% if payment_filter == p_val %}selected{% endif %}>{{ p_lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Date From -->
+        <div>
+            <label class="field-label" style="font-size: 0.78rem; margin-bottom: 0.3rem;">From Date</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="field-input" style="padding: 0.5rem 0.75rem; font-size: 0.84rem;">
+        </div>
+
+        <!-- Date To -->
+        <div>
+            <label class="field-label" style="font-size: 0.78rem; margin-bottom: 0.3rem;">To Date</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="field-input" style="padding: 0.5rem 0.75rem; font-size: 0.84rem;">
+        </div>
+
+        <!-- Submit Filter -->
+        <div style="display: flex; gap: 0.4rem;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.52rem 1rem;">Filter</button>
+            {% if query or status_filter or payment_filter or date_from or date_to %}
+            <a href="{% url 'sales:ledger' %}" class="btn btn-outline" style="padding: 0.52rem 0.75rem;" title="Reset Filters">✕</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<!-- INVOICES TABLE CARD -->
+<div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-xs);">
+    <div style="overflow-x: auto;">
+        <table class="retailos-table">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Date & Time</th>
+                    <th>Customer</th>
+                    <th>Cashier</th>
+                    <th>Payment</th>
+                    <th>Total Bill</th>
+                    <th>Net Profit</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in sales %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--secondary); font-size: 0.88rem;">{{ sale.invoice_number }}</strong>
+                        <div style="font-size: 0.75rem; color: var(--muted-text);">{{ sale.total_items_count }} items</div>
+                    </td>
+                    <td style="font-size: 0.82rem; color: var(--secondary);">
+                        {{ sale.created_at|date:"d M Y, h:i A" }}
+                    </td>
+                    <td>
+                        {% if sale.customer %}
+                            <strong style="color: var(--secondary); font-size: 0.85rem;">{{ sale.customer.name }}</strong>
+                            <div style="font-size: 0.75rem; color: var(--muted-text);">{{ sale.customer.phone }}</div>
+                        {% else %}
+                            <span style="color: var(--muted-text); font-size: 0.82rem;">Walk-in Customer</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.82rem;">
+                        {{ sale.cashier.username|default:"System" }}
+                    </td>
+                    <td>
+                        <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+                            {{ sale.get_payment_method_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="color: var(--secondary); font-size: 0.92rem;">PKR {{ sale.total_amount|floatformat:2 }}</strong>
+                        {% if sale.discount_amount > 0 %}
+                        <div style="font-size: 0.72rem; color: #dc2626;">Disc: -{{ sale.discount_amount|floatformat:0 }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sale.status == 'refunded' %}
+                            <span style="color: var(--muted-text); font-size: 0.82rem;">-</span>
+                        {% else %}
+                            <strong style="color: #16a34a; font-size: 0.9rem;">+ PKR {{ sale.net_profit|floatformat:2 }}</strong>
+                            <div style="font-size: 0.72rem; color: #64748b;">{{ sale.profit_margin_percent }}% Margin</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if sale.status == 'completed' %}
+                            <span class="pill-status status-in-stock">Completed</span>
+                        {% elif sale.status == 'refunded' %}
+                            <span class="pill-status status-out-of-stock">Refunded</span>
+                        {% elif sale.status == 'held' %}
+                            <span class="pill-status status-low-stock">Held / Parked</span>
+                        {% else %}
+                            <span class="pill-status">{{ sale.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem;">
+                            <!-- Thermal Receipt -->
+                            <a href="{% url 'sales:receipt' sale.pk %}" target="_blank" class="action-btn-icon" title="Print Thermal Receipt (80mm)">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                    <rect x="6" y="14" width="12" height="8"></rect>
+                                </svg>
+                            </a>
+
+                            <!-- A4 Tax Invoice -->
+                            <a href="{% url 'sales:invoice_a4' sale.pk %}" target="_blank" class="action-btn-icon" title="Print A4 Tax Invoice">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                </svg>
+                            </a>
+
+                            <!-- Refund Action -->
+                            {% if sale.status == 'completed' %}
+                            <button type="button" class="action-btn-icon" onclick="openRefundModal({{ sale.pk }}, '{{ sale.invoice_number }}', '{{ sale.total_amount }}')" title="Process Refund & Restock Items" style="color: #ef4444;">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="1 4 1 10 7 10"></polyline>
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                                </svg>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 3rem 1rem; color: var(--muted-text);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📄</div>
+                        <strong style="font-size: 0.95rem; color: var(--secondary); display: block;">No Invoices Found</strong>
+                        <span style="font-size: 0.82rem;">Sales created in the POS will appear here automatically.</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINATION -->
+    {% if page_obj.has_other_pages %}
+    <div style="padding: 1rem 1.25rem; border-top: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 0.84rem; color: var(--muted-text);">
+            Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+        <div style="display: flex; gap: 0.4rem;">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-outline btn-sm">&larr; Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-outline btn-sm">Next &rarr;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ================= REFUND CONFIRMATION MODAL ================= -->
+<div id="refund-modal-dialog" class="custom-modal-backdrop" style="display: none;">
+    <div class="custom-modal-dialog" style="max-width: 480px;">
+        <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--secondary); margin-top: 0;">
+            Process Invoice Refund & Restock
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--muted-text); margin-bottom: 1.25rem;">
+            Refunding invoice <strong id="refund-modal-invoice-tag" style="color: var(--secondary);"></strong> will automatically return <strong id="refund-modal-amount-tag" style="color: #dc2626;"></strong> and <strong style="color: #16a34a;">restore all items back to inventory</strong>.
+        </p>
+
+        <form id="refund-form" method="POST" action="">
+            {% csrf_token %}
+            <div class="field-group">
+                <label class="field-label">Reason for Refund / Return *</label>
+                <input type="text" name="refund_reason" required placeholder="e.g. Customer returned defective item / Cancelled order" class="field-input">
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeRefundModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger btn-sm" style="padding: 0.55rem 1.25rem;">
+                    ✓ Confirm Refund & Restock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openRefundModal(saleId, invoiceNumber, totalAmount) {
+        const modal = document.getElementById('refund-modal-dialog');
+        const form = document.getElementById('refund-form');
+        const invoiceTag = document.getElementById('refund-modal-invoice-tag');
+        const amountTag = document.getElementById('refund-modal-amount-tag');
+
+        if (modal && form) {
+            form.action = `/sales/refund/${saleId}/`;
+            invoiceTag.textContent = invoiceNumber;
+            amountTag.textContent = `PKR ${parseFloat(totalAmount).toFixed(2)}`;
+            modal.style.display = 'flex';
+        }
+    }
+
+    function closeRefundModal() {
+        const modal = document.getElementById('refund-modal-dialog');
+        if (modal) modal.style.display = 'none';
+    }
+</script>
+{% endblock %}

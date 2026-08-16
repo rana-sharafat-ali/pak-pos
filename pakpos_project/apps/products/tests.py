@@ -1,12 +1,28 @@
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.contrib.auth import get_user_model
 from .models import Product, ProductVariant, Category
 from decimal import Decimal
+
+User = get_user_model()
 
 
 class ProductVariantTests(TestCase):
     def setUp(self):
         self.client = Client()
+        self.admin_user = User.objects.create_user(
+            username='admin_test',
+            email='admin_test@pakpos.com',
+            password='adminpass123',
+            role=User.Role.ADMIN
+        )
+        self.cashier_user = User.objects.create_user(
+            username='cashier_prod_test',
+            email='cashier_prod_test@pakpos.com',
+            password='cashierpass123',
+            role=User.Role.CASHIER
+        )
+        self.client.force_login(self.admin_user)
         self.category = Category.objects.create(name="Pizza", description="Delicious Italian Pizzas")
         
         # 1. Product with sizes / variants (e.g. Pizza)
@@ -277,3 +293,11 @@ class ProductVariantTests(TestCase):
         p_pizza = Product.objects.get(name='Super Supreme Pizza')
         self.assertTrue(p_pizza.has_variants)
         self.assertEqual(p_pizza.variants.count(), 2)
+
+    def test_cashier_cannot_access_product_catalog(self):
+        """Test Cashier role is restricted from accessing product catalog and redirected to POS"""
+        self.client.force_login(self.cashier_user)
+        response = self.client.get(reverse('products:product_list'))
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse('sales:pos'))
+

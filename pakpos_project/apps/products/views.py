@@ -6,8 +6,10 @@ from django.core.paginator import Paginator
 from .models import Product, ProductVariant, Category
 from .forms import ProductForm, ProductVariantFormSet, CategoryForm
 from .services import fetch_google_sheets_csv, parse_and_import_products
+from pakpos_project.apps.users.decorators import manager_or_admin_required
 
 
+@manager_or_admin_required
 def product_list(request):
     """
     List products matching the RetailOS SaaS table layout with 10 entries per page pagination
@@ -49,33 +51,43 @@ def product_list(request):
             except ValueError:
                 pass
 
-        products = products.filter(search_filter).distinct()
+        products = products.filter(search_filter)
 
     # Category filter
     if category_id:
         products = products.filter(category_id=category_id)
 
+    # Status filter
+    if status == 'in_stock':
+        products = products.filter(Q(stock_quantity__gt=5) | Q(variants__stock_quantity__gt=5)).distinct()
+    elif status == 'low_stock':
+        products = products.filter(
+            (Q(stock_quantity__gt=0) & Q(stock_quantity__lte=5)) |
+            (Q(variants__stock_quantity__gt=0) & Q(variants__stock_quantity__lte=5))
+        ).distinct()
+    elif status == 'out_of_stock':
+        products = products.filter(
+            (Q(has_variants=False) & Q(stock_quantity=0)) |
+            (Q(has_variants=True) & ~Q(variants__stock_quantity__gt=0))
+        ).distinct()
+
     # Product Type filter
-    if product_type == 'variants':
-        products = products.filter(has_variants=True)
-    elif product_type == 'simple':
+    if product_type in ['single', 'simple']:
         products = products.filter(has_variants=False)
+    elif product_type in ['variant', 'variants']:
+        products = products.filter(has_variants=True)
 
-    # Status filter (Active / Inactive)
-    if status == 'active':
-        products = products.filter(is_active=True)
-    elif status == 'inactive':
-        products = products.filter(is_active=False)
+    # Metric counts
+    total_products_count = Product.objects.count()
+    low_stock_count = Product.objects.filter(
+        (Q(stock_quantity__gt=0) & Q(stock_quantity__lte=5)) |
+        (Q(variants__stock_quantity__gt=0) & Q(variants__stock_quantity__lte=5))
+    ).distinct().count()
+    active_categories_count = Category.objects.filter(products__isnull=False).distinct().count()
 
-    categories = Category.objects.all()
+    categories = Category.objects.annotate(product_count=Count('products')).all()
 
-    # Concise KPIs matching screenshot
-    all_products = Product.objects.all()
-    total_products_count = all_products.count()
-    low_stock_count = all_products.filter(has_variants=False, stock_quantity__lte=5).count()
-    active_categories_count = categories.count()
-
-    # Pagination: configured via .env (default: 50)
+    # Pagination: 50 items per page by default, configurable
     per_page = getattr(settings, 'PRODUCTS_PER_PAGE', 50)
     paginator = Paginator(products, per_page)
     page_number = request.GET.get('page', 1)
@@ -97,6 +109,7 @@ def product_list(request):
     return render(request, 'products/product_list.html', context)
 
 
+@manager_or_admin_required
 def product_detail(request, pk):
     """
     View single product details and all its size variations
@@ -145,6 +158,7 @@ def get_form_first_error(form, formset=None):
     return 'Please check the highlighted fields and correct the errors below.'
 
 
+@manager_or_admin_required
 def product_create(request):
     """
     Create a new Product with optional size variants
@@ -185,6 +199,7 @@ def product_create(request):
     return render(request, 'products/product_form.html', context)
 
 
+@manager_or_admin_required
 def product_update(request, pk):
     """
     Update a Product and its size variants
@@ -223,6 +238,7 @@ def product_update(request, pk):
     return render(request, 'products/product_form.html', context)
 
 
+@manager_or_admin_required
 def product_delete(request, pk):
     """
     Delete a Product
@@ -242,6 +258,7 @@ def product_delete(request, pk):
 
 # ================= CATEGORY CRUD VIEWS =================
 
+@manager_or_admin_required
 def category_list(request):
     """
     List all categories with product counts and search
@@ -262,6 +279,7 @@ def category_list(request):
     return render(request, 'products/category_list.html', context)
 
 
+@manager_or_admin_required
 def category_create(request):
     """
     Create a new category with interactive emoji picker
@@ -285,6 +303,7 @@ def category_create(request):
     return render(request, 'products/category_form.html', context)
 
 
+@manager_or_admin_required
 def category_update(request, pk):
     """
     Update an existing category and its emoji
@@ -310,6 +329,7 @@ def category_update(request, pk):
     return render(request, 'products/category_form.html', context)
 
 
+@manager_or_admin_required
 def category_delete(request, pk):
     """
     Delete a category
@@ -343,6 +363,7 @@ def extract_selected_ids(request):
     return list(set(parsed_ids))
 
 
+@manager_or_admin_required
 def product_bulk_delete(request):
     """
     Bulk delete selected products
@@ -359,6 +380,7 @@ def product_bulk_delete(request):
     return redirect('products:product_list')
 
 
+@manager_or_admin_required
 def category_bulk_delete(request):
     """
     Bulk delete selected categories
@@ -375,6 +397,7 @@ def category_bulk_delete(request):
     return redirect('products:category_list')
 
 
+@manager_or_admin_required
 def product_bulk_import(request):
     """
     Import products & categories from Google Sheets Link or CSV File Upload.
