@@ -56,6 +56,18 @@
                         </a>
                     </li>
 
+                    <li class="menu-item {% if request.resolver_match.app_name == 'sales' and request.resolver_match.url_name == 'shift_summary' %}active{% endif %}">
+                        <a href="{% url 'sales:shift_summary' %}">
+                            <span class="menu-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                            </span>
+                            <span>Daily Shift</span>
+                        </a>
+                    </li>
+
                     {% if request.user.is_authenticated and request.user.role != 'cashier' %}
                     <li class="menu-item {% if request.resolver_match.app_name == 'sales' and request.resolver_match.url_name == 'ledger' %}active{% endif %}">
                         <a href="{% url 'sales:ledger' %}">
@@ -72,18 +84,6 @@
                         </a>
                     </li>
                     {% endif %}
-
-                    <li class="menu-item {% if request.resolver_match.app_name == 'sales' and request.resolver_match.url_name == 'shift_summary' %}active{% endif %}">
-                        <a href="{% url 'sales:shift_summary' %}">
-                            <span class="menu-icon">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 16 14"></polyline>
-                                </svg>
-                            </span>
-                            <span>Daily Shift</span>
-                        </a>
-                    </li>
 
                     {% if request.user.is_authenticated and request.user.role != 'cashier' %}
                     <li class="menu-item {% if request.resolver_match.url_name == 'product_list' or request.resolver_match.url_name == 'product_detail' or request.resolver_match.url_name == 'product_create' or request.resolver_match.url_name == 'product_update' or request.resolver_match.url_name == 'product_bulk_import' %}active{% endif %}">
@@ -217,7 +217,7 @@
             <!-- Top Search & Utility Header -->
             <header class="top-header">
                 <div class="header-left">
-                    <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Navigation Sidebar">
+                    <button type="button" class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar(event)" title="Toggle Navigation Sidebar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="3" y1="12" x2="21" y2="12"></line>
                             <line x1="3" y1="6" x2="21" y2="6"></line>

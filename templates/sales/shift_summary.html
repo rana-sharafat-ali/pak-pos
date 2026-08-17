@@ -2,10 +2,163 @@
 
 {% block title %}Daily Shift & Cash Drawer | {{ APP_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+    }
+
+    /* Reset Body & Containers */
+    html, body {
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        display: block !important;
+        overflow: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 10pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Hide Screen UI Elements */
+    aside,
+    nav,
+    header,
+    .app-sidebar,
+    .top-header,
+    .sidebar-toggle-btn,
+    .user-settings-menu,
+    #flash-messages-container,
+    button,
+    .btn,
+    .action-btn-icon,
+    #toggle-more-orders-btn,
+    .copy-invoice-chip,
+    .progress-chart-card,
+    .no-print {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .app-container,
+    .app-main,
+    .view-body {
+        display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        position: static !important;
+        overflow: visible !important;
+    }
+
+    /* Print Header */
+    .print-only-header {
+        display: block !important;
+        visibility: visible !important;
+        border-bottom: 2px solid #0f172a;
+        padding-bottom: 8px;
+        margin-bottom: 15px;
+    }
+
+    /* Show All Order Rows in Print */
+    .extra-order-row {
+        display: table-row !important;
+    }
+
+    /* KPI Grid in Print */
+    .shift-kpi-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 8px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .shift-kpi-card {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        padding: 6px 10px !important;
+        background: #f8fafc !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+    }
+
+    .shift-kpi-amount {
+        font-size: 1.1rem !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+    }
+
+    .table-card {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        border-radius: 6px !important;
+        margin-bottom: 15px !important;
+        page-break-inside: auto !important;
+    }
+
+    .retailos-table, .saas-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8.5pt !important;
+    }
+
+    .retailos-table th, .saas-table th {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border-bottom: 1.5px solid #94a3b8 !important;
+        padding: 5px 6px !important;
+        font-weight: 800 !important;
+    }
+
+    .retailos-table td, .saas-table td {
+        padding: 5px 6px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+    }
+
+    .retailos-table tbody tr {
+        page-break-inside: avoid !important;
+    }
+
+    .shift-breakdown-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        margin-bottom: 15px !important;
+    }
+}
+
+.print-only-header {
+    display: none;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 
+<!-- PRINT ONLY FORMAL HEADER -->
+<div class="print-only-header">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+            <h1 style="font-size: 1.6rem; font-weight: 900; margin: 0 0 4px 0; color: #000;">{{ APP_NAME }}</h1>
+            <div style="font-size: 0.95rem; font-weight: 700; color: #334155;">Daily Shift & Cash Drawer Reconciliation Report</div>
+        </div>
+        <div style="text-align: right; font-size: 0.85rem;">
+            <div><strong>Date:</strong> {{ today|date:"d M Y" }}</div>
+            <div><strong>Shift Hours:</strong> {{ shift_timing_label }}</div>
+            <div><strong>Printed By:</strong> {{ request.user.get_full_name|default:request.user.username }} ({{ request.user.get_role_display }})</div>
+        </div>
+    </div>
+</div>
+
 <!-- TOP HEADER -->
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+<div class="no-print" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
     <div>
         <h1 style="font-size: 1.45rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
             <span>Daily Shift & Cash Drawer Reconciliation</span>
@@ -17,14 +170,14 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 0.75rem;">
-        <button onclick="window.print()" class="btn btn-outline">
+        <a href="{% url 'sales:shift_print' %}" target="_blank" class="btn btn-outline">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                 <rect x="6" y="14" width="12" height="8"></rect>
             </svg>
             Print Shift Report
-        </button>
+        </a>
         <a href="{% url 'sales:pos' %}" class="btn btn-primary">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="4" width="20" height="16" rx="2"></rect>
@@ -35,52 +188,145 @@
     </div>
 </div>
 
-<!-- KPI SUMMARY -->
-<div class="kpi-row" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
-    <div class="kpi-card">
-        <span class="kpi-title">Gross Sales (Today)</span>
-        <div class="kpi-value" style="color: var(--primary);">PKR {{ total_sales|floatformat:0 }}</div>
-        <span class="kpi-subtitle">{{ total_orders }} Completed Orders</span>
+<!-- COMPACT KPI SUMMARY CARDS -->
+<div class="shift-kpi-grid">
+    <!-- Card 1: Gross Sales -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #2563eb;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label">Gross Sales</span>
+            <span class="shift-kpi-icon">💰</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #1d4ed8;">
+            PKR {{ total_sales|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span class="pill-variant" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
+                {{ total_orders }} Orders
+            </span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Net Profit (Today)</span>
-        <div class="kpi-value" style="color: #16a34a;">PKR {{ today_profit|floatformat:0 }}</div>
-        <span class="kpi-subtitle">{{ today_margin }}% Avg Margin</span>
+    <!-- Card 2: Cash in Drawer -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #16a34a;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label">Cash in Drawer</span>
+            <span class="shift-kpi-icon">💵</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #15803d;">
+            PKR {{ cash_sales|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span>Physical cash</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Cash in Drawer</span>
-        <div class="kpi-value" style="color: var(--secondary);">PKR {{ cash_sales|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Physical cash received</span>
+    <!-- Card 3: Cards & Online -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #7c3aed;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label">Cards & Digital</span>
+            <span class="shift-kpi-icon">💳</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #6d28d9;">
+            PKR {{ card_sales|add:online_sales|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span>Card: {{ card_sales|floatformat:0 }} • Online: {{ online_sales|floatformat:0 }}</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Cards & Digital</span>
-        <div class="kpi-value" style="color: #2563eb;">PKR {{ card_sales|add:wallet_sales|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Card: {{ card_sales|floatformat:0 }} • Wallet: {{ wallet_sales|floatformat:0 }}</span>
+    <!-- Card 4: Net Revenue -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #0f172a;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label">Net Revenue</span>
+            <span class="shift-kpi-icon">📊</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: var(--secondary);">
+            PKR {{ net_sales|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            {% if refunds_today > 0 %}
+            <span style="color: #dc2626;">Refunds: -PKR {{ refunds_today|floatformat:0 }}</span>
+            {% else %}
+            <span>Zero refunds today</span>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Net Revenue</span>
-        <div class="kpi-value" style="color: var(--secondary);">PKR {{ net_sales|floatformat:0 }}</div>
-        <span class="kpi-subtitle">After refunds (-PKR {{ refunds_today|floatformat:0 }})</span>
+    <!-- Card 5 (Manager & Admin ONLY): Net Profit -->
+    {% if request.user.role != 'cashier' %}
+    <div class="shift-kpi-card" style="border-left: 3px solid #059669; background: #f0fdf4;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label" style="color: #047857;">Net Profit (Today)</span>
+            <span class="shift-kpi-icon">📈</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #047857;">
+            PKR {{ today_profit|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span class="badge-status-completed" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
+                {{ today_margin }}% Margin
+            </span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- TODAY'S HOURLY SALES VELOCITY & PROGRESS GRAPH -->
+<div class="progress-chart-card">
+    <div class="progress-chart-header">
+        <div>
+            <h2 style="font-size: 0.95rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                <span>📈</span>
+                <span>Today's Sales Timeline & Progress</span>
+            </h2>
+            <p style="font-size: 0.76rem; color: var(--muted-text); margin: 0.15rem 0 0 0;">
+                Hourly revenue velocity throughout the shift ({{ shift_timing_label }})
+            </p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            {% if peak_hour_rev > 0 %}
+            <span class="pill-variant" style="font-size: 0.72rem; padding: 0.2rem 0.6rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 700;">
+                ⭐ Peak Hour: {{ peak_hour_label }} (PKR {{ peak_hour_rev|floatformat:0 }})
+            </span>
+            {% endif %}
+            <span class="pill-variant" style="font-size: 0.72rem; padding: 0.2rem 0.6rem; background: #f8fafc; color: var(--secondary); border: 1px solid var(--border-card); font-weight: 700;">
+                Avg Order: PKR {{ avg_order_value|floatformat:0 }}
+            </span>
+        </div>
+    </div>
+
+    <!-- CSS Bars Visualization -->
+    <div class="chart-bars-container">
+        {% for h in hourly_sales %}
+        <div class="chart-bar-col">
+            <div class="chart-tooltip">
+                <strong>{{ h.label }}</strong><br>
+                PKR {{ h.revenue|floatformat:0 }} ({{ h.orders }} orders)
+            </div>
+            <div class="chart-bar" style="height: {{ h.pct|default:4 }}%; {% if h.revenue > 0 %}opacity: 1;{% else %}opacity: 0.25; min-height: 4px;{% endif %}"></div>
+            <span class="chart-hour-label">{{ h.label }}</span>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
 <!-- CASHIER PERFORMANCE & BREAKDOWN -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+<div class="shift-breakdown-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
     
     <!-- Operator Performance -->
-    <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-xs);">
-        <h2 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin-top: 0; margin-bottom: 1rem;">
-            Cashier Sales Breakdown
-        </h2>
+    <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: var(--shadow-xs);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+            <h2 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Cashier Performance Breakdown
+            </h2>
+            <span class="pill-variant" style="font-size: 0.72rem;">{{ cashier_breakdown|length }} Operators</span>
+        </div>
         <table class="retailos-table">
             <thead>
                 <tr>
-                    <th>Cashier</th>
-                    <th>Orders</th>
+                    <th>Cashier Name</th>
+                    <th style="text-align: center;">Orders</th>
                     <th style="text-align: right;">Total Sold</th>
                 </tr>
             </thead>
@@ -88,9 +334,10 @@
                 {% for op in cashier_breakdown %}
                 <tr>
                     <td>
-                        <strong style="color: var(--secondary);">@{{ op.cashier__username }}</strong>
+                        <strong style="color: var(--secondary); font-size: 0.88rem;">{{ op.full_name }}</strong>
+                        <div style="font-size: 0.72rem; color: var(--muted-text);">@{{ op.username }}</div>
                     </td>
-                    <td>{{ op.orders_count }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ op.orders_count }}</td>
                     <td style="text-align: right; font-weight: 800; color: var(--primary);">
                         PKR {{ op.total_revenue|floatformat:2 }}
                     </td>
@@ -106,37 +353,49 @@
         </table>
     </div>
 
-    <!-- Payment Methods Split -->
-    <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-xs);">
-        <h2 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin-top: 0; margin-bottom: 1rem;">
-            Payment Methods Breakdown
-        </h2>
+    <!-- Payment Methods Split & Visual Share -->
+    <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: var(--shadow-xs);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <h2 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Payment Methods Distribution
+            </h2>
+            <span class="pill-variant" style="font-size: 0.72rem;">PKR {{ total_sales|floatformat:0 }}</span>
+        </div>
+
+        <!-- Segmented Visual Bar -->
+        <div style="display: flex; height: 10px; border-radius: 6px; overflow: hidden; background: #e2e8f0; margin-bottom: 0.85rem;">
+            {% if cash_pct > 0 %}<div style="width: {{ cash_pct }}%; background: #16a34a;" title="Cash: {{ cash_pct }}%"></div>{% endif %}
+            {% if card_pct > 0 %}<div style="width: {{ card_pct }}%; background: #2563eb;" title="Card: {{ card_pct }}%"></div>{% endif %}
+            {% if online_pct > 0 %}<div style="width: {{ online_pct }}%; background: #9333ea;" title="Online: {{ online_pct }}%"></div>{% endif %}
+        </div>
+
         <table class="retailos-table">
             <thead>
                 <tr>
                     <th>Method</th>
+                    <th style="text-align: center;">Share</th>
                     <th style="text-align: right;">Amount Collected</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td><strong>💵 Cash</strong></td>
+                    <td style="text-align: center;"><span class="badge-status-completed" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ cash_pct }}%</span></td>
                     <td style="text-align: right; font-weight: 800; color: #16a34a;">PKR {{ cash_sales|floatformat:2 }}</td>
                 </tr>
                 <tr>
-                    <td><strong>💳 Debit / Credit Card</strong></td>
+                    <td><strong>💳 Card</strong></td>
+                    <td style="text-align: center;"><span class="badge-pay-card" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ card_pct }}%</span></td>
                     <td style="text-align: right; font-weight: 800; color: #2563eb;">PKR {{ card_sales|floatformat:2 }}</td>
                 </tr>
                 <tr>
-                    <td><strong>📱 EasyPaisa / JazzCash / Raast</strong></td>
-                    <td style="text-align: right; font-weight: 800; color: #9333ea;">PKR {{ wallet_sales|floatformat:2 }}</td>
-                </tr>
-                <tr>
-                    <td><strong>📒 Credit / Khata</strong></td>
-                    <td style="text-align: right; font-weight: 800; color: #ea580c;">PKR {{ credit_sales|floatformat:2 }}</td>
+                    <td><strong>🌐 Online</strong></td>
+                    <td style="text-align: center;"><span class="badge-pay-online" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">{{ online_pct }}%</span></td>
+                    <td style="text-align: right; font-weight: 800; color: #9333ea;">PKR {{ online_sales|floatformat:2 }}</td>
                 </tr>
                 <tr style="background: #f8fafc; font-weight: 900;">
                     <td><strong>Gross Total</strong></td>
+                    <td style="text-align: center;">100%</td>
                     <td style="text-align: right; font-weight: 900; color: var(--secondary);">PKR {{ total_sales|floatformat:2 }}</td>
                 </tr>
             </tbody>
@@ -146,57 +405,188 @@
 </div>
 
 <!-- RECENT TRANSACTIONS TODAY -->
-<div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-xs);">
-    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between;">
-        <h2 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
-            Recent Orders Today
-        </h2>
+<div class="table-card">
+    <div style="padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between; background: #ffffff;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h2 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                Recent Orders Today
+            </h2>
+            <span id="orders-summary-badge" class="pill-variant" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                {% if recent_sales|length > 20 %}Showing 20 of {{ recent_sales|length }} Transactions{% else %}{{ recent_sales|length }} Transactions{% endif %}
+            </span>
+        </div>
+        {% if request.user.role != 'cashier' %}
         <a href="{% url 'sales:ledger' %}" style="font-size: 0.82rem; font-weight: 700; color: var(--primary); text-decoration: none;">
-            View All &rarr;
+            View All Ledgers &rarr;
         </a>
+        {% endif %}
     </div>
-    <div style="overflow-x: auto;">
-        <table class="retailos-table">
+    
+    <div style="overflow-x: auto; width: 100%;">
+        <table class="retailos-table" style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
-                    <th>Invoice #</th>
+                    <th style="padding-left: 1.25rem;">Invoice #</th>
                     <th>Time</th>
                     <th>Customer</th>
                     <th>Cashier</th>
                     <th>Payment</th>
-                    <th>Total</th>
+                    <th>Total Amount</th>
                     <th>Status</th>
+                    <th style="text-align: right; padding-right: 1.25rem;">Receipt</th>
                 </tr>
             </thead>
             <tbody>
                 {% for sale in recent_sales %}
-                <tr>
-                    <td><strong style="color: var(--secondary);">{{ sale.invoice_number }}</strong></td>
-                    <td>{{ sale.created_at|date:"h:i A" }}</td>
-                    <td>{{ sale.customer.name|default:"Walk-in Customer" }}</td>
-                    <td>{{ sale.cashier.username }}</td>
-                    <td><span class="pill-status status-in-stock" style="font-size: 0.72rem;">{{ sale.get_payment_method_display }}</span></td>
-                    <td><strong>PKR {{ sale.total_amount|floatformat:2 }}</strong></td>
+                <tr {% if forloop.counter > 20 %}class="extra-order-row" style="display: none;"{% endif %}>
+                    <!-- Invoice with 1-click Copy -->
+                    <td style="padding-left: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                            <span style="font-family: var(--font-mono); font-weight: 700; color: var(--secondary); font-size: 0.84rem; user-select: all;">
+                                {{ sale.invoice_number }}
+                            </span>
+                            <button 
+                                type="button" 
+                                class="copy-invoice-chip" 
+                                onclick="copyToClipboard('{{ sale.invoice_number }}', this)" 
+                                title="Copy Invoice Number"
+                                style="border: none; cursor: pointer; padding: 0.15rem 0.35rem;"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+
+                    <!-- Time -->
+                    <td style="font-size: 0.82rem; color: var(--muted-text);">
+                        {{ sale.created_at|date:"h:i A" }}
+                    </td>
+
+                    <!-- Customer -->
+                    <td>
+                        {% if sale.customer %}
+                            <strong style="color: var(--secondary); font-size: 0.84rem;">{{ sale.customer.name }}</strong>
+                            {% if sale.customer.phone %}
+                                <div style="font-size: 0.72rem; color: var(--muted-text);">{{ sale.customer.phone }}</div>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--muted-text); font-size: 0.82rem;">Walk-in Customer</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Cashier -->
+                    <td>
+                        <span style="font-weight: 600; color: var(--secondary-text); font-size: 0.82rem;">
+                            {{ sale.cashier.username|default:"System" }}
+                        </span>
+                    </td>
+
+                    <!-- Payment Method Badge -->
+                    <td>
+                        {% if sale.payment_method == 'cash' %}
+                            <span class="badge-pay-cash">💵 Cash</span>
+                        {% elif sale.payment_method == 'card' %}
+                            <span class="badge-pay-card">💳 Card</span>
+                        {% elif sale.payment_method == 'online' %}
+                            <span class="badge-pay-online">📱 Online</span>
+                        {% else %}
+                            <span class="pill-status">{{ sale.get_payment_method_display }}</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Total Amount -->
+                    <td>
+                        <strong style="color: var(--secondary); font-size: 0.9rem;">
+                            PKR {{ sale.total_amount|floatformat:2 }}
+                        </strong>
+                    </td>
+
+                    <!-- Status Badge -->
                     <td>
                         {% if sale.status == 'completed' %}
-                        <span class="pill-status status-in-stock">Completed</span>
+                            <span class="badge-status-completed">✓ Completed</span>
                         {% elif sale.status == 'refunded' %}
-                        <span class="pill-status status-out-of-stock">Refunded</span>
+                            <span class="badge-status-refunded">↺ Refunded</span>
                         {% else %}
-                        <span class="pill-status">{{ sale.get_status_display }}</span>
+                            <span class="pill-status">{{ sale.get_status_display }}</span>
                         {% endif %}
+                    </td>
+
+                    <!-- Actions / Print -->
+                    <td style="text-align: right; padding-right: 1.25rem;">
+                        <a href="{% url 'sales:receipt' sale.id %}" target="_blank" class="action-btn-icon" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.76rem; font-weight: 700; padding: 0.25rem 0.55rem; background: #f8fafc; border: 1px solid var(--border-card); border-radius: 6px; color: var(--secondary);" title="Print Thermal Slip">
+                            🧾 Print
+                        </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--muted-text); padding: 2rem;">
-                        No transactions completed yet today.
+                    <td colspan="8" style="text-align: center; color: var(--muted-text); padding: 2.5rem 1rem;">
+                        No transactions recorded yet today.
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    <!-- EXPAND / SHOW ALL TODAY'S ORDERS FOOTER -->
+    {% if recent_sales|length > 20 %}
+    <div style="padding: 0.75rem 1.25rem; background: #f8fafc; border-top: 1px solid var(--border-card); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <span id="orders-count-text" style="font-size: 0.82rem; color: var(--muted-text); font-weight: 600;">
+            Showing latest 20 of {{ recent_sales|length }} orders today
+        </span>
+        <button 
+            type="button" 
+            id="toggle-more-orders-btn" 
+            onclick="toggleAllTodayOrders()" 
+            class="btn btn-outline btn-sm" 
+            style="font-weight: 700; background: #ffffff; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.85rem;"
+        >
+            <span>Show All {{ recent_sales|length }} Orders Today</span>
+            <svg id="toggle-more-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAllTodayOrders() {
+    const extraRows = document.querySelectorAll('.extra-order-row');
+    const btn = document.getElementById('toggle-more-orders-btn');
+    const btnText = btn ? btn.querySelector('span') : null;
+    const chevron = document.getElementById('toggle-more-chevron');
+    const countText = document.getElementById('orders-count-text');
+    const badge = document.getElementById('orders-summary-badge');
+    const totalCount = '{{ recent_sales|length }}';
+
+    if (extraRows.length === 0) return;
+
+    const isCurrentlyHidden = (extraRows[0].style.display === 'none');
+
+    extraRows.forEach(row => {
+        row.style.display = isCurrentlyHidden ? '' : 'none';
+    });
+
+    if (isCurrentlyHidden) {
+        if (btnText) btnText.textContent = 'Show Less (Latest 20 Only)';
+        if (chevron) chevron.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+        if (countText) countText.textContent = `Showing all ${totalCount} orders today`;
+        if (badge) badge.textContent = `All ${totalCount} Transactions`;
+    } else {
+        if (btnText) btnText.textContent = `Show All ${totalCount} Orders Today`;
+        if (chevron) chevron.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+        if (countText) countText.textContent = `Showing latest 20 of ${totalCount} orders today`;
+        if (badge) badge.textContent = `Showing 20 of ${totalCount} Transactions`;
+    }
+}
+</script>
 {% endblock %}

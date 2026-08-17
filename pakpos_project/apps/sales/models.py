@@ -53,9 +53,8 @@ class Sale(models.Model):
 
     class PaymentMethod(models.TextChoices):
         CASH = 'cash', 'Cash'
-        CARD = 'card', 'Debit / Credit Card'
-        WALLET = 'wallet', 'EasyPaisa / JazzCash / Raast'
-        CREDIT = 'credit', 'Khata / Credit'
+        CARD = 'card', 'Card'
+        ONLINE = 'online', 'Online'
 
     class DiscountType(models.TextChoices):
         NONE = 'none', 'None'

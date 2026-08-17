@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Shift Report - {{ today|date:"d M Y" }} | {{ APP_NAME }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+        }
+
+        *, *:before, *:after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #ffffff;
+            color: #0f172a;
+            line-height: 1.35;
+            font-size: 10pt;
+            padding: 10px;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .no-print {
+            margin-bottom: 12px;
+            padding: 8px 14px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-print {
+            background: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 7px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-close {
+            background: #ffffff;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                padding: 0 !important;
+            }
+            .page-break-inside-avoid {
+                page-break-inside: avoid !important;
+            }
+        }
+
+        /* HEADER */
+        .report-header {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .company-name {
+            font-size: 18pt;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        .report-title {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 1px;
+        }
+
+        .meta-table {
+            text-align: right;
+            font-size: 8.5pt;
+            color: #334155;
+            line-height: 1.4;
+        }
+
+        /* KPI SUMMARY */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .kpi-box {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc !important;
+            border-radius: 6px;
+            padding: 6px 8px;
+        }
+
+        .kpi-label {
+            font-size: 7.5pt;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .kpi-val {
+            font-size: 12pt;
+            font-weight: 800;
+            color: #0f172a;
+            margin-top: 2px;
+        }
+
+        .kpi-sub {
+            font-size: 7pt;
+            color: #64748b;
+            margin-top: 1px;
+            font-weight: 600;
+        }
+
+        /* SECTION TITLES */
+        .section-title {
+            font-size: 9.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #0f172a;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* GRAPHS & CHARTS */
+        .chart-section {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 10px;
+            background: #ffffff;
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+
+        .hourly-bars-print {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 75px;
+            padding-top: 15px;
+            border-bottom: 1px dashed #cbd5e1;
+            margin-top: 4px;
+        }
+
+        .bar-col-print {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .bar-pill-print {
+            width: 100%;
+            max-width: 26px;
+            min-height: 3px;
+            background: #2563eb !important;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .bar-rev-tag {
+            font-size: 6pt;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+
+        .bar-label-print {
+            font-size: 6.5pt;
+            font-weight: 700;
+            color: #64748b;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+
+        /* MULTI-SEGMENT PROGRESS GRAPH */
+        .progress-multi-bar {
+            display: flex;
+            height: 14px;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #e2e8f0;
+            margin: 6px 0 8px 0;
+        }
+
+        .prog-seg-cash {
+            background: #16a34a !important;
+        }
+
+        .prog-seg-card {
+            background: #2563eb !important;
+        }
+
+        .prog-seg-online {
+            background: #9333ea !important;
+        }
+
+        /* TABLES */
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+
+        th {
+            background: #f1f5f9 !important;
+            color: #0f172a;
+            font-weight: 800;
+            text-align: left;
+            padding: 4px 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 7.5pt;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 4px 6px;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        tr:nth-child(even) td {
+            background: #fafafa !important;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .font-mono {
+            font-family: monospace;
+            font-size: 7.5pt;
+        }
+
+        /* FOOTER */
+        .report-footer {
+            margin-top: 15px;
+            border-top: 1px dashed #cbd5e1;
+            padding-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 7.5pt;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- On-screen Toolbar -->
+    <div class="no-print">
+        <div>
+            <strong>Shift Report Preview</strong> (Ready to Print / Save as PDF)
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="window.print()" class="btn-print">🖨️ Print / Save PDF</button>
+            <button onclick="window.close()" class="btn-close">Close</button>
+        </div>
+    </div>
+
+    <!-- REPORT HEADER -->
+    <div class="report-header">
+        <div>
+            <div class="company-name">{{ APP_NAME }}</div>
+            <div class="report-title">Daily Shift & Cash Drawer Reconciliation</div>
+        </div>
+        <div class="meta-table">
+            <div><strong>Date:</strong> {{ today|date:"d M Y" }}</div>
+            <div><strong>Shift Hours:</strong> {{ shift_timing_label }}</div>
+            <div><strong>Generated:</strong> {{ printed_at|date:"d M Y, h:i A" }}</div>
+            <div><strong>Operator:</strong> {{ request.user.get_full_name|default:request.user.username }} ({{ request.user.get_role_display }})</div>
+        </div>
+    </div>
+
+    <!-- FINANCIAL SUMMARY CARDS -->
+    <div class="kpi-grid">
+        <div class="kpi-box" style="border-left: 3px solid #2563eb;">
+            <div class="kpi-label">Gross Sales</div>
+            <div class="kpi-val" style="color: #1d4ed8;">PKR {{ total_sales|floatformat:0 }}</div>
+            <div class="kpi-sub">{{ total_orders }} Orders Completed</div>
+        </div>
+
+        <div class="kpi-box" style="border-left: 3px solid #16a34a;">
+            <div class="kpi-label">Cash in Drawer</div>
+            <div class="kpi-val" style="color: #15803d;">PKR {{ cash_sales|floatformat:0 }}</div>
+            <div class="kpi-sub">Physical Cash Collected</div>
+        </div>
+
+        <div class="kpi-box" style="border-left: 3px solid #7c3aed;">
+            <div class="kpi-label">Cards & Digital</div>
+            <div class="kpi-val" style="color: #6d28d9;">PKR {{ card_sales|add:online_sales|floatformat:0 }}</div>
+            <div class="kpi-sub">Card: {{ card_sales|floatformat:0 }} • Online: {{ online_sales|floatformat:0 }}</div>
+        </div>
+
+        <div class="kpi-box" style="border-left: 3px solid #0f172a;">
+            <div class="kpi-label">Net Sales</div>
+            <div class="kpi-val">PKR {{ net_sales|floatformat:0 }}</div>
+            <div class="kpi-sub">{% if refunds_today > 0 %}Refunds: -PKR {{ refunds_today|floatformat:0 }}{% else %}Zero Returns{% endif %}</div>
+        </div>
+    </div>
+
+    <!-- GRAPH 1: HOURLY SALES VELOCITY GRAPH -->
+    <div class="chart-section">
+        <div class="section-title">
+            <span>📈 Hourly Sales Velocity ({{ shift_timing_label }})</span>
+            {% if peak_hour_rev > 0 %}
+            <span style="font-size: 7.5pt; font-weight: 700; color: #1d4ed8;">
+                ⭐ Peak Hour: {{ peak_hour_label }} (PKR {{ peak_hour_rev|floatformat:0 }})
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="hourly-bars-print">
+            {% for h in hourly_sales %}
+            <div class="bar-col-print">
+                {% if h.revenue > 0 %}
+                <span class="bar-rev-tag">{{ h.revenue|floatformat:0 }}</span>
+                {% endif %}
+                <div class="bar-pill-print" style="height: {{ h.pct|default:4 }}%; {% if h.revenue > 0 %}opacity: 1;{% else %}opacity: 0.2; min-height: 3px;{% endif %}"></div>
+                <span class="bar-label-print">{{ h.label }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- GRAPH 2 & 3: PAYMENT METHOD DISTRIBUTION & ORDER TYPE SPLIT -->
+    <div class="two-col-grid">
+        <!-- Payment Methods Split & Visual Bar -->
+        <div class="chart-section" style="margin-bottom: 0;">
+            <div class="section-title">
+                <span>💳 Payment Methods Share</span>
+                <span style="font-size: 7.5pt; color: #64748b;">Total: PKR {{ total_sales|floatformat:0 }}</span>
+            </div>
+
+            <!-- Segmented Progress Bar -->
+            <div class="progress-multi-bar">
+                {% if cash_pct > 0 %}<div class="prog-seg-cash" style="width: {{ cash_pct }}%;" title="Cash: {{ cash_pct }}%"></div>{% endif %}
+                {% if card_pct > 0 %}<div class="prog-seg-card" style="width: {{ card_pct }}%;" title="Card: {{ card_pct }}%"></div>{% endif %}
+                {% if online_pct > 0 %}<div class="prog-seg-online" style="width: {{ online_pct }}%;" title="Online: {{ online_pct }}%"></div>{% endif %}
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th class="text-center">Share</th>
+                        <th class="text-right">Amount (PKR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>💵 Cash</strong></td>
+                        <td class="text-center"><strong>{{ cash_pct }}%</strong></td>
+                        <td class="text-right">PKR {{ cash_sales|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>💳 Card</strong></td>
+                        <td class="text-center"><strong>{{ card_pct }}%</strong></td>
+                        <td class="text-right">PKR {{ card_sales|floatformat:2 }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>🌐 Online</strong></td>
+                        <td class="text-center"><strong>{{ online_pct }}%</strong></td>
+                        <td class="text-right">PKR {{ online_sales|floatformat:2 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Cashier Breakdown with Full Name -->
+        <div class="chart-section" style="margin-bottom: 0;">
+            <div class="section-title">
+                <span>👤 Cashier Breakdown</span>
+                <span style="font-size: 7.5pt; color: #64748b;">{{ cashier_breakdown|length }} Operators</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cashier Name</th>
+                        <th class="text-center">Orders</th>
+                        <th class="text-right">Total Sold</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in cashier_breakdown %}
+                    <tr>
+                        <td>
+                            <strong>{{ op.full_name }}</strong>
+                            <div style="font-size: 6.5pt; color: #64748b;">@{{ op.username }}</div>
+                        </td>
+                        <td class="text-center"><strong>{{ op.orders_count }}</strong></td>
+                        <td class="text-right"><strong>PKR {{ op.total_revenue|floatformat:2 }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center" style="color: #64748b; padding: 10px;">No cashier sales recorded today.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- COMPLETE TODAY TRANSACTIONS TABLE -->
+    <div style="margin-top: 10px;" class="page-break-inside-avoid">
+        <div class="section-title">
+            <span>📋 Today's Itemized Transactions ({{ recent_sales|length }} Total)</span>
+            <span>Avg Order: PKR {{ avg_order_value|floatformat:0 }}</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Time</th>
+                    <th>Customer</th>
+                    <th>Cashier</th>
+                    <th>Payment</th>
+                    <th>Type</th>
+                    <th class="text-center">Items</th>
+                    <th class="text-right">Total (PKR)</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sale in recent_sales %}
+                <tr>
+                    <td class="font-mono"><strong>{{ sale.invoice_number }}</strong></td>
+                    <td>{{ sale.created_at|date:"h:i A" }}</td>
+                    <td>{{ sale.customer.name|default:"Walk-in Customer" }}</td>
+                    <td>
+                        {% if sale.cashier.first_name or sale.cashier.last_name %}
+                        {{ sale.cashier.first_name }} {{ sale.cashier.last_name }}
+                        {% else %}
+                        @{{ sale.cashier.username|default:"System" }}
+                        {% endif %}
+                    </td>
+                    <td>{{ sale.get_payment_method_display }}</td>
+                    <td>{{ sale.get_order_type_display }}</td>
+                    <td class="text-center">{{ sale.items.count }}</td>
+                    <td class="text-right"><strong>{{ sale.total_amount|floatformat:2 }}</strong></td>
+                    <td class="text-center">
+                        {% if sale.status == 'completed' %}
+                        <span style="color: #16a34a; font-weight: 700;">Completed</span>
+                        {% else %}
+                        <span style="color: #dc2626; font-weight: 700;">Refunded</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center" style="color: #64748b; padding: 12px;">
+                        No orders recorded today.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- REPORT FOOTER -->
+    <div class="report-footer">
+        <div>{{ APP_NAME }} — Point of Sale & Management Portal</div>
+        <div>Reconciliation Report Generated Automatically</div>
+    </div>
+
+    <script>
+        // Trigger print dialog automatically when loaded
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                window.print();
+            }, 300);
+        });
+    </script>
+</body>
+</html>

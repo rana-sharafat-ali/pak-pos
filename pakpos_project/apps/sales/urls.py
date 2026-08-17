@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Daily Shift & Cash Reconciliation
     path('shift/', views.daily_shift_summary_view, name='shift_summary'),
+    path('shift/print/', views.shift_print_view, name='shift_print'),
     
     # JSON APIs
     path('api/checkout/', views.api_create_sale, name='api_checkout'),

@@ -615,10 +615,16 @@
             <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
                 Online • Terminal 01
             </span>
+            {% if pos_mode == 'restaurant' or pos_mode == 'cafe' or pos_mode == 'food' or pos_mode == 'fast_food' %}
+            <span class="pill-variant" style="background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; font-weight: 800; font-size: 0.74rem;">
+                🍽️ Restaurant Mode
+            </span>
+            {% endif %}
         </h1>
     </div>
 
     <div style="display: flex; align-items: center; gap: 0.65rem;">
+        {% if request.user.is_authenticated and request.user.role != 'cashier' %}
         <a href="{% url 'sales:ledger' %}" class="btn btn-outline btn-sm" style="background: #ffffff;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -629,6 +635,7 @@
             </svg>
             Sales History
         </a>
+        {% endif %}
         <a href="{% url 'sales:shift_summary' %}" class="btn btn-outline btn-sm" style="background: #ffffff;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -707,6 +714,42 @@
             </button>
         </div>
 
+        {% if pos_mode == 'restaurant' or pos_mode == 'cafe' or pos_mode == 'food' or pos_mode == 'fast_food' %}
+        <!-- RESTAURANT ORDER TYPE & TABLE SELECTOR BAR -->
+        <div class="pos-restaurant-toolbar">
+            <div style="display: flex; gap: 0.35rem; flex: 1;">
+                <button type="button" class="pos-type-pill active" id="btn-type-dine_in" onclick="selectOrderType('dine_in')">
+                    🍽️ Dine-In
+                </button>
+                <button type="button" class="pos-type-pill" id="btn-type-takeaway" onclick="selectOrderType('takeaway')">
+                    🥡 Takeaway
+                </button>
+                <button type="button" class="pos-type-pill" id="btn-type-delivery" onclick="selectOrderType('delivery')">
+                    🛵 Delivery
+                </button>
+            </div>
+            
+            <!-- Table Dropdown for Dine-In -->
+            <div id="restaurant-table-box" style="display: flex; align-items: center; gap: 0.3rem;">
+                <select id="restaurant-table-select" class="field-input" style="padding: 0.32rem 0.6rem; font-size: 0.8rem; font-weight: 700; border-radius: 6px;" onchange="updateTableSelection(this.value)">
+                    <option value="">Select Table...</option>
+                    <option value="Table 1">Table 1</option>
+                    <option value="Table 2">Table 2</option>
+                    <option value="Table 3">Table 3</option>
+                    <option value="Table 4">Table 4</option>
+                    <option value="Table 5">Table 5</option>
+                    <option value="Table 6">Table 6</option>
+                    <option value="Table 7">Table 7</option>
+                    <option value="Table 8">Table 8</option>
+                    <option value="VIP Lounge 1">VIP Lounge 1</option>
+                    <option value="VIP Lounge 2">VIP Lounge 2</option>
+                    <option value="Outdoor 1">Outdoor 1</option>
+                    <option value="Outdoor 2">Outdoor 2</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Cart Items List Table -->
         <div class="pos-cart-items-wrapper" id="pos-cart-items-container">
             <!-- Rendered dynamically by pos_controller.js -->
@@ -719,10 +762,15 @@
                 <span id="pos-calc-subtotal" style="font-weight: 700; color: var(--secondary);">PKR 0.00</span>
             </div>
 
-            <div class="pos-calc-row" style="cursor: pointer;" onclick="openDiscountModal()">
-                <span style="display: flex; align-items: center; gap: 0.3rem;">
+            <div class="pos-calc-row">
+                <span style="display: flex; align-items: center; gap: 0.4rem;">
                     <span>Discount</span>
-                    <span id="pos-discount-badge" style="font-size: 0.72rem; color: #2563eb; font-weight: 700;">(Add)</span>
+                    {% if default_discount_percent > 0 %}
+                    <button type="button" id="btn-quick-apply-discount" onclick="toggleQuickDiscount()" class="pos-quick-discount-btn" title="Quick Apply {{ default_discount_percent|floatformat:0 }}% Discount from .env">
+                        Apply {{ default_discount_percent|floatformat:0 }}%
+                    </button>
+                    {% endif %}
+                    <span id="pos-discount-badge" onclick="openDiscountModal()" style="font-size: 0.74rem; color: #2563eb; font-weight: 700; cursor: pointer; text-decoration: underline;" title="Edit Percentage or Flat Discount">(Edit)</span>
                 </span>
                 <span id="pos-calc-discount" style="color: #dc2626; font-weight: 700;">- PKR 0.00</span>
             </div>
@@ -732,8 +780,11 @@
                 <span id="pos-calc-tax">PKR 0.00</span>
             </div>
 
-            <div class="pos-calc-row">
-                <span>Service Charges ({{ default_service_charge_percent }}%)</span>
+            <div class="pos-calc-row" id="pos-charges-row" style="cursor: pointer;" onclick="openChargesModal()">
+                <span style="display: flex; align-items: center; gap: 0.35rem;">
+                    <span id="pos-charges-label">Service Charges ({{ default_service_charge_percent }}%)</span>
+                    <span id="pos-charges-edit-badge" style="font-size: 0.72rem; color: #2563eb; font-weight: 700; text-decoration: underline;">(Edit)</span>
+                </span>
                 <span id="pos-calc-service">PKR 0.00</span>
             </div>
 
@@ -743,7 +794,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="pos-action-grid">
+            <div class="pos-action-grid" style="{% if pos_mode == 'restaurant' or pos_mode == 'cafe' or pos_mode == 'food' or pos_mode == 'fast_food' %}grid-template-columns: 1fr 1fr 2fr;{% endif %}">
                 <button type="button" class="btn-pos-clear" onclick="clearCurrentCart()" title="Clear Active Order">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
@@ -751,6 +802,11 @@
                     </svg>
                     Clear
                 </button>
+                {% if pos_mode == 'restaurant' or pos_mode == 'cafe' or pos_mode == 'food' or pos_mode == 'fast_food' %}
+                <button type="button" class="btn-kot" id="btn-print-kot" onclick="printKitchenOrderTicket()" title="Print Kitchen Order Ticket (KOT)">
+                    🍳 KOT
+                </button>
+                {% endif %}
                 <button type="button" class="btn-pos-pay" id="btn-open-payment" onclick="openPaymentModal()" disabled>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="4" width="20" height="16" rx="2"></rect>
@@ -839,30 +895,101 @@
 
 <!-- ================= 3. DISCOUNT MODAL ================= -->
 <div id="modal-discount" class="pos-modal-overlay">
-    <div class="pos-modal-card" style="max-width: 400px;">
+    <div class="pos-modal-card" style="max-width: 440px;">
         <div class="pos-modal-header">
-            <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
-                Apply Discount
-            </h3>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Edit / Custom Discount
+                </h3>
+                <span style="font-size: 0.76rem; color: var(--muted-text);">Choose Percentage (%) or Flat Amount (PKR)</span>
+            </div>
             <button type="button" class="action-btn-icon" onclick="closeDiscountModal()">✕</button>
         </div>
         <div class="pos-modal-body">
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                <button type="button" class="btn btn-sm" id="btn-disc-fixed" onclick="setDiscountType('fixed')" style="flex: 1; background: var(--primary); color: #ffffff;">
-                    Fixed (PKR)
-                </button>
-                <button type="button" class="btn btn-outline btn-sm" id="btn-disc-percent" onclick="setDiscountType('percentage')" style="flex: 1;">
+            <!-- Mode Switcher (Percentage % vs Flat PKR) -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.15rem;">
+                <button type="button" class="btn btn-sm" id="btn-disc-percent" onclick="setDiscountType('percentage')" style="flex: 1; font-weight: 800; padding: 0.6rem;">
                     Percentage (%)
                 </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-disc-fixed" onclick="setDiscountType('fixed')" style="flex: 1; font-weight: 800; padding: 0.6rem;">
+                    Flat (PKR)
+                </button>
             </div>
+
+            <!-- Quick Preset Chips -->
+            <div style="margin-bottom: 1rem;">
+                <label class="field-label" style="font-size: 0.76rem; margin-bottom: 0.35rem;">Quick Presets</label>
+                <!-- Percentage Presets -->
+                <div id="disc-presets-percent" style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(5)">5%</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(10)">10%</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(15)">15%</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(20)">20%</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(25)">25%</button>
+                </div>
+                <!-- Flat PKR Presets -->
+                <div id="disc-presets-fixed" style="display: none; gap: 0.4rem; flex-wrap: wrap;">
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(50)">PKR 50</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(100)">PKR 100</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(200)">PKR 200</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(500)">PKR 500</button>
+                    <button type="button" class="pos-preset-chip" onclick="setDiscountPreset(1000)">PKR 1000</button>
+                </div>
+            </div>
+
             <div class="field-group">
-                <label class="field-label" id="discount-input-label">Discount Amount (PKR)</label>
-                <input type="number" id="discount-value-input" class="field-input" placeholder="0" min="0" step="any">
+                <label class="field-label" id="discount-input-label">Discount Percentage (%)</label>
+                <input 
+                    type="number" 
+                    id="discount-value-input" 
+                    class="field-input" 
+                    placeholder="e.g. 10" 
+                    min="0" 
+                    step="any"
+                    style="font-size: 1.1rem; font-weight: 800; color: var(--secondary);"
+                >
             </div>
         </div>
         <div class="pos-modal-footer">
             <button type="button" class="btn btn-outline btn-sm" onclick="clearDiscount()">Remove Discount</button>
-            <button type="button" class="btn btn-primary btn-sm" onclick="applyDiscount()">Apply Discount</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="applyDiscount()" style="padding: 0.5rem 1.25rem; font-weight: 800;">
+                ✓ Apply Discount
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= 3B. SERVICE / DELIVERY CHARGES EDIT MODAL ================= -->
+<div id="modal-charges" class="pos-modal-overlay">
+    <div class="pos-modal-card" style="max-width: 380px;">
+        <div class="pos-modal-header">
+            <div>
+                <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;" id="modal-charges-title">
+                    Edit Charges
+                </h3>
+                <span style="font-size: 0.76rem; color: var(--muted-text);" id="modal-charges-sub">Adjust service / delivery fee</span>
+            </div>
+            <button type="button" class="action-btn-icon" onclick="closeChargesModal()">✕</button>
+        </div>
+        <div class="pos-modal-body">
+            <div class="field-group">
+                <label class="field-label" id="modal-charges-input-label">Amount (PKR)</label>
+                <input 
+                    type="number" 
+                    id="charges-value-input" 
+                    class="field-input" 
+                    placeholder="0.00" 
+                    min="0" 
+                    step="any"
+                    style="font-size: 1.15rem; font-weight: 800; color: var(--secondary);"
+                >
+            </div>
+        </div>
+        <div class="pos-modal-footer">
+            <button type="button" class="btn btn-outline btn-sm" onclick="resetChargesToDefault()">Reset Default</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="saveChargesModalSelection()" style="padding: 0.5rem 1.25rem; font-weight: 800;">
+                ✓ Apply
+            </button>
         </div>
     </div>
 </div>
@@ -885,18 +1012,15 @@
         <div class="pos-modal-body">
             <!-- Payment Method Selector -->
             <label class="field-label" style="margin-bottom: 0.5rem;">Select Payment Method</label>
-            <div class="payment-method-grid">
+            <div class="payment-method-grid" style="grid-template-columns: repeat(3, 1fr);">
                 <div class="payment-method-pill active" id="pay-method-cash" onclick="selectPaymentMethod('cash')">
                     <span>💵 Cash</span>
                 </div>
                 <div class="payment-method-pill" id="pay-method-card" onclick="selectPaymentMethod('card')">
-                    <span>💳 Debit / Credit Card</span>
+                    <span>💳 Card</span>
                 </div>
-                <div class="payment-method-pill" id="pay-method-wallet" onclick="selectPaymentMethod('wallet')">
-                    <span>📱 EasyPaisa / JazzCash</span>
-                </div>
-                <div class="payment-method-pill" id="pay-method-credit" onclick="selectPaymentMethod('credit')">
-                    <span>📒 Khata / Credit</span>
+                <div class="payment-method-pill" id="pay-method-online" onclick="selectPaymentMethod('online')">
+                    <span>🌐 Online</span>
                 </div>
             </div>
 
@@ -947,7 +1071,8 @@
 </div>
 
 <!-- HIDDEN PRINT IFRAME FOR INSTANT THERMAL PRINTING -->
-<iframe id="receipt-print-frame" style="display: none;"></iframe>
+<iframe id="receipt-print-frame" style="position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none;"></iframe>
+
 
 {% endblock %}
 
@@ -955,10 +1080,13 @@
 <!-- Initial Data Injection for POS JS Engine -->
 <script>
     window.POS_CATALOG = {{ products_json|safe }};
+    window.DEFAULT_DISCOUNT_PERCENT = {{ default_discount_percent|default:0 }};
     window.DEFAULT_TAX_RATE = {{ default_tax_percent }};
     window.DEFAULT_SERVICE_CHARGE_RATE = {{ default_service_charge_percent }};
+    window.DEFAULT_DELIVERY_CHARGES = {{ default_delivery_charges|default:150 }};
     window.POS_CHECKOUT_API_URL = "{% url 'sales:api_checkout' %}";
     window.CUSTOMER_SEARCH_API_URL = "{% url 'sales:api_customer_search' %}";
+    window.POS_MODE = "{{ pos_mode }}";
 </script>
-<script src="{% static 'js/pos_controller.js' %}"></script>
+<script src="{% static 'js/pos_controller.js' %}?v={% now 'U' %}"></script>
 {% endblock %}

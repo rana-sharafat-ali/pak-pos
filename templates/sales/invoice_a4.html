@@ -241,7 +241,7 @@
                 {% endif %}
                 {% if sale.service_charge_amount > 0 %}
                 <tr>
-                    <td style="color: #64748b;">Service Charges ({{ sale.service_charge_rate }}%):</td>
+                    <td style="color: #64748b;">{% if sale.order_type == 'delivery' %}Delivery Charges:{% elif sale.service_charge_rate > 0 %}Service Charges ({{ sale.service_charge_rate }}%):{% else %}Service Charges:{% endif %}</td>
                     <td style="text-align: right; font-weight: 700;">+ PKR {{ sale.service_charge_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}

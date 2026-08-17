@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env', override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -40,9 +40,13 @@ APP_FOOTER_TEXT = os.getenv('APP_FOOTER_TEXT', 'PakPOS — Modern Point of Sale 
 PRODUCTS_PER_PAGE = int(os.getenv('PRODUCTS_PER_PAGE', '50'))
 
 # Point of Sale (POS) Settings
+POS_DEFAULT_DISCOUNT_PERCENT = float(os.getenv('POS_DEFAULT_DISCOUNT_PERCENT', '0'))
 POS_DEFAULT_TAX_PERCENT = float(os.getenv('POS_DEFAULT_TAX_PERCENT', '0'))
 POS_DEFAULT_SERVICE_CHARGE_PERCENT = float(os.getenv('POS_DEFAULT_SERVICE_CHARGE_PERCENT', '0'))
+POS_DEFAULT_DELIVERY_CHARGES = float(os.getenv('POS_DEFAULT_DELIVERY_CHARGES', '150'))
 POS_OPERATION_MODE = os.getenv('POS_OPERATION_MODE', 'retail')
+POS_SHIFT_START_HOUR = int(os.getenv('POS_SHIFT_START_HOUR', '9'))
+POS_SHIFT_END_HOUR = int(os.getenv('POS_SHIFT_END_HOUR', '23'))
 
 
 # Application definition
@@ -146,7 +150,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.getenv('TIME_ZONE', 'Asia/Karachi')
 
 USE_I18N = True
 

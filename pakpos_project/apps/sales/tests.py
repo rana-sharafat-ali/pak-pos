@@ -270,10 +270,20 @@ class SalesAndPOSTests(TestCase):
         shift_resp = self.client.get(reverse('sales:shift_summary'))
         self.assertEqual(shift_resp.status_code, 200)
         self.assertContains(shift_resp, 'Daily Shift & Cash Drawer Reconciliation')
-        self.assertContains(shift_resp, 'Net Profit (Today)')
+        self.assertNotContains(shift_resp, 'Net Profit (Today)')  # Profit hidden from cashier
 
-        # 3. Manager CAN view Sales Ledger & Profit
+        # 3. Manager CAN view Sales Ledger & Shift Summary & Profit
         self.client.force_login(self.manager)
+        shift_mgr_resp = self.client.get(reverse('sales:shift_summary'))
+        self.assertEqual(shift_mgr_resp.status_code, 200)
+        self.assertContains(shift_mgr_resp, 'Net Profit (Today)')
+
+        # 4. Shift Print standalone printable page test
+        shift_print_resp = self.client.get(reverse('sales:shift_print'))
+        self.assertEqual(shift_print_resp.status_code, 200)
+        self.assertContains(shift_print_resp, 'Daily Shift & Cash Drawer Reconciliation')
+        self.assertContains(shift_print_resp, 'Gross Sales')
+
         ledger_resp = self.client.get(reverse('sales:ledger'))
         self.assertEqual(ledger_resp.status_code, 200)
         self.assertContains(ledger_resp, 'Sales & Order Invoices')

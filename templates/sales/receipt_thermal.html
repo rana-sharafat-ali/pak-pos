@@ -173,6 +173,16 @@
                 <span>{{ sale.customer.phone }}</span>
             </div>
             {% endif %}
+            <div class="meta-row">
+                <span>Order Type:</span>
+                <strong>{{ sale.get_order_type_display }}</strong>
+            </div>
+            {% if sale.notes %}
+            <div class="meta-row">
+                <span>Notes / Ref:</span>
+                <strong>{{ sale.notes }}</strong>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Line Items -->
@@ -225,7 +235,7 @@
 
             {% if sale.service_charge_amount > 0 %}
             <div class="total-row">
-                <span>Service Charges ({{ sale.service_charge_rate }}%):</span>
+                <span>{% if sale.order_type == 'delivery' %}Delivery Charges:{% elif sale.service_charge_rate > 0 %}Service Charges ({{ sale.service_charge_rate }}%):{% else %}Service Charges:{% endif %}</span>
                 <span>+ PKR {{ sale.service_charge_amount|floatformat:2 }}</span>
             </div>
             {% endif %}

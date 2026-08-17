@@ -1,6 +1,9 @@
 // RetailOS / PakPOS - Main Client Scripts
 
-function toggleSidebar() {
+function toggleSidebar(event) {
+    if (event) {
+        event.stopPropagation();
+    }
     document.body.classList.toggle('sidebar-collapsed');
     const isCollapsed = document.body.classList.contains('sidebar-collapsed');
     localStorage.setItem('retailos_sidebar_collapsed', isCollapsed ? 'true' : 'false');
@@ -13,6 +16,22 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('sidebar-collapsed');
     }
 });
+
+// Auto-close sidebar on outside touch or click
+function closeSidebarIfOutside(e) {
+    const sidebar = document.querySelector('.app-sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    if (sidebar && !document.body.classList.contains('sidebar-collapsed')) {
+        // If target is outside sidebar and not the toggle button
+        if (!sidebar.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+            document.body.classList.add('sidebar-collapsed');
+            localStorage.setItem('retailos_sidebar_collapsed', 'true');
+        }
+    }
+}
+
+document.addEventListener('click', closeSidebarIfOutside);
+document.addEventListener('touchstart', closeSidebarIfOutside, { passive: true });
 
 // ================= GLOBAL DELETE CONFIRMATION MODAL =================
 function openDeleteModal(name, type, deleteUrl, warningText = '') {
@@ -226,3 +245,21 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+
+// ================= GLOBAL CLIPBOARD COPY HELPER =================
+function copyToClipboard(text, btnElement) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        if (btnElement) {
+            const originalHtml = btnElement.innerHTML;
+            btnElement.classList.add('copied');
+            btnElement.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!`;
+            setTimeout(() => {
+                btnElement.innerHTML = originalHtml;
+                btnElement.classList.remove('copied');
+            }, 1600);
+        }
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}

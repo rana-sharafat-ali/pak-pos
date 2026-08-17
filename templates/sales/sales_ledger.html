@@ -141,8 +141,24 @@
                 {% for sale in sales %}
                 <tr>
                     <td>
-                        <strong style="color: var(--secondary); font-size: 0.88rem;">{{ sale.invoice_number }}</strong>
-                        <div style="font-size: 0.75rem; color: var(--muted-text);">{{ sale.total_items_count }} items</div>
+                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                            <span style="font-family: var(--font-mono); font-weight: 700; color: var(--secondary); font-size: 0.86rem; user-select: all;">
+                                {{ sale.invoice_number }}
+                            </span>
+                            <button 
+                                type="button" 
+                                class="copy-invoice-chip" 
+                                onclick="copyToClipboard('{{ sale.invoice_number }}', this)" 
+                                title="Copy Invoice Number"
+                                style="border: none; cursor: pointer; padding: 0.15rem 0.35rem;"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div style="font-size: 0.73rem; color: var(--muted-text); margin-top: 0.15rem;">{{ sale.total_items_count }} items</div>
                     </td>
                     <td style="font-size: 0.82rem; color: var(--secondary);">
                         {{ sale.created_at|date:"d M Y, h:i A" }}
@@ -159,9 +175,15 @@
                         {{ sale.cashier.username|default:"System" }}
                     </td>
                     <td>
-                        <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
-                            {{ sale.get_payment_method_display }}
-                        </span>
+                        {% if sale.payment_method == 'cash' %}
+                            <span class="badge-pay-cash">💵 Cash</span>
+                        {% elif sale.payment_method == 'card' %}
+                            <span class="badge-pay-card">💳 Card</span>
+                        {% elif sale.payment_method == 'online' %}
+                            <span class="badge-pay-online">📱 Online</span>
+                        {% else %}
+                            <span class="pill-status">{{ sale.get_payment_method_display }}</span>
+                        {% endif %}
                     </td>
                     <td>
                         <strong style="color: var(--secondary); font-size: 0.92rem;">PKR {{ sale.total_amount|floatformat:2 }}</strong>

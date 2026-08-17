@@ -12,6 +12,8 @@
     let searchQuery = '';
 
     // Multi-Tab Cart State
+    const isRestaurantMode = (window.POS_MODE === 'restaurant' || window.POS_MODE === 'cafe' || window.POS_MODE === 'food' || window.POS_MODE === 'fast_food');
+
     let tabs = [
         {
             id: 'tab-1',
@@ -20,6 +22,8 @@
             customer: { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' },
             discount: { type: 'none', value: 0 },
             paymentMethod: 'cash',
+            orderType: isRestaurantMode ? 'dine_in' : 'walk_in',
+            tableNumber: '',
             notes: '',
         }
     ];
@@ -389,6 +393,8 @@
             customer: { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' },
             discount: { type: 'none', value: 0 },
             paymentMethod: 'cash',
+            orderType: isRestaurantMode ? 'dine_in' : 'walk_in',
+            tableNumber: '',
             notes: '',
         };
         tabs.push(newTab);
@@ -479,12 +485,37 @@
 
         const netAfterDiscount = Math.max(0, subtotal - discountAmount);
 
-        // Taxes & Service Charges
+        // Taxes & Service / Delivery Charges
         const taxRate = window.DEFAULT_TAX_RATE || 0;
         const taxAmount = taxRate > 0 ? (netAfterDiscount * (taxRate / 100)) : 0;
 
-        const serviceRate = window.DEFAULT_SERVICE_CHARGE_RATE || 0;
-        const serviceAmount = serviceRate > 0 ? (netAfterDiscount * (serviceRate / 100)) : 0;
+        const orderType = currentTab.orderType || (isRestaurantMode ? 'dine_in' : 'walk_in');
+        let serviceRate = 0;
+        let serviceAmount = 0;
+        let chargeLabel = 'Service Charges';
+
+        if (orderType === 'takeaway' || orderType === 'walk_in') {
+            serviceRate = 0;
+            serviceAmount = 0;
+            chargeLabel = 'Service Charges';
+        } else if (orderType === 'delivery') {
+            chargeLabel = 'Delivery Charges';
+            serviceRate = 0;
+            serviceAmount = (currentTab.customCharges !== null && currentTab.customCharges !== undefined) 
+                ? currentTab.customCharges 
+                : (window.DEFAULT_DELIVERY_CHARGES !== undefined ? window.DEFAULT_DELIVERY_CHARGES : 150);
+        } else { // dine_in
+            const isCustom = (currentTab.customCharges !== null && currentTab.customCharges !== undefined);
+            if (isCustom) {
+                chargeLabel = 'Service Charges';
+                serviceRate = 0;
+                serviceAmount = currentTab.customCharges;
+            } else {
+                serviceRate = window.DEFAULT_SERVICE_CHARGE_RATE || 0;
+                chargeLabel = serviceRate > 0 ? `Service Charges (${serviceRate}%)` : 'Service Charges';
+                serviceAmount = serviceRate > 0 ? (netAfterDiscount * (serviceRate / 100)) : 0;
+            }
+        }
 
         const totalAmount = netAfterDiscount + taxAmount + serviceAmount;
 
@@ -496,6 +527,8 @@
             totalAmount,
             taxRate,
             serviceRate,
+            chargeLabel,
+            orderType,
         };
     }
 
@@ -554,15 +587,166 @@
         if (calcTax) calcTax.textContent = `PKR ${totals.taxAmount.toFixed(2)}`;
         if (calcService) calcService.textContent = `PKR ${totals.serviceAmount.toFixed(2)}`;
         if (calcTotal) calcTotal.textContent = `PKR ${totals.totalAmount.toFixed(2)}`;
+        const chargesLabelEl = document.getElementById('pos-charges-label');
+        const chargesRowEl = document.getElementById('pos-charges-row');
+        if (chargesLabelEl) {
+            chargesLabelEl.textContent = totals.chargeLabel;
+        }
 
         if (discountBadge) {
-            discountBadge.textContent = currentTab.discount.type !== 'none' && currentTab.discount.value > 0 ? `(${currentTab.discount.type === 'percentage' ? currentTab.discount.value + '%' : 'PKR ' + currentTab.discount.value})` : '(Add)';
+            discountBadge.textContent = currentTab.discount.type !== 'none' && currentTab.discount.value > 0 ? `(${currentTab.discount.type === 'percentage' ? currentTab.discount.value + '%' : 'PKR ' + currentTab.discount.value})` : '(Edit)';
+        }
+
+        const quickDiscBtn = document.getElementById('btn-quick-apply-discount');
+        const defaultPercent = window.DEFAULT_DISCOUNT_PERCENT || 0;
+        if (quickDiscBtn && defaultPercent > 0) {
+            if (currentTab.discount.type === 'percentage' && currentTab.discount.value === defaultPercent) {
+                quickDiscBtn.classList.add('active');
+                quickDiscBtn.textContent = `${defaultPercent}% Applied ✓`;
+            } else {
+                quickDiscBtn.classList.remove('active');
+                quickDiscBtn.textContent = `Apply ${defaultPercent}%`;
+            }
         }
 
         if (btnOpenPayment) {
             btnOpenPayment.disabled = currentTab.items.length === 0;
         }
+
+        // Sync Restaurant Mode Controls
+        const orderType = currentTab.orderType || (isRestaurantMode ? 'dine_in' : 'walk_in');
+        document.querySelectorAll('.pos-type-pill').forEach(el => el.classList.remove('active'));
+        const activePill = document.getElementById(`btn-type-${orderType}`);
+        if (activePill) activePill.classList.add('active');
+
+        const tableBox = document.getElementById('restaurant-table-box');
+        if (tableBox) {
+            tableBox.style.display = (orderType === 'dine_in') ? 'flex' : 'none';
+        }
+        const tableSelect = document.getElementById('restaurant-table-select');
+        if (tableSelect) {
+            tableSelect.value = currentTab.tableNumber || '';
+        }
     }
+
+    // ================= RESTAURANT MODE HANDLERS =================
+    window.selectOrderType = function (type) {
+        const currentTab = getActiveTab();
+        currentTab.orderType = type;
+
+        // Reset custom charges on type change so type defaults take effect
+        currentTab.customCharges = null;
+
+        document.querySelectorAll('.pos-type-pill').forEach(el => el.classList.remove('active'));
+        const activePill = document.getElementById(`btn-type-${type}`);
+        if (activePill) activePill.classList.add('active');
+
+        const tableBox = document.getElementById('restaurant-table-box');
+        if (tableBox) {
+            tableBox.style.display = (type === 'dine_in') ? 'flex' : 'none';
+        }
+
+        renderActiveCart();
+    };
+
+    window.updateTableSelection = function (table) {
+        const currentTab = getActiveTab();
+        currentTab.tableNumber = table;
+    };
+
+    window.printKitchenOrderTicket = function () {
+        const currentTab = getActiveTab();
+        if (currentTab.items.length === 0) {
+            showScanFeedbackToast('❌ Cart is empty. Add items for KOT.');
+            return;
+        }
+
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = now.toLocaleDateString();
+
+        let itemsRows = '';
+        currentTab.items.forEach((item) => {
+            const variantText = item.variantName ? `<span style="font-weight: bold;">[${item.variantName}]</span>` : '';
+            itemsRows += `
+                <tr>
+                    <td style="font-size: 16px; font-weight: 900; padding: 6px 0; vertical-align: top;">${item.quantity}x</td>
+                    <td style="font-size: 15px; font-weight: 800; padding: 6px 0;">
+                        ${item.name} ${variantText}
+                    </td>
+                </tr>
+            `;
+        });
+
+        const orderTypeLabel = (currentTab.orderType || 'dine_in').toUpperCase().replace('_', '-');
+        const tableLabel = currentTab.tableNumber ? `TABLE: ${currentTab.tableNumber}` : `TYPE: ${orderTypeLabel}`;
+
+        const kotHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    @page { margin: 0; size: auto; }
+                    body { font-family: monospace; padding: 10px; width: 75mm; margin: 0; color: #000; font-size: 13px; }
+                    .kot-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
+                    .kot-title { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+                    .kot-table-badge { font-size: 16px; font-weight: 900; background: #000; color: #fff; padding: 4px 8px; margin: 6px 0; display: inline-block; }
+                    .kot-meta { font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 6px; }
+                    table { width: 100%; border-collapse: collapse; border-bottom: 2px dashed #000; margin-bottom: 8px; }
+                    .kot-footer { text-align: center; font-size: 11px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="kot-header">
+                    <div class="kot-title">🍳 KITCHEN TICKET (KOT)</div>
+                    <div class="kot-table-badge">${tableLabel}</div>
+                    <div style="font-size: 12px; font-weight: bold;">Order: ${currentTab.label} • ${orderTypeLabel}</div>
+                </div>
+                <div class="kot-meta">
+                    <div>Time: ${timeStr} • Date: ${dateStr}</div>
+                    <div>Customer: ${currentTab.customer.name || 'Walk-in'}</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr style="border-bottom: 1px solid #000; text-align: left;">
+                            <th style="width: 25%;">Qty</th>
+                            <th style="width: 75%;">Item Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRows}
+                    </tbody>
+                </table>
+                <div class="kot-footer">
+                    *** Send immediately to Kitchen ***
+                </div>
+            </body>
+            </html>
+        `;
+
+        let printFrame = document.getElementById('receipt-print-frame');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'receipt-print-frame';
+            printFrame.style.cssText = 'position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none;';
+            document.body.appendChild(printFrame);
+        }
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(kotHtml);
+        doc.close();
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {}
+        }, 200);
+
+        playBeepSound();
+        showScanFeedbackToast('🍳 KOT sent to Kitchen Printer!');
+    };
 
     // ================= 7. VARIANT SELECTOR MODAL =================
     window.openVariantModal = function (product) {
@@ -704,15 +888,38 @@
         closeCustomerModal();
     };
 
-    // ================= 9. DISCOUNT MODAL =================
+    // ================= 9. DISCOUNT MODAL & QUICK TOGGLE =================
+    window.toggleQuickDiscount = function () {
+        const currentTab = getActiveTab();
+        const defaultPercent = window.DEFAULT_DISCOUNT_PERCENT || 0;
+        if (defaultPercent <= 0) return;
+
+        if (currentTab.discount.type === 'percentage' && currentTab.discount.value === defaultPercent) {
+            // Remove discount
+            currentTab.discount = { type: 'none', value: 0 };
+            showScanFeedbackToast('Discount removed');
+        } else {
+            // Apply default percent
+            currentTab.discount = { type: 'percentage', value: defaultPercent };
+            playBeepSound();
+            showScanFeedbackToast(`✓ Applied ${defaultPercent}% Discount`);
+        }
+        renderActiveCart();
+    };
+
     window.openDiscountModal = function () {
         const modal = document.getElementById('modal-discount');
         const currentTab = getActiveTab();
         if (!modal) return;
 
-        setDiscountType(currentTab.discount.type === 'percentage' ? 'percentage' : 'fixed');
+        const currentType = currentTab.discount.type === 'percentage' ? 'percentage' : (currentTab.discount.type === 'fixed' ? 'fixed' : 'percentage');
+        setDiscountType(currentType);
+
         const valInput = document.getElementById('discount-value-input');
-        if (valInput) valInput.value = currentTab.discount.value || '';
+        if (valInput) {
+            valInput.value = currentTab.discount.value > 0 ? currentTab.discount.value : '';
+            setTimeout(() => valInput.focus(), 50);
+        }
 
         modal.style.display = 'flex';
     };
@@ -728,19 +935,49 @@
         const btnFixed = document.getElementById('btn-disc-fixed');
         const btnPercent = document.getElementById('btn-disc-percent');
         const label = document.getElementById('discount-input-label');
+        const presetsPercent = document.getElementById('disc-presets-percent');
+        const presetsFixed = document.getElementById('disc-presets-fixed');
 
         if (type === 'fixed') {
-            btnFixed.style.background = 'var(--primary)';
-            btnFixed.style.color = '#fff';
-            btnPercent.style.background = '#fff';
-            btnPercent.style.color = 'var(--secondary)';
-            if (label) label.textContent = 'Discount Amount (PKR)';
+            if (btnFixed) {
+                btnFixed.classList.remove('btn-outline');
+                btnFixed.classList.add('btn-primary');
+                btnFixed.style.background = 'var(--primary)';
+                btnFixed.style.color = '#fff';
+            }
+            if (btnPercent) {
+                btnPercent.classList.remove('btn-primary');
+                btnPercent.classList.add('btn-outline');
+                btnPercent.style.background = '#fff';
+                btnPercent.style.color = 'var(--secondary)';
+            }
+            if (label) label.textContent = 'Flat Discount Amount (PKR)';
+            if (presetsPercent) presetsPercent.style.display = 'none';
+            if (presetsFixed) presetsFixed.style.display = 'flex';
         } else {
-            btnPercent.style.background = 'var(--primary)';
-            btnPercent.style.color = '#fff';
-            btnFixed.style.background = '#fff';
-            btnFixed.style.color = 'var(--secondary)';
+            if (btnPercent) {
+                btnPercent.classList.remove('btn-outline');
+                btnPercent.classList.add('btn-primary');
+                btnPercent.style.background = 'var(--primary)';
+                btnPercent.style.color = '#fff';
+            }
+            if (btnFixed) {
+                btnFixed.classList.remove('btn-primary');
+                btnFixed.classList.add('btn-outline');
+                btnFixed.style.background = '#fff';
+                btnFixed.style.color = 'var(--secondary)';
+            }
             if (label) label.textContent = 'Discount Percentage (%)';
+            if (presetsPercent) presetsPercent.style.display = 'flex';
+            if (presetsFixed) presetsFixed.style.display = 'none';
+        }
+    };
+
+    window.setDiscountPreset = function (val) {
+        const valInput = document.getElementById('discount-value-input');
+        if (valInput) {
+            valInput.value = val;
+            applyDiscount();
         }
     };
 
@@ -749,10 +986,15 @@
         const valInput = document.getElementById('discount-value-input');
         const val = parseFloat(valInput ? valInput.value : 0) || 0;
 
-        currentTab.discount = {
-            type: discountModalType,
-            value: val,
-        };
+        if (val > 0) {
+            currentTab.discount = {
+                type: discountModalType,
+                value: val,
+            };
+            showScanFeedbackToast(`✓ Applied ${discountModalType === 'percentage' ? val + '%' : 'PKR ' + val} Discount`);
+        } else {
+            currentTab.discount = { type: 'none', value: 0 };
+        }
 
         renderActiveCart();
         closeDiscountModal();
@@ -761,8 +1003,66 @@
     window.clearDiscount = function () {
         const currentTab = getActiveTab();
         currentTab.discount = { type: 'none', value: 0 };
+        showScanFeedbackToast('Discount removed');
         renderActiveCart();
         closeDiscountModal();
+    };
+
+    // ================= 9B. SERVICE & DELIVERY CHARGES MODAL =================
+    window.openChargesModal = function () {
+        const modal = document.getElementById('modal-charges');
+        const currentTab = getActiveTab();
+        const totals = calculateCartTotals();
+        if (!modal) return;
+
+        const titleEl = document.getElementById('modal-charges-title');
+        const inputLabel = document.getElementById('modal-charges-input-label');
+        const valInput = document.getElementById('charges-value-input');
+
+        if (currentTab.orderType === 'delivery') {
+            if (titleEl) titleEl.textContent = 'Edit Delivery Charges';
+            if (inputLabel) inputLabel.textContent = 'Delivery Fee (PKR)';
+        } else if (currentTab.orderType === 'takeaway' || currentTab.orderType === 'walk_in') {
+            if (titleEl) titleEl.textContent = 'Add Service Fee (Optional)';
+            if (inputLabel) inputLabel.textContent = 'Service Fee (PKR)';
+        } else {
+            if (titleEl) titleEl.textContent = 'Edit Dine-In Service Fee';
+            if (inputLabel) inputLabel.textContent = 'Service Fee (PKR)';
+        }
+
+        if (valInput) {
+            valInput.value = totals.serviceAmount.toFixed(2);
+            setTimeout(() => valInput.focus(), 50);
+        }
+
+        modal.style.display = 'flex';
+    };
+
+    window.closeChargesModal = function () {
+        const modal = document.getElementById('modal-charges');
+        if (modal) modal.style.display = 'none';
+        if (searchInput) searchInput.focus();
+    };
+
+    window.saveChargesModalSelection = function () {
+        const currentTab = getActiveTab();
+        const valInput = document.getElementById('charges-value-input');
+        const val = parseFloat(valInput ? valInput.value : 0) || 0;
+
+        currentTab.customCharges = Math.max(0, val);
+        showScanFeedbackToast(`✓ Charges updated to PKR ${currentTab.customCharges.toFixed(2)}`);
+
+        renderActiveCart();
+        closeChargesModal();
+    };
+
+    window.resetChargesToDefault = function () {
+        const currentTab = getActiveTab();
+        currentTab.customCharges = null;
+        showScanFeedbackToast('Charges reset to default');
+
+        renderActiveCart();
+        closeChargesModal();
     };
 
     // ================= 10. PAYMENT & CASH TENDER ASSISTANT =================
@@ -870,6 +1170,11 @@
 
         const tendered = parseFloat(cashInput ? cashInput.value : totals.totalAmount) || totals.totalAmount;
 
+        let finalNotes = notesInput ? notesInput.value.trim() : '';
+        if (currentTab.tableNumber) {
+            finalNotes = finalNotes ? `${finalNotes} (Table: ${currentTab.tableNumber})` : `Table: ${currentTab.tableNumber}`;
+        }
+
         // Build Payload
         const payload = {
             customer_name: currentTab.customer.name,
@@ -877,12 +1182,14 @@
             customer_email: currentTab.customer.email,
             customer_address: currentTab.customer.address,
             payment_method: currentTab.paymentMethod,
+            order_type: currentTab.orderType || 'walk_in',
             amount_tendered: tendered,
             discount_type: currentTab.discount.type,
             discount_value: currentTab.discount.value,
             tax_rate: totals.taxRate,
             service_charge_rate: totals.serviceRate,
-            notes: notesInput ? notesInput.value.trim() : '',
+            service_charge_amount: totals.serviceAmount,
+            notes: finalNotes,
             items: currentTab.items.map(i => ({
                 product_id: i.productId,
                 variant_id: i.variantId,
@@ -929,8 +1236,21 @@
                     closePaymentModal();
 
                     // Print thermal receipt automatically
-                    const printFrame = document.getElementById('receipt-print-frame');
-                    if (printFrame && data.receipt_url) {
+                    let printFrame = document.getElementById('receipt-print-frame');
+                    if (!printFrame) {
+                        printFrame = document.createElement('iframe');
+                        printFrame.id = 'receipt-print-frame';
+                        printFrame.style.cssText = 'position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none;';
+                        document.body.appendChild(printFrame);
+                    }
+
+                    if (data.receipt_url) {
+                        printFrame.onload = function () {
+                            try {
+                                printFrame.contentWindow.focus();
+                                printFrame.contentWindow.print();
+                            } catch (e) {}
+                        };
                         printFrame.src = data.receipt_url;
                     }
 
@@ -942,9 +1262,10 @@
                     renderTabs();
                     renderActiveCart();
 
-                    alert(`✓ Sale Completed Successfully!\nInvoice: ${data.invoice_number}\nTotal: PKR ${data.total_amount.toFixed(2)}\nChange: PKR ${data.change_returned.toFixed(2)}`);
+                    // Silent Non-Blocking Toast Notification (No alert popup!)
+                    showScanFeedbackToast(`✓ Order Completed: ${data.invoice_number} (Change: PKR ${data.change_returned.toFixed(2)})`);
                 } else {
-                    alert(`Checkout Error: ${data.error || 'Failed to process sale'}`);
+                    showScanFeedbackToast(`❌ Error: ${data.error || 'Failed to process sale'}`);
                 }
             })
             .catch(err => {
@@ -952,7 +1273,7 @@
                     submitBtn.disabled = false;
                     submitBtn.textContent = '✓ Complete & Print Receipt';
                 }
-                alert(`Network error while completing checkout: ${err}`);
+                showScanFeedbackToast(`❌ Network error while completing checkout: ${err}`);
             });
     };
 
