@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block title %}Dining Tables | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">Dining Tables</h1>
+        <span class="pill-variant" style="font-size: 0.82rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 9999px;">
+            {{ total_count }} tables • {{ total_capacity }} seats
+        </span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.85rem;">
+        <!-- View Toggle (Grid / List) -->
+        <div class="view-toggle-group">
+            <button type="button" class="view-toggle-btn active" id="btn-table-view-list" onclick="setTableView('list')" title="List / Table View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                List
+            </button>
+            <button type="button" class="view-toggle-btn" id="btn-table-view-grid" onclick="setTableView('grid')" title="Grid Cards View">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Grid
+            </button>
+        </div>
+
+        <a href="{% url 'sales:table_create' %}" class="btn-add-product">
+            <span>+</span> Add Table
+        </a>
+    </div>
+</div>
+
+<!-- ACTION & SEARCH TOOLBAR -->
+<div class="action-toolbar" style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+    <div class="toolbar-left">
+        <form method="GET" action="{% url 'sales:table_list' %}" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <input 
+                type="text" 
+                name="q" 
+                value="{{ query }}" 
+                placeholder="Search table name, section..." 
+                class="form-input" 
+                style="padding: 0.45rem 0.85rem; font-size: 0.85rem; width: 250px;"
+            >
+
+            <!-- Section Filter -->
+            <select name="section" class="form-select" style="padding: 0.45rem 0.75rem; font-size: 0.85rem; width: 170px;" onchange="this.form.submit()">
+                <option value="">All Sections</option>
+                {% for sec in all_sections %}
+                <option value="{{ sec }}" {% if selected_section == sec %}selected{% endif %}>{{ sec }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn btn-outline btn-sm">Filter</button>
+            {% if query or selected_section %}
+                <a href="{% url 'sales:table_list' %}" class="action-btn-icon" style="text-decoration: none; padding: 0.4rem 0.65rem;" title="Reset Filter">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- ================= 1. LIST / TABLE VIEW ================= -->
+<div id="table-list-view" class="table-card">
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th style="width: 40px; text-align: center;">
+                    <input type="checkbox" id="select-all-checkbox" onclick="toggleSelectAll(this)" title="Select All">
+                </th>
+                <th style="width: 8%;">Icon</th>
+                <th style="width: 25%;">Table Name</th>
+                <th style="width: 25%;">Floor / Section</th>
+                <th style="width: 15%;">Capacity</th>
+                <th style="width: 12%;">Status</th>
+                <th style="width: 15%; text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for table in tables %}
+            <tr>
+                <!-- Selection Checkbox -->
+                <td style="text-align: center;">
+                    <input type="checkbox" class="item-select-checkbox" value="{{ table.id }}" onchange="handleItemSelect(event)">
+                </td>
+
+                <!-- Icon -->
+                <td>
+                    <div class="product-thumb-box" style="font-size: 1.3rem; width: 40px; height: 40px;">
+                        🍽️
+                    </div>
+                </td>
+
+                <!-- Table Name -->
+                <td>
+                    <a href="{% url 'sales:table_update' table.id %}" style="font-weight: 700; color: var(--secondary); font-size: 0.95rem;">
+                        {{ table.name }}
+                    </a>
+                </td>
+
+                <!-- Floor / Section -->
+                <td>
+                    <span class="pill-variant" style="background: #f8fafc; border-color: #cbd5e1; color: var(--secondary); font-weight: 700; font-size: 0.78rem;">
+                        📍 {{ table.floor_section }}
+                    </span>
+                </td>
+
+                <!-- Capacity -->
+                <td>
+                    <strong style="color: var(--secondary); font-size: 0.85rem;">
+                        👥 {{ table.capacity }} Seats
+                    </strong>
+                </td>
+
+                <!-- Active Status -->
+                <td>
+                    {% if table.is_active %}
+                        <span class="pill-status status-in-stock" style="font-size: 0.75rem; padding: 0.2rem 0.55rem;">
+                            Active
+                        </span>
+                    {% else %}
+                        <span class="pill-status" style="font-size: 0.75rem; padding: 0.2rem 0.55rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;">
+                            Inactive
+                        </span>
+                    {% endif %}
+                </td>
+
+                <!-- Actions -->
+                <td style="text-align: right;">
+                    <div class="table-actions" style="justify-content: flex-end;">
+                        <a href="{% url 'sales:table_update' table.id %}" class="action-btn-icon" title="Edit Table">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </a>
+                        <button 
+                            type="button" 
+                            class="action-btn-icon" 
+                            style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
+                            onclick="openDeleteModal('{{ table.name|escapejs }}', 'Dining Table', '{% url 'sales:table_delete' table.id %}', 'Table {{ table.name }} in {{ table.floor_section }} will be permanently removed.')"
+                            title="Delete Table">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 3.5rem 1rem; color: var(--muted-text);">
+                    <strong style="color: var(--secondary);">No dining tables found</strong>
+                    <p style="font-size: 0.85rem; margin-top: 0.25rem;">Click "+ Add Table" to set up restaurant tables.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ================= 2. GRID CARDS VIEW ================= -->
+<div id="table-grid-view" style="display: none;">
+    <!-- Grid View Select All Header Bar -->
+    <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid var(--border-card); border-radius: 10px; padding: 0.75rem 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-xs);">
+        <label style="display: flex; align-items: center; gap: 0.65rem; font-weight: 700; font-size: 0.88rem; color: var(--secondary); cursor: pointer; user-select: none;">
+            <input type="checkbox" class="select-all-master-checkbox" onclick="toggleSelectAll(this)" style="cursor: pointer;">
+            <span>Select All Tables</span>
+        </label>
+        <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: 500;">
+            Multi-Select Grid Mode
+        </span>
+    </div>
+
+    <div class="product-grid-layout">
+        {% for table in tables %}
+        <div class="product-saas-card">
+            <div>
+                <div class="saas-card-top">
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <input type="checkbox" class="item-select-checkbox" value="{{ table.id }}" onchange="handleItemSelect(event)" style="cursor: pointer;">
+                        <div class="product-thumb-box" style="font-size: 1.3rem; width: 40px; height: 40px;">
+                            🍽️
+                        </div>
+                    </div>
+                    <div>
+                        {% if table.is_active %}
+                            <span class="pill-status status-in-stock" style="font-size: 0.72rem; padding: 0.15rem 0.55rem;">Active</span>
+                        {% else %}
+                            <span class="pill-status" style="font-size: 0.72rem; padding: 0.15rem 0.55rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <a href="{% url 'sales:table_update' table.id %}" class="saas-card-title">
+                    {{ table.name }}
+                </a>
+                
+                <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                    <span class="pill-variant" style="font-size: 0.72rem; padding: 0.1rem 0.4rem;">
+                        📍 {{ table.floor_section }}
+                    </span>
+                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--secondary-text);">
+                        👥 {{ table.capacity }} Seats
+                    </span>
+                </div>
+
+                <div class="saas-card-desc">
+                    {{ table.notes|default:"No notes or location details provided." }}
+                </div>
+            </div>
+
+            <div class="saas-card-footer">
+                <span class="product-sku" style="font-size: 0.78rem; font-weight: 700;">
+                    {{ table.capacity }} Persons
+                </span>
+                <div class="table-actions">
+                    <a href="{% url 'sales:table_update' table.id %}" class="action-btn-icon" title="Edit Table">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </a>
+                    <button 
+                        type="button" 
+                        class="action-btn-icon" 
+                        style="color: var(--danger); background: transparent; border: 1px solid var(--border-card);" 
+                        onclick="openDeleteModal('{{ table.name|escapejs }}', 'Dining Table', '{% url 'sales:table_delete' table.id %}', 'Table {{ table.name }} in {{ table.floor_section }} will be permanently removed.')"
+                        title="Delete Table">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="table-card" style="grid-column: 1 / -1; padding: 3.5rem 1rem; text-align: center; color: var(--muted-text);">
+            <strong style="color: var(--secondary);">No dining tables found</strong>
+            <p style="font-size: 0.85rem; margin-top: 0.25rem;">Click "+ Add Table" to set up restaurant tables.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- FLOATING BULK ACTIONS TOOLBAR -->
+<div id="bulk-actions-bar" class="bulk-actions-toolbar">
+    <span id="bulk-selected-count" class="bulk-select-count">
+        0 Selected
+    </span>
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <button type="button" class="bulk-btn-clear" onclick="clearAllSelections()">
+            Deselect All
+        </button>
+        <button type="button" class="bulk-btn-delete" onclick="openBulkDeleteModal('Dining Table', '{% url 'sales:table_bulk_delete' %}', 'All selected dining tables will be permanently removed.')" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Delete Selected
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setTableView(mode) {
+        const listView = document.getElementById('table-list-view');
+        const gridView = document.getElementById('table-grid-view');
+        const btnList = document.getElementById('btn-table-view-list');
+        const btnGrid = document.getElementById('btn-table-view-grid');
+
+        if (mode === 'grid') {
+            if (listView) listView.style.display = 'none';
+            if (gridView) gridView.style.display = 'block';
+            if (btnGrid) btnGrid.classList.add('active');
+            if (btnList) btnList.classList.remove('active');
+            localStorage.setItem('pakpos_table_view', 'grid');
+        } else {
+            if (listView) listView.style.display = 'block';
+            if (gridView) gridView.style.display = 'none';
+            if (btnList) btnList.classList.add('active');
+            if (btnGrid) btnGrid.classList.remove('active');
+            localStorage.setItem('pakpos_table_view', 'list');
+        }
+    }
+
+    // Restore saved view preference
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedView = localStorage.getItem('pakpos_table_view') || 'list';
+        setTableView(savedView);
+    });
+</script>
+{% endblock %}

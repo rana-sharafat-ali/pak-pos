@@ -258,3 +258,31 @@ class CashDrawerShift(models.Model):
 
     def __str__(self):
         return f"Shift #{self.pk} - {self.cashier.username} ({self.get_status_display()})"
+
+
+class DiningTable(models.Model):
+    """
+    Dining Table Model for Restaurant/Cafe Dine-In operations.
+    Allows admin to configure floor sections, capacities, and active tables.
+    """
+    class Status(models.TextChoices):
+        AVAILABLE = 'available', 'Available'
+        OCCUPIED = 'occupied', 'Occupied'
+        RESERVED = 'reserved', 'Reserved'
+
+    name = models.CharField(max_length=50, unique=True, verbose_name="Table Name / Number")
+    floor_section = models.CharField(max_length=100, default="Main Hall", verbose_name="Floor / Section")
+    capacity = models.PositiveIntegerField(default=4, verbose_name="Seating Capacity")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE, verbose_name="Current Status")
+    is_active = models.BooleanField(default=True, verbose_name="Is Active")
+    notes = models.TextField(blank=True, null=True, verbose_name="Notes / Location Description")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dining Table"
+        verbose_name_plural = "Dining Tables"
+        ordering = ['floor_section', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.floor_section} - Cap: {self.capacity})"

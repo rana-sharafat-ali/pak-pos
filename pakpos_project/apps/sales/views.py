@@ -14,9 +14,9 @@ from django.conf import settings
 from django.core.paginator import Paginator
 
 from pakpos_project.apps.products.models import Product, ProductVariant, Category
-from .models import Customer, Sale, SaleItem, CashDrawerShift
+from .models import Customer, Sale, SaleItem, CashDrawerShift, DiningTable
+from .forms import DiningTableForm
 from pakpos_project.apps.users.decorators import manager_or_admin_required
-
 
 
 @login_required
@@ -28,6 +28,7 @@ def pos_terminal_view(request):
     """
     categories = Category.objects.all().order_by('name')
     products = Product.objects.filter(is_active=True).prefetch_related('variants', 'category').order_by('name')
+    dining_tables = DiningTable.objects.filter(is_active=True).order_by('floor_section', 'name')
     
     # Pass initial serialized products for fast instantaneous client-side searching & scanning
     product_catalog_json = []
@@ -65,6 +66,7 @@ def pos_terminal_view(request):
         'title': 'Point of Sale (POS)',
         'categories': categories,
         'products_json': json.dumps(product_catalog_json),
+        'dining_tables': dining_tables,
         'default_discount_percent': getattr(settings, 'POS_DEFAULT_DISCOUNT_PERCENT', 0),
         'default_tax_percent': getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0),
         'default_service_charge_percent': getattr(settings, 'POS_DEFAULT_SERVICE_CHARGE_PERCENT', 0),
@@ -624,3 +626,147 @@ def shift_print_view(request):
     context = _get_shift_context(request)
     context['printed_at'] = timezone.now()
     return render(request, 'sales/shift_print.html', context)
+
+
+# ==============================================================================
+# RESTAURANT DINING TABLES CRUD (ADMIN & MANAGER)
+# ==============================================================================
+
+def extract_selected_ids(request):
+    """
+    Safely extract integer IDs from either comma-separated string or list in request.POST
+    """
+    raw_list = request.POST.getlist('selected_ids')
+    parsed_ids = []
+    for item in raw_list:
+        if isinstance(item, str) and ',' in item:
+            for sub in item.split(','):
+                if sub.strip().isdigit():
+                    parsed_ids.append(int(sub.strip()))
+        elif str(item).strip().isdigit():
+            parsed_ids.append(int(str(item).strip()))
+    return list(set(parsed_ids))
+
+
+@manager_or_admin_required
+def table_list_view(request):
+    """
+    Dining Tables Management List & Grid View for Admin / Manager.
+    Supports live searching, section filter, and dual List/Grid cards view.
+    """
+    tables = DiningTable.objects.all()
+
+    query = request.GET.get('q', '').strip()
+    if query:
+        tables = tables.filter(
+            Q(name__icontains=query) | Q(floor_section__icontains=query) | Q(notes__icontains=query)
+        )
+
+    section_filter = request.GET.get('section', '').strip()
+    if section_filter:
+        tables = tables.filter(floor_section=section_filter)
+
+    all_sections = DiningTable.objects.values_list('floor_section', flat=True).distinct().order_by('floor_section')
+
+    total_count = DiningTable.objects.count()
+    active_count = DiningTable.objects.filter(is_active=True).count()
+    total_capacity = DiningTable.objects.filter(is_active=True).aggregate(Sum('capacity'))['capacity__sum'] or 0
+
+    context = {
+        'title': 'Dining Tables',
+        'tables': tables,
+        'query': query,
+        'selected_section': section_filter,
+        'all_sections': all_sections,
+        'total_count': total_count,
+        'active_count': active_count,
+        'total_capacity': total_capacity,
+    }
+    return render(request, 'sales/table_list.html', context)
+
+
+@manager_or_admin_required
+def table_create_view(request):
+    """
+    Create a new Dining Table
+    """
+    if request.method == 'POST':
+        form = DiningTableForm(request.POST)
+        if form.is_valid():
+            table = form.save()
+            messages.success(request, f'Dining Table "{table.name}" created successfully!')
+            return redirect('sales:table_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = DiningTableForm(initial={'floor_section': 'Main Hall', 'capacity': 4, 'is_active': True})
+
+    context = {
+        'form': form,
+        'title': 'Add New Dining Table',
+        'is_edit': False,
+    }
+    return render(request, 'sales/table_form.html', context)
+
+
+@manager_or_admin_required
+def table_update_view(request, pk):
+    """
+    Update an existing Dining Table
+    """
+    table = get_object_or_404(DiningTable, pk=pk)
+    if request.method == 'POST':
+        form = DiningTableForm(request.POST, instance=table)
+        if form.is_valid():
+            table = form.save()
+            messages.success(request, f'Dining Table "{table.name}" updated successfully!')
+            return redirect('sales:table_list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = DiningTableForm(instance=table)
+
+    context = {
+        'form': form,
+        'table': table,
+        'title': f'Edit Dining Table: {table.name}',
+        'is_edit': True,
+    }
+    return render(request, 'sales/table_form.html', context)
+
+
+@manager_or_admin_required
+def table_delete_view(request, pk):
+    """
+    Delete a Dining Table
+    """
+    table = get_object_or_404(DiningTable, pk=pk)
+    if request.method == 'POST':
+        name = table.name
+        table.delete()
+        messages.success(request, f'Dining Table "{name}" deleted successfully.')
+        return redirect('sales:table_list')
+
+    context = {
+        'table': table,
+        'title': f'Delete Table: {table.name}',
+    }
+    return render(request, 'sales/table_confirm_delete.html', context)
+
+
+@manager_or_admin_required
+def table_bulk_delete_view(request):
+    """
+    Bulk delete selected dining tables
+    """
+    if request.method == 'POST':
+        ids_list = extract_selected_ids(request)
+        if ids_list:
+            count = DiningTable.objects.filter(id__in=ids_list).count()
+            DiningTable.objects.filter(id__in=ids_list).delete()
+            messages.success(request, f'Successfully deleted {count} dining tables.')
+        else:
+            messages.error(request, 'No dining tables were selected for deletion.')
+
+    return redirect('sales:table_list')
+

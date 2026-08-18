@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'sales:table_list' %}">
+            <span>&larr;</span> Dining Tables
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ title }}</span>
+    </div>
+</div>
+
+<div class="form-card-container" style="max-width: 680px; margin: 0 auto;">
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin-bottom: 1.5rem;">
+        {{ title }}
+    </h2>
+
+    <form method="POST" id="table-form">
+        {% csrf_token %}
+
+        <!-- Table Name / Number -->
+        <div class="form-group">
+            <label class="form-label" for="{{ form.name.id_for_label }}">Table Name / Number *</label>
+            {{ form.name }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Unique identifier displayed to cashiers in POS (e.g. Table 1, Table 2, VIP 1, Outdoor 1).
+            </span>
+            {% if form.name.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.name.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Floor / Section -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.floor_section.id_for_label }}">Floor / Section *</label>
+            {{ form.floor_section }}
+            
+            <!-- Quick Section Presets -->
+            <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem;">
+                <span style="font-size: 0.72rem; font-weight: 700; color: var(--muted-text); display: flex; align-items: center; margin-right: 0.25rem;">Quick Presets:</span>
+                {% for sec in "Main Hall,Ground Floor,First Floor,Family Hall,VIP Lounge,Outdoor Lawn,Rooftop"|make_list %}
+                {% endfor %}
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('Main Hall')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Main Hall</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('Ground Floor')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Ground Floor</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('First Floor')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">First Floor</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('Family Hall')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Family Hall</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('VIP Lounge')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">VIP Lounge</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('Outdoor Lawn')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Outdoor Lawn</button>
+                <button type="button" class="pos-preset-chip" onclick="setFloorSection('Rooftop')" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Rooftop</button>
+            </div>
+            {% if form.floor_section.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.floor_section.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Seating Capacity -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.capacity.id_for_label }}">Seating Capacity (Persons) *</label>
+            {{ form.capacity }}
+            <div style="display: flex; gap: 0.35rem; margin-top: 0.4rem; flex-wrap: wrap;">
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(2)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">2 Seats</button>
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(4)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">4 Seats</button>
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(6)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">6 Seats</button>
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(8)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">8 Seats</button>
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(10)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">10 Seats</button>
+                <button type="button" class="pos-preset-chip" onclick="setCapacity(12)" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">12 Seats</button>
+            </div>
+            {% if form.capacity.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.capacity.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Is Active Checkbox -->
+        <div class="form-group" style="margin-top: 1.25rem; background: #f8fafc; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-card); display: flex; align-items: center; gap: 0.65rem;">
+            {{ form.is_active }}
+            <div>
+                <label class="form-label" for="{{ form.is_active.id_for_label }}" style="margin: 0; cursor: pointer; font-weight: 700;">
+                    Enable Table in POS Dine-In
+                </label>
+                <span style="font-size: 0.75rem; color: var(--muted-text); display: block;">
+                    When checked, this table appears in cashier POS table dropdown.
+                </span>
+            </div>
+        </div>
+
+        <!-- Notes / Location Description -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.notes.id_for_label }}">Notes / Location Description (Optional)</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.notes.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border-card);">
+            <a href="{% url 'sales:table_list' %}" class="btn btn-outline btn-sm">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.55rem 1.35rem;">
+                {% if is_edit %}Save Changes{% else %}+ Create Table{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setFloorSection(val) {
+        const input = document.getElementById('id_floor_section');
+        if (input) input.value = val;
+    }
+
+    function setCapacity(val) {
+        const input = document.getElementById('id_table_capacity');
+        if (input) input.value = val;
+    }
+</script>
+{% endblock %}

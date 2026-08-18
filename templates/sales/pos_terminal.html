@@ -745,20 +745,11 @@
                     <option value="takeaway">🥡 Takeaway</option>
                     <option value="delivery">🛵 Delivery</option>
                 </select>
-                <select id="restaurant-table-select" style="padding: 0.22rem 0.45rem; font-size: 0.74rem; font-weight: 700; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; max-width: 95px;" onchange="updateTableSelection(this.value)">
+                <select id="restaurant-table-select" style="padding: 0.22rem 0.45rem; font-size: 0.74rem; font-weight: 700; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; max-width: 110px;" onchange="updateTableSelection(this.value)">
                     <option value="">Table...</option>
-                    <option value="Table 1">Table 1</option>
-                    <option value="Table 2">Table 2</option>
-                    <option value="Table 3">Table 3</option>
-                    <option value="Table 4">Table 4</option>
-                    <option value="Table 5">Table 5</option>
-                    <option value="Table 6">Table 6</option>
-                    <option value="Table 7">Table 7</option>
-                    <option value="Table 8">Table 8</option>
-                    <option value="VIP 1">VIP 1</option>
-                    <option value="VIP 2">VIP 2</option>
-                    <option value="Outdoor 1">Outdoor 1</option>
-                    <option value="Outdoor 2">Outdoor 2</option>
+                    {% for table in dining_tables %}
+                    <option value="{{ table.name }}">{{ table.name }} ({{ table.capacity }}p)</option>
+                    {% endfor %}
                 </select>
                 {% endif %}
             </div>

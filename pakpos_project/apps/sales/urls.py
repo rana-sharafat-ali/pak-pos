@@ -17,6 +17,13 @@ urlpatterns = [
     path('shift/', views.daily_shift_summary_view, name='shift_summary'),
     path('shift/print/', views.shift_print_view, name='shift_print'),
     
+    # Restaurant Dining Tables Management
+    path('tables/', views.table_list_view, name='table_list'),
+    path('tables/create/', views.table_create_view, name='table_create'),
+    path('tables/<int:pk>/edit/', views.table_update_view, name='table_update'),
+    path('tables/<int:pk>/delete/', views.table_delete_view, name='table_delete'),
+    path('tables/bulk-delete/', views.table_bulk_delete_view, name='table_bulk_delete'),
+
     # JSON APIs
     path('api/checkout/', views.api_create_sale, name='api_checkout'),
     path('api/customers/search/', views.api_search_customers, name='api_customer_search'),

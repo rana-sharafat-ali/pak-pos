@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Table | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'sales:table_list' %}">
+            <span>&larr;</span> Dining Tables
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">Delete Table</span>
+    </div>
+</div>
+
+<div class="form-card-container" style="max-width: 550px; margin: 2rem auto; text-align: center; border-color: #fecaca;">
+    <div style="font-size: 3rem; margin-bottom: 0.85rem;">⚠️</div>
+    
+    <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin-bottom: 0.5rem;">
+        Delete Dining Table: {{ table.name }}?
+    </h2>
+
+    <p style="color: var(--muted-text); font-size: 0.92rem; line-height: 1.5; margin-bottom: 1.5rem;">
+        Are you sure you want to delete table <strong>{{ table.name }}</strong> ({{ table.floor_section }} - {{ table.capacity }} Seats)?
+        <br>This action will permanently remove the table from the POS terminal.
+    </p>
+
+    <form method="POST" style="display: flex; justify-content: center; gap: 1rem;">
+        {% csrf_token %}
+        <a href="{% url 'sales:table_list' %}" class="btn btn-outline btn-sm">Cancel</a>
+        <button type="submit" class="btn btn-danger btn-sm" style="padding: 0.55rem 1.4rem;">
+            Yes, Delete Table
+        </button>
+    </form>
+</div>
+
+{% endblock %}

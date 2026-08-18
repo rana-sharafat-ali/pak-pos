@@ -6,7 +6,8 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from pakpos_project.apps.products.models import Product, ProductVariant, Category
-from .models import Customer, Sale, SaleItem
+from .models import Customer, Sale, SaleItem, CashDrawerShift, DiningTable
+from .forms import DiningTableForm
 
 User = get_user_model()
 
@@ -350,5 +351,109 @@ class SalesAndPOSTests(TestCase):
         self.assertEqual(sale.service_charge_amount, Decimal('280.00'))
         self.assertEqual(sale.discount_amount, Decimal('220.00'))
         self.assertEqual(sale.total_amount, Decimal('3000.00'))
+
+
+class DiningTableCRUDTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_user(
+            username='admin_tables',
+            email='admin_tables@pakpos.com',
+            password='adminpass123',
+            role=User.Role.ADMIN
+        )
+        self.cashier = User.objects.create_user(
+            username='cashier_tables',
+            email='cashier_tables@pakpos.com',
+            password='cashierpass123',
+            role=User.Role.CASHIER
+        )
+        self.table = DiningTable.objects.create(
+            name='Table 101',
+            floor_section='Rooftop',
+            capacity=6,
+            status=DiningTable.Status.AVAILABLE,
+            is_active=True,
+            notes='Corner table with view'
+        )
+
+    def test_dining_table_model_str(self):
+        self.assertIn('Table 101', str(self.table))
+        self.assertIn('Rooftop', str(self.table))
+
+    def test_table_list_view_authenticated(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        response = self.client.get(reverse('sales:table_list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Table 101')
+        self.assertContains(response, 'Rooftop')
+
+    def test_table_list_view_search(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        response = self.client.get(reverse('sales:table_list') + '?q=Corner')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Table 101')
+
+    def test_table_create_view_post(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        response = self.client.post(reverse('sales:table_create'), {
+            'name': 'VIP Rooftop 5',
+            'floor_section': 'VIP Lounge',
+            'capacity': 8,
+            'is_active': True,
+            'notes': 'Special reservations only'
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(DiningTable.objects.filter(name='VIP Rooftop 5').exists())
+
+    def test_table_create_duplicate_rejected(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        response = self.client.post(reverse('sales:table_create'), {
+            'name': 'Table 101',
+            'floor_section': 'Main Hall',
+            'capacity': 4,
+            'is_active': True,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response.context['form'], 'name', 'A dining table named "Table 101" already exists. Please choose a different table name.')
+
+    def test_table_update_view(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        response = self.client.post(reverse('sales:table_update', kwargs={'pk': self.table.id}), {
+            'name': 'Table 101 Renovated',
+            'floor_section': 'Executive Lounge',
+            'capacity': 10,
+            'is_active': True,
+            'notes': 'Updated seating'
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.table.refresh_from_db()
+        self.assertEqual(self.table.name, 'Table 101 Renovated')
+        self.assertEqual(self.table.capacity, 10)
+
+    def test_table_delete_view(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        table_id = self.table.id
+        response = self.client.post(reverse('sales:table_delete', kwargs={'pk': table_id}), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DiningTable.objects.filter(id=table_id).exists())
+
+    def test_table_bulk_delete_view(self):
+        self.client.login(username='admin_tables', password='adminpass123')
+        t1 = DiningTable.objects.create(name='Bulk Table 1', floor_section='Main Hall', capacity=4)
+        t2 = DiningTable.objects.create(name='Bulk Table 2', floor_section='Main Hall', capacity=6)
+        response = self.client.post(reverse('sales:table_bulk_delete'), {
+            'selected_ids': [str(t1.id), str(t2.id)]
+        }, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DiningTable.objects.filter(id=t1.id).exists())
+        self.assertFalse(DiningTable.objects.filter(id=t2.id).exists())
+
+    def test_cashier_access_restricted_from_table_crud(self):
+        self.client.login(username='cashier_tables', password='cashierpass123')
+        response = self.client.get(reverse('sales:table_list'))
+        # Cashiers should be redirected (forbidden from admin CRUD)
+        self.assertEqual(response.status_code, 302)
+
 
 
