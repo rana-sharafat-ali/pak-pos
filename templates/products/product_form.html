@@ -352,8 +352,8 @@
                     </div>
                 </div>
 
-                <!-- Cost Price & Stock Quantity row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1rem;">
+                <!-- Cost Price row -->
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin-top: 1rem;">
                     <div class="field-group">
                         <label class="field-label" for="{{ form.cost_price.id_for_label }}">
                             Cost Price (Optional)
@@ -373,20 +373,7 @@
                         </div>
                     </div>
 
-                    <div class="field-group">
-                        <label class="field-label" for="{{ form.stock_quantity.id_for_label }}">
-                            Stock Quantity
-                        </label>
-                        <input 
-                            type="number" 
-                            min="0" 
-                            name="stock_quantity" 
-                            id="{{ form.stock_quantity.id_for_label }}"
-                            value="{{ form.stock_quantity.value|default:0 }}" 
-                            class="field-input" 
-                            placeholder="0"
-                        >
-                    </div>
+
                 </div>
             </div>
 

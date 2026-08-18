@@ -1,103 +1,796 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Dashboard | {{ APP_NAME }}{% endblock %}
+{% block title %}Executive Analytics Dashboard | {{ APP_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Dashboard Executive Styles */
+    .dashboard-header-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .dashboard-title-group h1 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--secondary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .dashboard-title-group p {
+        font-size: 0.84rem;
+        color: var(--muted-text);
+        margin: 0.2rem 0 0 0;
+    }
+
+    /* Date Preset Filter Bar */
+    .preset-filter-bar {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.25rem;
+        box-shadow: var(--shadow-xs);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .preset-chips-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .preset-chip {
+        padding: 0.35rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border-radius: 8px;
+        border: 1px solid var(--border-card);
+        background: #f8fafc;
+        color: var(--secondary);
+        text-decoration: none;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    .preset-chip:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    .preset-chip.active {
+        background: var(--primary);
+        color: #ffffff;
+        border-color: var(--primary);
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+    }
+
+    .filter-inputs-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+        gap: 0.6rem;
+        align-items: end;
+        padding-top: 0.5rem;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    /* KPI Cards Grid */
+    .kpi-analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+    .kpi-metric-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        padding: 1.15rem 1.25rem;
+        box-shadow: var(--shadow-xs);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+    .kpi-metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--card-accent, var(--primary));
+    }
+    .kpi-metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.4rem;
+    }
+    .kpi-metric-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted-text);
+    }
+    .kpi-metric-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.95rem;
+        background: var(--icon-bg, #eff6ff);
+    }
+    .kpi-metric-value {
+        font-size: 1.55rem;
+        font-weight: 900;
+        color: var(--secondary);
+        letter-spacing: -0.02em;
+        margin: 0.2rem 0;
+    }
+    .kpi-metric-footer {
+        font-size: 0.75rem;
+        color: var(--muted-text);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Charts Grid */
+    .charts-main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+    .charts-secondary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+    .chart-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: var(--shadow-xs);
+        display: flex;
+        flex-direction: column;
+    }
+    .chart-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .chart-card-title {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--secondary);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .chart-card-subtitle {
+        font-size: 0.74rem;
+        color: var(--muted-text);
+        margin: 0.1rem 0 0 0;
+    }
+    .chart-wrapper {
+        position: relative;
+        flex: 1;
+        min-height: 240px;
+        max-height: 290px;
+    }
+
+    /* Operations Bottom Grid */
+    .operations-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+    .table-container-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow-xs);
+    }
+    .table-container-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--border-card);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+    }
+
+    /* Low Stock Item Row */
+    .low-stock-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        padding: 1rem 1.25rem;
+    }
+    .low-stock-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.6rem 0.75rem;
+        background: #fef2f2;
+        border: 1px solid #fee2e2;
+        border-radius: 8px;
+        gap: 0.5rem;
+    }
+    .low-stock-item-info strong {
+        font-size: 0.84rem;
+        color: #991b1b;
+        display: block;
+    }
+    .low-stock-item-info span {
+        font-size: 0.72rem;
+        color: #b91c1c;
+    }
+
+    @media (max-width: 1024px) {
+        .charts-main-grid,
+        .charts-secondary-grid,
+        .operations-grid {
+            grid-template-columns: 1fr;
+        }
+        .filter-inputs-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 
-<!-- 3 CONCISE KPI CARDS -->
-<div class="kpi-row">
-    <div class="kpi-card">
-        <div class="kpi-icon-box kpi-blue">
-            📦
+<!-- 1. TOP HEADER & QUICK ACTION BAR -->
+<div class="dashboard-header-bar">
+    <div class="dashboard-title-group">
+        <h1>
+            <span>Executive Dashboard</span>
+            <span class="pill-variant" style="font-size: 0.74rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 800;">
+                📅 {{ preset_label }}
+            </span>
+        </h1>
+        <p>Real-time sales tracking, profitability metrics, channel distribution, and store performance.</p>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'sales:pos' %}" class="btn btn-primary" style="padding: 0.52rem 1rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
+            Point of Sale
+        </a>
+        <a href="{% url 'sales:shift_summary' %}" class="btn btn-outline" style="padding: 0.52rem 0.9rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Daily Shift
+        </a>
+        <a href="{% url 'sales:ledger' %}" class="btn btn-outline" style="padding: 0.52rem 0.9rem;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            Sales Ledger
+        </a>
+    </div>
+</div>
+
+<!-- 2. QUICK DATE PRESETS & MULTI-FILTER TOOLBAR -->
+<div class="preset-filter-bar">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <div class="preset-chips-row">
+            <span style="font-size: 0.78rem; font-weight: 800; color: var(--secondary); margin-right: 0.25rem;">Timeframe:</span>
+            <a href="?preset=today" class="preset-chip {% if date_preset == 'today' %}active{% endif %}">Today</a>
+            <a href="?preset=yesterday" class="preset-chip {% if date_preset == 'yesterday' %}active{% endif %}">Yesterday</a>
+            <a href="?preset=this_week" class="preset-chip {% if date_preset == 'this_week' %}active{% endif %}">This Week</a>
+            <a href="?preset=this_month" class="preset-chip {% if date_preset == 'this_month' %}active{% endif %}">This Month</a>
+            <a href="?preset=last_30_days" class="preset-chip {% if date_preset == 'last_30_days' %}active{% endif %}">Last 30 Days</a>
+            <a href="?preset=this_year" class="preset-chip {% if date_preset == 'this_year' %}active{% endif %}">This Year</a>
+            <a href="?preset=all_time" class="preset-chip {% if date_preset == 'all_time' %}active{% endif %}">All Time</a>
         </div>
-        <div class="kpi-content">
-            <span class="kpi-title">Total Products</span>
-            <span class="kpi-number">{{ total_products }}</span>
+
+        <button type="button" onclick="toggleCustomFilterBox()" class="btn btn-outline" style="padding: 0.25rem 0.65rem; font-size: 0.74rem;">
+            ⚙️ Custom Filters {% if cashier_id or order_type_filter or date_preset == 'custom' %}(Active){% endif %}
+        </button>
+    </div>
+
+    <!-- Collapsible / Advanced Filter Inputs -->
+    <form id="custom-filter-box" method="GET" action="" style="{% if cashier_id or order_type_filter or date_preset == 'custom' %}display: block;{% else %}display: none;{% endif %}">
+        <div class="filter-inputs-grid">
+            <div>
+                <label class="field-label" style="font-size: 0.74rem; margin-bottom: 0.2rem;">Cashier / Operator</label>
+                <select name="cashier" class="field-input select-filter" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;">
+                    <option value="">All Cashiers</option>
+                    {% for c in cashiers_list %}
+                    <option value="{{ c.id }}" {% if cashier_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.get_full_name|default:c.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="field-label" style="font-size: 0.74rem; margin-bottom: 0.2rem;">Order Type</label>
+                <select name="order_type" class="field-input select-filter" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;">
+                    <option value="">All Channels</option>
+                    {% for ot_val, ot_lbl in order_type_choices %}
+                    <option value="{{ ot_val }}" {% if order_type_filter == ot_val %}selected{% endif %}>{{ ot_lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="field-label" style="font-size: 0.74rem; margin-bottom: 0.2rem;">From Date</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="field-input" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;">
+            </div>
+
+            <div>
+                <label class="field-label" style="font-size: 0.74rem; margin-bottom: 0.2rem;">To Date</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="field-input" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;">
+            </div>
+
+            <div style="display: flex; gap: 0.35rem;">
+                <button type="submit" class="btn btn-primary" style="padding: 0.42rem 0.85rem; font-size: 0.8rem;">Apply</button>
+                <a href="{% url 'core:home' %}" class="btn btn-outline" style="padding: 0.42rem 0.6rem; font-size: 0.8rem;" title="Reset Filters">✕</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- 3. HIGH-IMPACT FINANCIAL & OPERATIONAL KPI GRID -->
+<div class="kpi-analytics-grid">
+    <!-- Total Revenue -->
+    <div class="kpi-metric-card" style="--card-accent: #2563eb;">
+        <div class="kpi-metric-header">
+            <span class="kpi-metric-label">Total Net Revenue</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #eff6ff;">💰</div>
+        </div>
+        <div class="kpi-metric-value" style="color: #1d4ed8;">PKR {{ total_revenue|floatformat:0 }}</div>
+        <div class="kpi-metric-footer">
+            <span><strong>{{ total_orders_count }}</strong> completed orders</span>
+            <span>•</span>
+            <span>Avg AOV: <strong>PKR {{ avg_order_value|floatformat:0 }}</strong></span>
         </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-icon-box kpi-red">
-            ⚠️
+    <!-- Net Profit & Margin -->
+    <div class="kpi-metric-card" style="--card-accent: #16a34a;">
+        <div class="kpi-metric-header">
+            <span class="kpi-metric-label">Net Gross Profit</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #f0fdf4;">📈</div>
         </div>
-        <div class="kpi-content">
-            <span class="kpi-title">Multi-Size Items (Pizza)</span>
-            <span class="kpi-number">{{ variant_products_count }}</span>
+        <div class="kpi-metric-value" style="color: #15803d;">PKR {{ total_profit|floatformat:0 }}</div>
+        <div class="kpi-metric-footer">
+            <span class="pill-variant" style="font-size: 0.7rem; background: #dcfce7; color: #166534; font-weight: 800; padding: 0.1rem 0.45rem;">
+                {{ profit_margin_pct }}% Net Margin
+            </span>
+            <span style="color: var(--muted-text); font-size: 0.72rem;">COGS: PKR {{ total_cogs|floatformat:0 }}</span>
         </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-icon-box kpi-orange">
-            🥤
+    <!-- Cash vs Digital Flow -->
+    <div class="kpi-metric-card" style="--card-accent: #0284c7;">
+        <div class="kpi-metric-header">
+            <span class="kpi-metric-label">Cash vs Digital Collections</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #f0f9ff;">💳</div>
         </div>
-        <div class="kpi-content">
-            <span class="kpi-title">Single Price Items</span>
-            <span class="kpi-number">{{ simple_products_count }}</span>
+        <div class="kpi-metric-value" style="font-size: 1.35rem; color: var(--secondary);">
+            💵 {{ cash_revenue|floatformat:0 }} <span style="font-size: 0.85rem; font-weight: 600; color: var(--muted-text);">/ 📱 {{ digital_revenue|floatformat:0 }}</span>
+        </div>
+        <div class="kpi-metric-footer">
+            <span>Cash in Hand vs Card/Online Wallets</span>
+        </div>
+    </div>
+
+    <!-- Discounts & Refunds -->
+    <div class="kpi-metric-card" style="--card-accent: #dc2626;">
+        <div class="kpi-metric-header">
+            <span class="kpi-metric-label">Discounts & Returns</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #fef2f2;">🏷️</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.35rem; color: #dc2626;">
+            - PKR {{ total_discounts|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer">
+            <span>Refunds: <strong>PKR {{ total_refunds_amount|floatformat:0 }}</strong> ({{ total_refunds_count }})</span>
+            <span>•</span>
+            <span>Items: <strong>{{ total_items_sold }}</strong></span>
         </div>
     </div>
 </div>
 
-<!-- ACTION TOOLBAR -->
-<div class="action-toolbar">
-    <div class="toolbar-left">
-        <span class="filter-label">
-            <span>⚡</span> Quick Links
-        </span>
-        <a href="{% url 'products:product_list' %}" class="action-btn-icon" style="text-decoration: none;">📦 Browse Products</a>
-        <a href="/admin/" target="_blank" class="action-btn-icon" style="text-decoration: none;">⚙️ Admin Settings</a>
+<!-- 4. INTERACTIVE VISUAL ANALYTICS GRID (ROW 1: Timeline + Channels) -->
+<div class="charts-main-grid">
+    <!-- Chart 1: Revenue Timeline -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div>
+                <h2 class="chart-card-title">
+                    <span>📊</span>
+                    <span>Sales Revenue & Volume Timeline</span>
+                </h2>
+                <p class="chart-card-subtitle">Performance progression over {{ preset_label }}</p>
+            </div>
+            <span class="pill-variant" style="font-size: 0.72rem; font-weight: 700;">Revenue (PKR)</span>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="timelineChart"></canvas>
+        </div>
     </div>
 
-    <a href="{% url 'products:product_create' %}" class="btn-add-product">
-        <span>+</span> Add Product
-    </a>
+    <!-- Chart 2: Order Types / Channels Distribution -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div>
+                <h2 class="chart-card-title">
+                    <span>🍽️</span>
+                    <span>Channels Share</span>
+                </h2>
+                <p class="chart-card-subtitle">Dine-In, Delivery, Takeaway</p>
+            </div>
+        </div>
+        <div class="chart-wrapper" style="display: flex; align-items: center; justify-content: center;">
+            <canvas id="orderTypeChart"></canvas>
+        </div>
+    </div>
 </div>
 
-<!-- RECENT ACTIVITY TABLE -->
-<div class="table-card">
-    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-card); display: flex; justify-content: space-between; align-items: center;">
-        <strong style="color: var(--secondary); font-size: 0.95rem;">Recent Products</strong>
-        <a href="{% url 'products:product_list' %}" style="font-size: 0.82rem; color: var(--primary); font-weight: 600;">View All &rarr;</a>
+<!-- 5. INTERACTIVE VISUAL ANALYTICS GRID (ROW 2: Top Products + Payment Methods) -->
+<div class="charts-secondary-grid">
+    <!-- Chart 3: Top 5 Best-Selling Products -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div>
+                <h2 class="chart-card-title">
+                    <span>🏆</span>
+                    <span>Top 5 Best-Selling Items</span>
+                </h2>
+                <p class="chart-card-subtitle">Highest volume and customer favorites</p>
+            </div>
+            <span class="pill-variant" style="font-size: 0.72rem;">By Quantity</span>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="topProductsChart"></canvas>
+        </div>
     </div>
-    <table class="saas-table">
-        <thead>
-            <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th style="text-align: right;">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in recent_products %}
-            <tr>
-                <td>
-                    <div class="product-cell">
-                        <div class="product-thumb-box">
-                            {{ product.category.icon|default:"📦" }}
-                        </div>
-                        <div class="product-info">
-                            <a href="{% url 'products:product_detail' product.id %}" class="product-name">
-                                {{ product.name }}
+
+    <!-- Chart 4: Payment Methods Distribution -->
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div>
+                <h2 class="chart-card-title">
+                    <span>💳</span>
+                    <span>Payment Methods Distribution</span>
+                </h2>
+                <p class="chart-card-subtitle">Settlement breakdown by channel</p>
+            </div>
+        </div>
+        <div class="chart-wrapper" style="display: flex; align-items: center; justify-content: center;">
+            <canvas id="paymentChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- 6. LIVE OPERATIONS: RECENT INVOICES + INVENTORY HEALTH -->
+<div class="operations-grid">
+    <!-- Recent Live Invoices Table -->
+    <div class="table-container-card">
+        <div class="table-container-header">
+            <div>
+                <strong style="color: var(--secondary); font-size: 0.95rem; display: block;">Recent Live Invoices</strong>
+                <span style="font-size: 0.74rem; color: var(--muted-text);">Latest transactions created at POS</span>
+            </div>
+            <a href="{% url 'sales:ledger' %}" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.78rem;">
+                View All Invoices &rarr;
+            </a>
+        </div>
+        <div style="overflow-x: auto;">
+            <table class="retailos-table">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Time</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Profit</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Receipt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in recent_sales %}
+                    <tr>
+                        <td>
+                            <strong style="font-family: var(--font-mono); color: var(--secondary); font-size: 0.84rem;">{{ sale.invoice_number }}</strong>
+                            <div style="font-size: 0.7rem; color: var(--muted-text);">{{ sale.get_order_type_display }}</div>
+                        </td>
+                        <td style="font-size: 0.78rem; color: var(--secondary);">
+                            {{ sale.created_at|date:"h:i A" }}
+                        </td>
+                        <td style="font-size: 0.8rem;">
+                            {{ sale.customer.name|default:"Walk-in Customer" }}
+                        </td>
+                        <td>
+                            <strong style="font-size: 0.86rem; color: var(--secondary);">PKR {{ sale.total_amount|floatformat:0 }}</strong>
+                        </td>
+                        <td>
+                            {% if sale.status == 'refunded' %}
+                            <span style="color: var(--muted-text);">-</span>
+                            {% else %}
+                            <span style="color: #16a34a; font-weight: 700; font-size: 0.82rem;">+{{ sale.net_profit|floatformat:0 }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if sale.status == 'completed' %}
+                            <span class="pill-status status-in-stock" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">Paid</span>
+                            {% elif sale.status == 'refunded' %}
+                            <span class="pill-status status-out-of-stock" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">Refunded</span>
+                            {% else %}
+                            <span class="pill-status" style="font-size: 0.7rem;">{{ sale.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{% url 'sales:receipt' sale.pk %}" target="_blank" class="action-btn-icon" style="text-decoration: none; padding: 0.2rem 0.45rem;" title="Print Thermal Receipt">
+                                🖨️
                             </a>
-                            <span class="product-sku">{{ product.category.name|default:"General" }}</span>
-                        </div>
-                    </div>
-                </td>
-                <td>{{ product.category.name|default:"-" }}</td>
-                <td><strong style="color: var(--secondary);">{{ product.price_display }}</strong></td>
-                <td style="text-align: right;">
-                    <a href="{% url 'products:product_detail' product.id %}" class="action-btn-icon">View 👁️</a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" style="text-align: center; padding: 2.5rem; color: var(--muted-text);">
-                    No products added yet.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--muted-text);">
+                            No sales recorded yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load Local Offline-Ready Chart.js -->
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script>
+    function toggleCustomFilterBox() {
+        const box = document.getElementById('custom-filter-box');
+        if (box) {
+            box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js failed to load.');
+            return;
+        }
+
+        // Datasets from Django Backend
+        const timelineLabels = {{ timeline_labels_json|safe }};
+        const timelineRevenue = {{ timeline_revenue_json|safe }};
+        const timelineOrders = {{ timeline_orders_json|safe }};
+
+        const orderTypeLabels = {{ order_type_labels_json|safe }};
+        const orderTypeRevenue = {{ order_type_revenue_json|safe }};
+
+        const paymentLabels = {{ payment_labels_json|safe }};
+        const paymentData = {{ payment_data_json|safe }};
+
+        const topProdNames = {{ top_prod_names_json|safe }};
+        const topProdQtys = {{ top_prod_qtys_json|safe }};
+
+        // Common Chart Defaults
+        Chart.defaults.font.family = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        Chart.defaults.color = '#64748b';
+
+        // 1. Timeline Chart (Area + Line)
+        const ctxTimeline = document.getElementById('timelineChart');
+        if (ctxTimeline) {
+            new Chart(ctxTimeline, {
+                type: 'line',
+                data: {
+                    labels: timelineLabels,
+                    datasets: [
+                        {
+                            label: 'Revenue (PKR)',
+                            data: timelineRevenue,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: timelineLabels.length > 20 ? 1.5 : 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#2563eb',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleFont: { size: 12, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Revenue: PKR ${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 }, maxTicksLimit: 14 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            ticks: {
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    if (value >= 1000) return (value / 1000) + 'k';
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Order Type / Channels Donut Chart
+        const ctxOrderType = document.getElementById('orderTypeChart');
+        if (ctxOrderType) {
+            const hasOrderData = orderTypeRevenue.some(val => val > 0);
+            new Chart(ctxOrderType, {
+                type: 'doughnut',
+                data: {
+                    labels: orderTypeLabels,
+                    datasets: [{
+                        data: hasOrderData ? orderTypeRevenue : [1, 1, 1],
+                        backgroundColor: hasOrderData 
+                            ? ['#2563eb', '#10b981', '#f59e0b'] 
+                            : ['#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11, weight: '600' }, padding: 12 }
+                        },
+                        tooltip: {
+                            enabled: hasOrderData,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: PKR ${context.parsed.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 3. Top 5 Products Bar Chart
+        const ctxTopProd = document.getElementById('topProductsChart');
+        if (ctxTopProd) {
+            const hasProdData = topProdQtys.length > 0;
+            new Chart(ctxTopProd, {
+                type: 'bar',
+                data: {
+                    labels: hasProdData ? topProdNames : ['No sales in timeframe'],
+                    datasets: [{
+                        label: 'Units Sold',
+                        data: hasProdData ? topProdQtys : [0],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6,
+                        barThickness: 18,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.parsed.x} units sold`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9' },
+                            ticks: { font: { size: 10 }, stepSize: 1 }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10.5, weight: '600' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 4. Payment Methods Distribution
+        const ctxPayment = document.getElementById('paymentChart');
+        if (ctxPayment) {
+            const hasPayData = paymentData.some(val => val > 0);
+            new Chart(ctxPayment, {
+                type: 'doughnut',
+                data: {
+                    labels: paymentLabels,
+                    datasets: [{
+                        data: hasPayData ? paymentData : [1, 1, 1],
+                        backgroundColor: hasPayData 
+                            ? ['#16a34a', '#2563eb', '#8b5cf6'] 
+                            : ['#e2e8f0', '#e2e8f0', '#e2e8f0'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11, weight: '600' }, padding: 12 }
+                        },
+                        tooltip: {
+                            enabled: hasPayData,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: PKR ${context.parsed.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

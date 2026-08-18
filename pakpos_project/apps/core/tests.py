@@ -56,3 +56,24 @@ class SystemSettingsTests(TestCase):
         response = self.client.post(reverse('core:system_settings'), payload, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'System &amp; POS settings updated successfully!')
+
+    def test_dashboard_admin_access_and_presets(self):
+        self.client.login(username='admin_settings', password='adminpass123')
+        # Default today
+        response = self.client.get(reverse('core:home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Executive Dashboard')
+        self.assertContains(response, 'Total Net Revenue')
+        self.assertContains(response, 'Net Gross Profit')
+
+        # Test presets
+        for preset in ['today', 'yesterday', 'this_week', 'this_month', 'last_30_days', 'this_year', 'all_time']:
+            resp = self.client.get(reverse('core:home'), {'preset': preset})
+            self.assertEqual(resp.status_code, 200)
+
+    def test_dashboard_cashier_redirected(self):
+        self.client.login(username='cashier_settings', password='cashierpass123')
+        response = self.client.get(reverse('core:home'))
+        # Cashier must be redirected to POS
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('sales:pos'))

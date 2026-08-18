@@ -12,8 +12,6 @@ class ProductForm(forms.ModelForm):
             'has_variants',
             'base_price',
             'cost_price',
-            'stock_quantity',
-            'track_stock',
             'description',
             'is_active',
         ]
@@ -42,14 +40,7 @@ class ProductForm(forms.ModelForm):
                 'min': '0',
                 'placeholder': '0.00'
             }),
-            'stock_quantity': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'min': '0',
-                'placeholder': '0'
-            }),
-            'track_stock': forms.CheckboxInput(attrs={
-                'class': 'form-checkbox'
-            }),
+
             'description': forms.Textarea(attrs={
                 'class': 'form-textarea',
                 'rows': 3,
@@ -64,7 +55,6 @@ class ProductForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['base_price'].required = False
         self.fields['cost_price'].required = False
-        self.fields['stock_quantity'].required = False
 
     def clean_name(self):
         name = self.cleaned_data.get('name', '').strip()
@@ -116,17 +106,13 @@ class ProductForm(forms.ModelForm):
             raise forms.ValidationError("Cost price cannot be negative.")
         return cost_price or 0
 
-    def clean_stock_quantity(self):
-        stock_quantity = self.cleaned_data.get('stock_quantity')
-        if stock_quantity is not None and stock_quantity < 0:
-            raise forms.ValidationError("Stock quantity cannot be negative.")
-        return stock_quantity or 0
+
 
 
 class ProductVariantForm(forms.ModelForm):
     class Meta:
         model = ProductVariant
-        fields = ['name', 'cost_price', 'selling_price', 'stock_quantity', 'is_active']
+        fields = ['name', 'cost_price', 'selling_price', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-input variant-name',
@@ -144,11 +130,7 @@ class ProductVariantForm(forms.ModelForm):
                 'min': '0',
                 'placeholder': 'Price (PKR)'
             }),
-            'stock_quantity': forms.NumberInput(attrs={
-                'class': 'form-input',
-                'min': '0',
-                'placeholder': '0'
-            }),
+
             'is_active': forms.CheckboxInput(attrs={
                 'class': 'form-checkbox'
             }),
@@ -157,7 +139,6 @@ class ProductVariantForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['cost_price'].required = False
-        self.fields['stock_quantity'].required = False
         self.fields['is_active'].required = False
         if not self.instance or not self.instance.pk:
             self.fields['is_active'].initial = True
@@ -174,11 +155,7 @@ class ProductVariantForm(forms.ModelForm):
             raise forms.ValidationError("Cost price cannot be negative.")
         return cost_price or 0
 
-    def clean_stock_quantity(self):
-        stock_quantity = self.cleaned_data.get('stock_quantity')
-        if stock_quantity is not None and stock_quantity < 0:
-            raise forms.ValidationError("Stock quantity cannot be negative.")
-        return stock_quantity or 0
+
 
 
 class BaseProductVariantFormSet(forms.BaseInlineFormSet):

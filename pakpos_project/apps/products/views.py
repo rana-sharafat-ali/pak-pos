@@ -16,7 +16,7 @@ def product_list(request):
     """
     query = request.GET.get('q', '').strip()
     category_id = request.GET.get('category', '').strip()
-    status = request.GET.get('status', '').strip()
+
     product_type = request.GET.get('type', '').strip()
 
     products = Product.objects.select_related('category').prefetch_related('variants').all()
@@ -57,19 +57,6 @@ def product_list(request):
     if category_id:
         products = products.filter(category_id=category_id)
 
-    # Status filter
-    if status == 'in_stock':
-        products = products.filter(Q(stock_quantity__gt=5) | Q(variants__stock_quantity__gt=5)).distinct()
-    elif status == 'low_stock':
-        products = products.filter(
-            (Q(stock_quantity__gt=0) & Q(stock_quantity__lte=5)) |
-            (Q(variants__stock_quantity__gt=0) & Q(variants__stock_quantity__lte=5))
-        ).distinct()
-    elif status == 'out_of_stock':
-        products = products.filter(
-            (Q(has_variants=False) & Q(stock_quantity=0)) |
-            (Q(has_variants=True) & ~Q(variants__stock_quantity__gt=0))
-        ).distinct()
 
     # Product Type filter
     if product_type in ['single', 'simple']:
@@ -79,10 +66,7 @@ def product_list(request):
 
     # Metric counts
     total_products_count = Product.objects.count()
-    low_stock_count = Product.objects.filter(
-        (Q(stock_quantity__gt=0) & Q(stock_quantity__lte=5)) |
-        (Q(variants__stock_quantity__gt=0) & Q(variants__stock_quantity__lte=5))
-    ).distinct().count()
+
     active_categories_count = Category.objects.filter(products__isnull=False).distinct().count()
 
     categories = Category.objects.annotate(product_count=Count('products')).all()
@@ -100,10 +84,8 @@ def product_list(request):
         'filtered_total': products.count(),
         'categories': categories,
         'selected_category': category_id,
-        'selected_status': status,
         'query': query,
         'total_products_count': total_products_count,
-        'low_stock_count': low_stock_count,
         'active_categories_count': active_categories_count,
     }
     return render(request, 'products/product_list.html', context)
@@ -228,12 +210,15 @@ def product_update(request, pk):
         form = ProductForm(instance=product)
         formset = ProductVariantFormSet(instance=product)
 
+    categories = Category.objects.all()
+
     context = {
         'form': form,
         'formset': formset,
         'product': product,
         'title': f'Edit Product: {product.name}',
         'is_edit': True,
+        'categories': categories,
     }
     return render(request, 'products/product_form.html', context)
 

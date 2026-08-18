@@ -43,7 +43,6 @@ def pos_terminal_view(request):
                     'selling_price': float(v.selling_price),
                     'cost_price': float(v.cost_price or 0),
                     'selling_price_display': f"PKR {v.selling_price:,.2f}",
-                    'stock_quantity': v.stock_quantity,
                     'barcode': var_barcode,
                 })
         
@@ -58,8 +57,6 @@ def pos_terminal_view(request):
             'base_price': float(p.base_price) if not p.has_variants else 0,
             'cost_price': float(p.cost_price or 0) if not p.has_variants else 0,
             'price_display': p.price_display,
-            'stock_quantity': p.stock_quantity if not p.has_variants else sum(v['stock_quantity'] for v in variants_data),
-            'track_stock': p.track_stock,
             'barcode': prod_barcode,
             'variants': variants_data,
         })
@@ -144,17 +141,12 @@ def api_create_sale(request):
                 unit_price = variant.selling_price
                 cost_price = variant.cost_price
                 variant_name = variant.name
-                variant.stock_quantity -= int(qty)
-                variant.save()
             except ProductVariant.DoesNotExist:
                 return JsonResponse({'success': False, 'error': f'Variant ID {variant_id} is unavailable.'}, status=404)
         else:
             unit_price = product.base_price
             cost_price = product.cost_price
             variant_name = ''
-            if product.track_stock:
-                product.stock_quantity -= int(qty)
-                product.save()
 
         line_subtotal = (unit_price * qty).quantize(Decimal('0.01'))
         subtotal += line_subtotal
@@ -435,19 +427,8 @@ def sale_refund_view(request, pk):
 
     reason = request.POST.get('refund_reason', 'Customer Return / Cancellation').strip()
 
-    # 1. Restock Inventory Atomically
+    # 1. Update items
     for item in sale.items.all():
-        if item.variant:
-            variant = ProductVariant.objects.select_for_update().filter(id=item.variant.id).first()
-            if variant:
-                variant.stock_quantity += item.quantity
-                variant.save()
-        elif item.product:
-            product = Product.objects.select_for_update().filter(id=item.product.id).first()
-            if product and product.track_stock:
-                product.stock_quantity += item.quantity
-                product.save()
-
         item.is_refunded = True
         item.refunded_quantity = item.quantity
         item.save()

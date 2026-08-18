@@ -72,7 +72,6 @@ def parse_and_import_products(csv_content):
         'category': -1,
         'price': -1,
         'cost_price': -1,
-        'stock': -1,
         'description': -1,
         'variants': -1,
     }
@@ -88,8 +87,7 @@ def parse_and_import_products(csv_content):
             col_map['price'] = i
         elif any(k in h for k in ['cost price', 'cost']) and col_map['cost_price'] == -1:
             col_map['cost_price'] = i
-        elif any(k in h for k in ['stock quantity', 'stock', 'qty', 'quantity']) and col_map['stock'] == -1:
-            col_map['stock'] = i
+
         elif any(k in h for k in ['description', 'desc', 'notes']) and col_map['description'] == -1:
             col_map['description'] = i
         elif any(k in h for k in ['variant', 'size', 'sizes', 'options']) and col_map['variants'] == -1:
@@ -149,12 +147,6 @@ def parse_and_import_products(csv_content):
                 except InvalidOperation:
                     cost_val = Decimal('0.00')
 
-            # Stock
-            stock_val = 0
-            if col_map['stock'] != -1 and col_map['stock'] < len(row):
-                raw_s = str(row[col_map['stock']]).strip()
-                if raw_s.isdigit():
-                    stock_val = int(raw_s)
 
             # Description
             desc_val = str(row[col_map['description']]).strip() if col_map['description'] != -1 and col_map['description'] < len(row) else ''
@@ -193,7 +185,6 @@ def parse_and_import_products(csv_content):
                 has_variants=has_variants,
                 base_price=price_val,
                 cost_price=cost_val,
-                stock_quantity=stock_val,
                 description=desc_val,
                 is_active=True
             )
@@ -207,7 +198,6 @@ def parse_and_import_products(csv_content):
                         name=v_name,
                         selling_price=v_price,
                         cost_price=cost_val,
-                        stock_quantity=stock_val or 50,
                         is_active=True
                     )
 

@@ -2,6 +2,54 @@
 
 {% block title %}Sales History & Invoices | {{ APP_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .kpi-metric-card {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: 12px;
+        box-shadow: var(--shadow-xs);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+    .kpi-metric-card::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 4px; height: 100%;
+        background: var(--card-accent, var(--primary));
+    }
+    .kpi-metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .kpi-metric-label {
+        font-weight: 700;
+        color: var(--secondary);
+    }
+    .kpi-metric-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--icon-bg, #f1f5f9);
+        border-radius: 8px;
+    }
+    .kpi-metric-value {
+        font-weight: 900;
+        margin-top: 0.25rem;
+    }
+    .kpi-metric-footer {
+        color: var(--muted-text);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
 <!-- TOP BAR -->
@@ -35,35 +83,75 @@
 </div>
 
 <!-- KPI SUMMARY CARDS -->
-<div class="kpi-row" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
-    <div class="kpi-card">
-        <span class="kpi-title">Total Revenue</span>
-        <div class="kpi-value" style="color: var(--primary);">PKR {{ total_revenue|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Completed sales volume</span>
+<div class="kpi-row" style="margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem;">
+    <!-- Revenue -->
+    <div class="kpi-metric-card" style="padding: 0.85rem; min-height: auto;">
+        <div class="kpi-metric-header" style="margin-bottom: 0.4rem;">
+            <span class="kpi-metric-label" style="font-size: 0.75rem;">Total Revenue</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #eff6ff; width: 24px; height: 24px; font-size: 0.75rem;">📈</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.15rem; color: var(--primary);">
+            PKR {{ total_revenue|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer" style="margin-top: 0.4rem; font-size: 0.7rem;">
+            <span>Sales volume</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Net Profit</span>
-        <div class="kpi-value" style="color: #16a34a;">PKR {{ total_profit|floatformat:0 }}</div>
-        <span class="kpi-subtitle">{{ profit_margin_avg }}% Avg Margin</span>
+    <!-- Net Profit -->
+    <div class="kpi-metric-card" style="padding: 0.85rem; min-height: auto; --card-accent: #16a34a;">
+        <div class="kpi-metric-header" style="margin-bottom: 0.4rem;">
+            <span class="kpi-metric-label" style="font-size: 0.75rem;">Net Profit</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #f0fdf4; width: 24px; height: 24px; font-size: 0.75rem;">💰</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.15rem; color: #16a34a;">
+            PKR {{ total_profit|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer" style="margin-top: 0.4rem; font-size: 0.7rem;">
+            <span>{{ profit_margin_avg }}% Avg Margin</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Cash in Drawer</span>
-        <div class="kpi-value" style="color: var(--secondary);">PKR {{ cash_revenue|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Physical cash received</span>
+    <!-- Cash in Drawer -->
+    <div class="kpi-metric-card" style="padding: 0.85rem; min-height: auto; --card-accent: #64748b;">
+        <div class="kpi-metric-header" style="margin-bottom: 0.4rem;">
+            <span class="kpi-metric-label" style="font-size: 0.75rem;">Cash in Drawer</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #f8fafc; width: 24px; height: 24px; font-size: 0.75rem;">💵</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.15rem; color: var(--secondary);">
+            PKR {{ cash_revenue|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer" style="margin-top: 0.4rem; font-size: 0.7rem;">
+            <span>Physical cash</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Cards & Digital</span>
-        <div class="kpi-value" style="color: #2563eb;">PKR {{ digital_revenue|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Card & Mobile Wallets</span>
+    <!-- Digital & Card -->
+    <div class="kpi-metric-card" style="padding: 0.85rem; min-height: auto; --card-accent: #2563eb;">
+        <div class="kpi-metric-header" style="margin-bottom: 0.4rem;">
+            <span class="kpi-metric-label" style="font-size: 0.75rem;">Cards & Digital</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #eff6ff; width: 24px; height: 24px; font-size: 0.75rem;">💳</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.15rem; color: #2563eb;">
+            PKR {{ digital_revenue|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer" style="margin-top: 0.4rem; font-size: 0.7rem;">
+            <span>Card & Mobile Wallets</span>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <span class="kpi-title">Total Refunds</span>
-        <div class="kpi-value" style="color: #dc2626;">PKR {{ total_refunds|floatformat:0 }}</div>
-        <span class="kpi-subtitle">Returned / cancelled volume</span>
+    <!-- Total Refunds -->
+    <div class="kpi-metric-card" style="padding: 0.85rem; min-height: auto; --card-accent: #dc2626;">
+        <div class="kpi-metric-header" style="margin-bottom: 0.4rem;">
+            <span class="kpi-metric-label" style="font-size: 0.75rem;">Total Refunds</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #fef2f2; width: 24px; height: 24px; font-size: 0.75rem;">🏷️</div>
+        </div>
+        <div class="kpi-metric-value" style="font-size: 1.15rem; color: #dc2626;">
+            PKR {{ total_refunds|floatformat:0 }}
+        </div>
+        <div class="kpi-metric-footer" style="margin-top: 0.4rem; font-size: 0.7rem;">
+            <span>Returned volume</span>
+        </div>
     </div>
 </div>
 

@@ -808,6 +808,9 @@
                     <div class="pos-bill-row" style="margin-bottom: 0;">
                         <span style="color: var(--muted-text);">Discount:</span>
                         <div style="display: flex; align-items: center; gap: 0.25rem;">
+                            {% if not pos_auto_apply_discount and default_discount_percent > 0 %}
+                            <button type="button" class="pos-preset-chip" onclick="setInlineDiscountPreset({{ default_discount_percent }}, 'percentage')" style="font-size: 0.65rem; padding: 0.1rem 0.3rem;" title="Apply default discount">{{ default_discount_percent }}%</button>
+                            {% endif %}
                             <input 
                                 type="number" 
                                 id="pos-inline-disc-val" 
