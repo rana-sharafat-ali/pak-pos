@@ -40,6 +40,7 @@ def pos_terminal_view(request):
                     'id': v.id,
                     'name': v.name,
                     'selling_price': float(v.selling_price),
+                    'selling_price_display': f"PKR {v.selling_price:,.2f}",
                     'stock_quantity': v.stock_quantity,
                     'barcode': var_barcode,
                 })
@@ -164,23 +165,11 @@ def api_create_sale(request):
             'total_price': line_subtotal,
         })
 
-    # Discount Calculation
-    discount_type = data.get('discount_type', Sale.DiscountType.NONE)
-    discount_val = Decimal(str(data.get('discount_value', 0) or 0))
-    discount_amount = Decimal('0.00')
-
-    if discount_type == Sale.DiscountType.FIXED:
-        discount_amount = min(discount_val, subtotal)
-    elif discount_type == Sale.DiscountType.PERCENTAGE:
-        discount_amount = (subtotal * (min(Decimal('100.00'), discount_val) / Decimal('100'))).quantize(Decimal('0.01'))
-
-    net_after_discount = max(Decimal('0.00'), subtotal - discount_amount)
-
-    # Tax Calculation
+    # 1. Tax Calculation (calculated on Subtotal)
     tax_rate = Decimal(str(data.get('tax_rate', getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0)) or 0))
-    tax_amount = (net_after_discount * (tax_rate / Decimal('100'))).quantize(Decimal('0.01')) if tax_rate > 0 else Decimal('0.00')
+    tax_amount = (subtotal * (tax_rate / Decimal('100'))).quantize(Decimal('0.01')) if tax_rate > 0 else Decimal('0.00')
 
-    # Order Type & Service / Delivery Charge Calculation
+    # 2. Order Type & Service / Delivery Charge Calculation (calculated on Subtotal)
     order_type = data.get('order_type', Sale.OrderType.WALK_IN)
     
     if order_type in [Sale.OrderType.TAKEAWAY, Sale.OrderType.WALK_IN]:
@@ -188,7 +177,7 @@ def api_create_sale(request):
         service_charge_amount = Decimal('0.00')
     elif order_type == Sale.OrderType.DELIVERY:
         service_charge_rate = Decimal('0.00')
-        if 'service_charge_amount' in data:
+        if 'service_charge_amount' in data and data.get('service_charge_amount') is not None:
             service_charge_amount = Decimal(str(data.get('service_charge_amount') or 0)).quantize(Decimal('0.01'))
         else:
             service_charge_amount = Decimal(str(getattr(settings, 'POS_DEFAULT_DELIVERY_CHARGES', 150))).quantize(Decimal('0.01'))
@@ -197,9 +186,23 @@ def api_create_sale(request):
         if 'service_charge_amount' in data and data.get('service_charge_amount') is not None:
             service_charge_amount = Decimal(str(data.get('service_charge_amount') or 0)).quantize(Decimal('0.01'))
         else:
-            service_charge_amount = (net_after_discount * (service_charge_rate / Decimal('100'))).quantize(Decimal('0.01')) if service_charge_rate > 0 else Decimal('0.00')
+            service_charge_amount = (subtotal * (service_charge_rate / Decimal('100'))).quantize(Decimal('0.01')) if service_charge_rate > 0 else Decimal('0.00')
 
-    total_amount = (net_after_discount + tax_amount + service_charge_amount).quantize(Decimal('0.01'))
+    # 3. Gross Total before Discount
+    gross_total = subtotal + tax_amount + service_charge_amount
+
+    # 4. Discount Calculation (Subtracted from Total: Subtotal + Tax + Service Charges)
+    discount_type = data.get('discount_type', Sale.DiscountType.NONE)
+    discount_val = Decimal(str(data.get('discount_value', 0) or 0))
+    discount_amount = Decimal('0.00')
+
+    if discount_type == Sale.DiscountType.FIXED:
+        discount_amount = min(discount_val, gross_total)
+    elif discount_type == Sale.DiscountType.PERCENTAGE:
+        discount_amount = (subtotal * (min(Decimal('100.00'), discount_val) / Decimal('100'))).quantize(Decimal('0.01'))
+
+    # 5. Final Net Payable Amount
+    total_amount = max(Decimal('0.00'), (gross_total - discount_amount)).quantize(Decimal('0.01'))
 
     # Payment details
     payment_method = data.get('payment_method', Sale.PaymentMethod.CASH)
@@ -392,21 +395,30 @@ def sales_ledger_view(request):
     return render(request, 'sales/sales_ledger.html', context)
 
 
-@manager_or_admin_required
+@login_required
 @transaction.atomic
 def sale_refund_view(request, pk):
     """
-    Process Full Refund / Return with Automatic Inventory Restock Rollback
+    Process Full Refund / Return with Automatic Inventory Restock Rollback.
+    Accessible to Cashiers, Managers, and Admins.
     """
+    def _redirect_back():
+        referer = request.META.get('HTTP_REFERER')
+        if referer and ('shift' in referer or 'history' in referer or 'ledger' in referer):
+            return redirect(referer)
+        if request.user.role == 'cashier':
+            return redirect('sales:shift_summary')
+        return redirect('sales:ledger')
+
     if request.method != 'POST':
         messages.error(request, 'Invalid request method for refund.')
-        return redirect('sales:ledger')
+        return _redirect_back()
 
     sale = get_object_or_404(Sale.objects.select_for_update().prefetch_related('items'), pk=pk)
 
     if sale.status == Sale.Status.REFUNDED:
         messages.warning(request, f"Invoice {sale.invoice_number} is already marked as Refunded.")
-        return redirect('sales:ledger')
+        return _redirect_back()
 
     reason = request.POST.get('refund_reason', 'Customer Return / Cancellation').strip()
 
@@ -435,7 +447,7 @@ def sale_refund_view(request, pk):
     sale.save()
 
     messages.success(request, f"Invoice {sale.invoice_number} successfully refunded. Inventory restored ({sale.total_items_count} items restocked).")
-    return redirect('sales:ledger')
+    return _redirect_back()
 
 
 def _get_shift_context(request):

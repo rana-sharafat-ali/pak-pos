@@ -227,12 +227,6 @@
                     <td style="color: #64748b;">Subtotal:</td>
                     <td style="text-align: right; font-weight: 700;">PKR {{ sale.subtotal|floatformat:2 }}</td>
                 </tr>
-                {% if sale.discount_amount > 0 %}
-                <tr>
-                    <td style="color: #dc2626;">Discount:</td>
-                    <td style="text-align: right; font-weight: 700; color: #dc2626;">- PKR {{ sale.discount_amount|floatformat:2 }}</td>
-                </tr>
-                {% endif %}
                 {% if sale.tax_amount > 0 %}
                 <tr>
                     <td style="color: #64748b;">Tax (GST {{ sale.tax_rate }}%):</td>
@@ -243,6 +237,12 @@
                 <tr>
                     <td style="color: #64748b;">{% if sale.order_type == 'delivery' %}Delivery Charges:{% elif sale.service_charge_rate > 0 %}Service Charges ({{ sale.service_charge_rate }}%):{% else %}Service Charges:{% endif %}</td>
                     <td style="text-align: right; font-weight: 700;">+ PKR {{ sale.service_charge_amount|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if sale.discount_amount > 0 %}
+                <tr>
+                    <td style="color: #dc2626;">Discount:</td>
+                    <td style="text-align: right; font-weight: 700; color: #dc2626;">- PKR {{ sale.discount_amount|floatformat:2 }}</td>
                 </tr>
                 {% endif %}
                 <tr class="grand-total-row">

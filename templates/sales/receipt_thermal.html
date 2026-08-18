@@ -219,13 +219,6 @@
                 <span>PKR {{ sale.subtotal|floatformat:2 }}</span>
             </div>
 
-            {% if sale.discount_amount > 0 %}
-            <div class="total-row">
-                <span>Discount:</span>
-                <span>- PKR {{ sale.discount_amount|floatformat:2 }}</span>
-            </div>
-            {% endif %}
-
             {% if sale.tax_amount > 0 %}
             <div class="total-row">
                 <span>Tax (GST {{ sale.tax_rate }}%):</span>
@@ -237,6 +230,13 @@
             <div class="total-row">
                 <span>{% if sale.order_type == 'delivery' %}Delivery Charges:{% elif sale.service_charge_rate > 0 %}Service Charges ({{ sale.service_charge_rate }}%):{% else %}Service Charges:{% endif %}</span>
                 <span>+ PKR {{ sale.service_charge_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+
+            {% if sale.discount_amount > 0 %}
+            <div class="total-row">
+                <span>Discount:</span>
+                <span>- PKR {{ sale.discount_amount|floatformat:2 }}</span>
             </div>
             {% endif %}
 

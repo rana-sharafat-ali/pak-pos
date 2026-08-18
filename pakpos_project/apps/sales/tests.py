@@ -284,10 +284,71 @@ class SalesAndPOSTests(TestCase):
         self.assertContains(shift_print_resp, 'Daily Shift & Cash Drawer Reconciliation')
         self.assertContains(shift_print_resp, 'Gross Sales')
 
+        # 5. Manager views ledger and net profit before refund
+        self.client.force_login(self.manager)
         ledger_resp = self.client.get(reverse('sales:ledger'))
         self.assertEqual(ledger_resp.status_code, 200)
         self.assertContains(ledger_resp, 'Sales & Order Invoices')
         self.assertContains(ledger_resp, 'Net Profit')
         self.assertContains(ledger_resp, '300.00')  # 1000 revenue - 700 cost = 300 profit
+
+        # 6. Cashier CAN process refund from shift
+        self.client.force_login(self.cashier)
+        refund_resp = self.client.post(reverse('sales:refund', args=[sale.id]), {'refund_reason': 'Customer requested refund'})
+        self.assertEqual(refund_resp.status_code, 302)
+        sale.refresh_from_db()
+        self.assertEqual(sale.status, Sale.Status.REFUNDED)
+
+    def test_subtotal_gst_service_discount_calculation_order(self):
+        """
+        Verify the financial calculation formula:
+        Total Payable = (Subtotal + GST + Service Charges) - Discount
+        Tax and Service Charges are calculated on Subtotal, and discount is subtracted from the gross total.
+        """
+        self.client.force_login(self.cashier)
+
+        # 2 x Large Pizza @ 1400 = 2800 subtotal
+        # Tax: 5% of 2800 = 140
+        # Service Charge: 10% of 2800 = 280
+        # Gross Total: 2800 + 140 + 280 = 3220
+        # Discount: 220
+        # Net Total: 3220 - 220 = 3000
+        payload = {
+            'customer_name': 'Hassan Raza',
+            'customer_phone': '03119876543',
+            'payment_method': 'cash',
+            'order_type': 'dine_in',
+            'tax_rate': 5.0,
+            'service_charge_rate': 10.0,
+            'discount_type': 'fixed',
+            'discount_value': 220.0,
+            'amount_tendered': 3000.0,
+            'items': [
+                {
+                    'product_id': self.variant_product.id,
+                    'variant_id': self.size_large.id,
+                    'quantity': 2,
+                }
+            ]
+        }
+
+        response = self.client.post(
+            reverse('sales:api_checkout'),
+            data=json.dumps(payload),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['total_amount'], 3000.0)
+        self.assertEqual(data['change_returned'], 0.0)
+
+        sale = Sale.objects.get(id=data['sale_id'])
+        self.assertEqual(sale.subtotal, Decimal('2800.00'))
+        self.assertEqual(sale.tax_amount, Decimal('140.00'))
+        self.assertEqual(sale.service_charge_amount, Decimal('280.00'))
+        self.assertEqual(sale.discount_amount, Decimal('220.00'))
+        self.assertEqual(sale.total_amount, Decimal('3000.00'))
 
 
