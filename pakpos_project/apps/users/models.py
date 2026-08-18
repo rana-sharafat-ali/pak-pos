@@ -44,13 +44,11 @@ class User(AbstractUser):
     """
     class Role(models.TextChoices):
         ADMIN = 'admin', 'Admin'
-        MANAGER = 'manager', 'Manager'
         CASHIER = 'cashier', 'Cashier'
 
     # Route mapping for post-login destination by role
     ROLE_REDIRECT_MAP = {
         Role.ADMIN: 'core:home',
-        Role.MANAGER: 'core:home',
         Role.CASHIER: 'sales:pos',
     }
 
@@ -106,7 +104,11 @@ class User(AbstractUser):
 
     @property
     def is_manager_or_above(self):
-        return self.is_superuser or self.role in [self.Role.ADMIN, self.Role.MANAGER]
+        return self.is_admin
+
+    @property
+    def is_cashier(self):
+        return self.role == self.Role.CASHIER
 
     @property
     def can_manage_users(self):
@@ -120,7 +122,6 @@ class User(AbstractUser):
     def role_display_badge(self):
         badges = {
             self.Role.ADMIN: 'badge-admin',
-            self.Role.MANAGER: 'badge-manager',
             self.Role.CASHIER: 'badge-cashier',
         }
         return badges.get(self.role, 'badge-cashier')

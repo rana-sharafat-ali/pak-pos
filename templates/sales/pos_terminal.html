@@ -924,6 +924,7 @@
 <script>
     window.POS_CATALOG = {{ products_json|safe }};
     window.DEFAULT_DISCOUNT_PERCENT = {{ default_discount_percent|default:0 }};
+    window.POS_AUTO_APPLY_DISCOUNT = {{ pos_auto_apply_discount|yesno:'true,false' }};
     window.DEFAULT_TAX_RATE = {{ default_tax_percent }};
     window.DEFAULT_SERVICE_CHARGE_RATE = {{ default_service_charge_percent }};
     window.DEFAULT_DELIVERY_CHARGES = {{ default_delivery_charges|default:150 }};

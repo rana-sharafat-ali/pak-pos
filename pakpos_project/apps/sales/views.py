@@ -41,6 +41,7 @@ def pos_terminal_view(request):
                     'id': v.id,
                     'name': v.name,
                     'selling_price': float(v.selling_price),
+                    'cost_price': float(v.cost_price or 0),
                     'selling_price_display': f"PKR {v.selling_price:,.2f}",
                     'stock_quantity': v.stock_quantity,
                     'barcode': var_barcode,
@@ -55,6 +56,7 @@ def pos_terminal_view(request):
             'category_icon': p.category.icon if p.category and p.category.icon else '📦',
             'has_variants': p.has_variants,
             'base_price': float(p.base_price) if not p.has_variants else 0,
+            'cost_price': float(p.cost_price or 0) if not p.has_variants else 0,
             'price_display': p.price_display,
             'stock_quantity': p.stock_quantity if not p.has_variants else sum(v['stock_quantity'] for v in variants_data),
             'track_stock': p.track_stock,
@@ -68,6 +70,7 @@ def pos_terminal_view(request):
         'products_json': json.dumps(product_catalog_json),
         'dining_tables': dining_tables,
         'default_discount_percent': getattr(settings, 'POS_DEFAULT_DISCOUNT_PERCENT', 0),
+        'pos_auto_apply_discount': getattr(settings, 'POS_AUTO_APPLY_DISCOUNT', False),
         'default_tax_percent': getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0),
         'default_service_charge_percent': getattr(settings, 'POS_DEFAULT_SERVICE_CHARGE_PERCENT', 0),
         'default_delivery_charges': getattr(settings, 'POS_DEFAULT_DELIVERY_CHARGES', 150),
@@ -118,6 +121,7 @@ def api_create_sale(request):
 
     # 2. Process Line Items and Calculate Totals inside Atomic Transaction
     subtotal = Decimal('0.00')
+    total_cogs = Decimal('0.00')
     line_items_to_create = []
 
     for item in cart_items:
@@ -154,6 +158,8 @@ def api_create_sale(request):
 
         line_subtotal = (unit_price * qty).quantize(Decimal('0.01'))
         subtotal += line_subtotal
+        if cost_price and cost_price > 0:
+            total_cogs += (cost_price * qty).quantize(Decimal('0.01'))
 
         line_items_to_create.append({
             'product': product,
@@ -193,15 +199,20 @@ def api_create_sale(request):
     # 3. Gross Total before Discount
     gross_total = subtotal + tax_amount + service_charge_amount
 
-    # 4. Discount Calculation (Subtracted from Total: Subtotal + Tax + Service Charges)
+    # 4. Discount Calculation (Discount cannot exceed the Gross Profit Margin: Subtotal - Cost Price)
+    # If cost price is 0 (unspecified), maximum discount allowed is subtotal.
+    max_allowable_discount = max(Decimal('0.00'), subtotal - total_cogs) if total_cogs > 0 else subtotal
+
     discount_type = data.get('discount_type', Sale.DiscountType.NONE)
     discount_val = Decimal(str(data.get('discount_value', 0) or 0))
     discount_amount = Decimal('0.00')
 
     if discount_type == Sale.DiscountType.FIXED:
-        discount_amount = min(discount_val, gross_total)
+        discount_amount = min(max(Decimal('0.00'), discount_val), max_allowable_discount)
     elif discount_type == Sale.DiscountType.PERCENTAGE:
-        discount_amount = (subtotal * (min(Decimal('100.00'), discount_val) / Decimal('100'))).quantize(Decimal('0.01'))
+        max_pct = round((float(max_allowable_discount) / float(subtotal)) * 100, 2) if subtotal > 0 else 0.0
+        discount_pct = min(Decimal(str(max_pct)), max(Decimal('0.00'), discount_val))
+        discount_amount = (subtotal * (discount_pct / Decimal('100'))).quantize(Decimal('0.01'))
 
     # 5. Final Net Payable Amount
     total_amount = max(Decimal('0.00'), (gross_total - discount_amount)).quantize(Decimal('0.01'))

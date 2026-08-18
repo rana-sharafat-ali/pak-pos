@@ -24,12 +24,12 @@ class SalesAndPOSTests(TestCase):
             role=User.Role.CASHIER
         )
 
-        # Create Manager User
+        # Create Admin User
         self.manager = User.objects.create_user(
-            username='manager_test',
-            email='manager_test@pakpos.com',
-            password='managerpass123',
-            role=User.Role.MANAGER
+            username='admin_test',
+            email='admin_test@pakpos.com',
+            password='adminpass123',
+            role=User.Role.ADMIN
         )
 
 

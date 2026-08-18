@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}System Settings | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- PAGE HEADER -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <h1 style="font-size: 1.5rem; font-weight: 800; color: var(--secondary); margin: 0; letter-spacing: -0.02em;">
+                System Settings
+            </h1>
+            <span class="pill-status status-in-stock" style="font-size: 0.75rem; padding: 0.2rem 0.6rem; font-weight: 700;">
+                Admin Control
+            </span>
+        </div>
+        <p style="font-size: 0.86rem; color: var(--muted-text); margin-top: 0.25rem;">
+            Configure store branding, currency, POS operating mode, tax rates, and shift timings.
+        </p>
+    </div>
+</div>
+
+<form method="POST" id="settings-form" style="max-width: 960px;">
+    {% csrf_token %}
+
+    <!-- 1. STORE & BRAND IDENTITY -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-card);">
+            <span style="font-size: 1.35rem;">🏪</span>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Store & Brand Identity
+                </h3>
+                <span style="font-size: 0.78rem; color: var(--muted-text);">
+                    Application branding, currency symbol, color theme, and timezone.
+                </span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+            <!-- Store / Business Name -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.app_name.id_for_label }}">Store / Business Name *</label>
+                {{ form.app_name }}
+                {% if form.app_name.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.app_name.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Subtitle / Tagline -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.app_subtitle.id_for_label }}">Subtitle / Tagline</label>
+                {{ form.app_subtitle }}
+                {% if form.app_subtitle.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.app_subtitle.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Currency Symbol -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.app_currency.id_for_label }}">Currency Symbol / Code *</label>
+                {{ form.app_currency }}
+                <div style="display: flex; gap: 0.35rem; margin-top: 0.4rem; flex-wrap: wrap;">
+                    <span style="font-size: 0.72rem; color: var(--muted-text); font-weight: 700; display: flex; align-items: center;">Presets:</span>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('PKR')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">PKR</button>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('Rs.')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">Rs.</button>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('$')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">$ (USD)</button>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('AED')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">AED</button>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('SAR')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">SAR</button>
+                    <button type="button" class="pos-preset-chip" onclick="setCurrency('EUR')" style="font-size: 0.72rem; padding: 0.15rem 0.45rem;">€ (EUR)</button>
+                </div>
+                {% if form.app_currency.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.app_currency.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Timezone -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.time_zone.id_for_label }}">System Timezone *</label>
+                {{ form.time_zone }}
+                {% if form.time_zone.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.time_zone.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Receipt Footer Text -->
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label" for="{{ form.app_footer_text.id_for_label }}">Receipt & Invoice Footer Message</label>
+                {{ form.app_footer_text }}
+                <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    Printed at the bottom of thermal receipts and customer invoices.
+                </span>
+                {% if form.app_footer_text.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.app_footer_text.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. POS & BILLING CONFIGURATION -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-card);">
+            <span style="font-size: 1.35rem;">🍽️</span>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Point of Sale (POS) & Operational Mode
+                </h3>
+                <span style="font-size: 0.78rem; color: var(--muted-text);">
+                    Select operating mode and default tax, service charge, and discount rates.
+                </span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+            <!-- POS Operating Mode -->
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label" for="{{ form.pos_operation_mode.id_for_label }}">POS Operating Mode *</label>
+                {{ form.pos_operation_mode }}
+                <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    <strong>Restaurant / Dine-In mode</strong> activates Table selection and Dine-in / Takeaway / Delivery order switches in POS terminal.
+                </span>
+                {% if form.pos_operation_mode.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_operation_mode.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Default Tax Percent -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_default_tax_percent.id_for_label }}">Default Sales Tax (%)</label>
+                {{ form.pos_default_tax_percent }}
+                <span style="font-size: 0.74rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    Auto-applied on POS checkout (can be modified inline).
+                </span>
+                {% if form.pos_default_tax_percent.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_default_tax_percent.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Default Service Charge Percent -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_default_service_charge_percent.id_for_label }}">Default Dine-In Service Charge (%)</label>
+                {{ form.pos_default_service_charge_percent }}
+                <span style="font-size: 0.74rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    Applied when order type is Dine-In.
+                </span>
+                {% if form.pos_default_service_charge_percent.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_default_service_charge_percent.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Default Discount Percent & Auto Apply Toggle -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_default_discount_percent.id_for_label }}">Default Order Discount (%)</label>
+                {{ form.pos_default_discount_percent }}
+                <div style="margin-top: 0.55rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.55rem 0.75rem;">
+                    <label style="display: flex; align-items: flex-start; gap: 0.55rem; cursor: pointer; margin: 0;">
+                        <span style="margin-top: 2px;">{{ form.pos_auto_apply_discount }}</span>
+                        <div>
+                            <strong style="font-size: 0.82rem; color: var(--secondary); display: block;">Auto-Apply to All Orders</strong>
+                            <span style="font-size: 0.72rem; color: var(--muted-text); line-height: 1.35; display: block;">
+                                Uncheck to keep initial discount at 0% and allow cashier to apply when needed.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+                {% if form.pos_default_discount_percent.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_default_discount_percent.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Default Delivery Charges -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_default_delivery_charges.id_for_label }}">Default Delivery Charge (Flat Amount)</label>
+                {{ form.pos_default_delivery_charges }}
+                {% if form.pos_default_delivery_charges.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_default_delivery_charges.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. SHIFT TIMING & SYSTEM PREFERENCES -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-card);">
+            <span style="font-size: 1.35rem;">⏱️</span>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Shift Timings & System Preferences
+                </h3>
+                <span style="font-size: 0.78rem; color: var(--muted-text);">
+                    Daily shift hours, catalog pagination limit, and login session persistence.
+                </span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+            <!-- Shift Start Hour -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_shift_start_hour.id_for_label }}">Daily Shift Starting Hour (0-23)</label>
+                {{ form.pos_shift_start_hour }}
+                <span style="font-size: 0.74rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    e.g. <code>9</code> for 9:00 AM, <code>0</code> for 12:00 AM Midnight.
+                </span>
+                {% if form.pos_shift_start_hour.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_shift_start_hour.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Shift End Hour -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.pos_shift_end_hour.id_for_label }}">Daily Shift Ending Hour (0-23)</label>
+                {{ form.pos_shift_end_hour }}
+                <span style="font-size: 0.74rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                    e.g. <code>23</code> for 11:00 PM.
+                </span>
+                {% if form.pos_shift_end_hour.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.pos_shift_end_hour.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Products Per Page -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.products_per_page.id_for_label }}">Products Per Page (Pagination)</label>
+                {{ form.products_per_page }}
+                {% if form.products_per_page.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.products_per_page.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <!-- Session Cookie Age Days -->
+            <div class="form-group">
+                <label class="form-label" for="{{ form.session_cookie_age_days.id_for_label }}">Login Session Duration (Days)</label>
+                {{ form.session_cookie_age_days }}
+                {% if form.session_cookie_age_days.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.session_cookie_age_days.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBMIT BUTTONS -->
+    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; margin-top: 1rem;">
+        <a href="{% url 'core:home' %}" class="btn btn-outline btn-sm">Cancel</a>
+        <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.65rem 1.6rem; font-weight: 700; font-size: 0.9rem;">
+            💾 Save Settings
+        </button>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setCurrency(curr) {
+        const input = document.getElementById('id_app_currency');
+        if (input) input.value = curr;
+    }
+</script>
+{% endblock %}

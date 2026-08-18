@@ -19,7 +19,7 @@ def role_required(*allowed_roles):
                 return redirect('users:login')
                 
             if not request.user.is_active:
-                messages.error(request, 'Your account has been deactivated. Please contact your manager.')
+                messages.error(request, 'Your account has been deactivated. Please contact your administrator.')
                 return redirect('users:login')
 
             if request.user.is_superuser or request.user.role in allowed_roles:
@@ -41,7 +41,7 @@ def admin_required(view_func):
 
 def manager_or_admin_required(view_func):
     """
-    Shortcut decorator for views requiring Manager or Admin role
+    Backward-compatible alias for admin_required
     """
-    return role_required(User.Role.ADMIN, User.Role.MANAGER)(view_func)
+    return role_required(User.Role.ADMIN)(view_func)
 

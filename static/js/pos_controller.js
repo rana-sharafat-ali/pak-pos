@@ -15,6 +15,14 @@
     // Multi-Tab Cart State
     const isRestaurantMode = (window.POS_MODE === 'restaurant' || window.POS_MODE === 'cafe' || window.POS_MODE === 'food' || window.POS_MODE === 'fast_food');
     const defaultDiscountPercent = parseFloat(window.DEFAULT_DISCOUNT_PERCENT) || 0;
+    const autoApplyDiscount = (window.POS_AUTO_APPLY_DISCOUNT === true || window.POS_AUTO_APPLY_DISCOUNT === 'true');
+
+    function getInitialDiscount() {
+        if (autoApplyDiscount && defaultDiscountPercent > 0) {
+            return { type: 'percentage', value: defaultDiscountPercent };
+        }
+        return { type: 'none', value: 0 };
+    }
 
     let tabs = [
         {
@@ -22,10 +30,7 @@
             label: 'Order 1',
             items: [],
             customer: { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' },
-            discount: { 
-                type: defaultDiscountPercent > 0 ? 'percentage' : 'none', 
-                value: defaultDiscountPercent 
-            },
+            discount: getInitialDiscount(),
             paymentMethod: 'cash',
             orderType: isRestaurantMode ? 'dine_in' : 'walk_in',
             tableNumber: '',
@@ -106,6 +111,16 @@
                         }
                     }
                 }
+            });
+        }
+
+        if (inlineDiscValInput) {
+            inlineDiscValInput.addEventListener('blur', () => {
+                const currentTab = getActiveTab();
+                inlineDiscValInput.value = currentTab.discount.value || '';
+            });
+            inlineDiscValInput.addEventListener('change', (e) => {
+                onInlineDiscountInputChange(e.target.value);
             });
         }
 
@@ -572,10 +587,7 @@
             label: `Order ${newIndex}`,
             items: [],
             customer: { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' },
-            discount: { 
-                type: defaultDiscountPercent > 0 ? 'percentage' : 'none', 
-                value: defaultDiscountPercent 
-            },
+            discount: getInitialDiscount(),
             paymentMethod: 'cash',
             orderType: isRestaurantMode ? 'dine_in' : 'walk_in',
             tableNumber: '',
@@ -601,9 +613,22 @@
         focusSearchInput();
     };
 
-    function addToCart(productId, variantId, name, variantName, unitPrice) {
+    function addToCart(productId, variantId, name, variantName, unitPrice, costPrice) {
         const currentTab = getActiveTab();
         const existing = currentTab.items.find(i => i.productId === productId && i.variantId === variantId);
+
+        let finalCost = costPrice;
+        if (finalCost === undefined || finalCost === null) {
+            const prod = catalog.find(p => p.id === productId);
+            if (prod) {
+                if (variantId && prod.variants) {
+                    const v = prod.variants.find(varItem => varItem.id === variantId);
+                    if (v) finalCost = v.cost_price || 0;
+                } else {
+                    finalCost = prod.cost_price || 0;
+                }
+            }
+        }
 
         if (existing) {
             existing.quantity += 1;
@@ -614,6 +639,7 @@
                 name,
                 variantName,
                 unitPrice: parseFloat(unitPrice),
+                costPrice: parseFloat(finalCost) || 0,
                 quantity: 1,
             });
         }
@@ -675,10 +701,16 @@
     function calculateCartTotals() {
         const currentTab = getActiveTab();
         let subtotal = 0;
+        let totalCost = 0;
 
         currentTab.items.forEach(i => {
             subtotal += i.unitPrice * i.quantity;
+            totalCost += (parseFloat(i.costPrice) || 0) * i.quantity;
         });
+
+        // Max discount allowed is the profit margin (Subtotal - Total Cost) to protect product cost price.
+        // If totalCost is 0 (unspecified), max allowable discount is subtotal.
+        const maxAllowableDiscount = (totalCost > 0) ? Math.max(0, subtotal - totalCost) : subtotal;
 
         // 1. Taxes (calculated on Subtotal)
         const taxRate = window.DEFAULT_TAX_RATE || 0;
@@ -716,12 +748,14 @@
         // 3. Gross Total before Discount
         const grossTotal = subtotal + taxAmount + serviceAmount;
 
-        // 4. Discount Calculation (Subtracted from Total: Subtotal + Tax + Service Charges)
+        // 4. Discount Calculation (Capped strictly to Gross Profit Margin to prevent selling below Cost)
         let discountAmount = 0;
         if (currentTab.discount.type === 'fixed') {
-            discountAmount = Math.min(currentTab.discount.value, grossTotal);
+            discountAmount = Math.min(Math.max(0, currentTab.discount.value || 0), maxAllowableDiscount);
         } else if (currentTab.discount.type === 'percentage') {
-            discountAmount = subtotal * (Math.min(100, currentTab.discount.value) / 100);
+            const maxPct = subtotal > 0 ? (maxAllowableDiscount / subtotal) * 100 : 0;
+            const appliedPct = Math.min(maxPct, Math.max(0, currentTab.discount.value || 0));
+            discountAmount = subtotal * (appliedPct / 100);
         }
 
         // 5. Final Net Payable Amount
@@ -996,8 +1030,37 @@
 
     window.onInlineDiscountInputChange = function (val) {
         const currentTab = getActiveTab();
-        const num = parseFloat(val) || 0;
+        let num = parseFloat(val);
+        if (isNaN(num) || num < 0) num = 0;
         const currentType = (currentTab.discount && currentTab.discount.type === 'fixed') ? 'fixed' : 'percentage';
+
+        const rawSubtotal = currentTab.items.reduce((sum, item) => sum + (parseFloat(item.unitPrice) * item.quantity), 0);
+        const rawCost = currentTab.items.reduce((sum, item) => sum + ((parseFloat(item.costPrice) || 0) * item.quantity), 0);
+        const maxDiscount = (rawCost > 0) ? Math.max(0, rawSubtotal - rawCost) : rawSubtotal;
+        const maxPct = rawSubtotal > 0 ? Math.round((maxDiscount / rawSubtotal) * 100) : 0;
+
+        let wasClamped = false;
+        if (currentType === 'fixed' && num > maxDiscount) {
+            num = maxDiscount;
+            wasClamped = true;
+            if (rawCost > 0) {
+                showScanFeedbackToast(`⚠️ Max discount is PKR ${maxDiscount.toFixed(0)} (Cost: PKR ${rawCost.toFixed(0)})`);
+            } else {
+                showScanFeedbackToast(`⚠️ Max discount is PKR ${maxDiscount.toFixed(0)}`);
+            }
+        } else if (currentType === 'percentage' && num > maxPct) {
+            num = maxPct;
+            wasClamped = true;
+            if (rawCost > 0) {
+                showScanFeedbackToast(`⚠️ Max discount is ${maxPct}% (Cost: PKR ${rawCost.toFixed(0)})`);
+            } else {
+                showScanFeedbackToast('⚠️ Max discount is 100%');
+            }
+        }
+
+        if (wasClamped && inlineDiscValInput) {
+            inlineDiscValInput.value = num || '';
+        }
 
         currentTab.discount = {
             type: currentType,
@@ -1012,7 +1075,11 @@
         const nextType = (currentType === 'fixed') ? 'percentage' : 'fixed';
         
         currentTab.discount.type = nextType;
-        renderActiveCart();
+        if (inlineDiscValInput) {
+            onInlineDiscountInputChange(inlineDiscValInput.value);
+        } else {
+            renderActiveCart();
+        }
         focusSearchInput();
     };
 
@@ -1027,10 +1094,7 @@
     window.clearCurrentCart = function () {
         const currentTab = getActiveTab();
         currentTab.items = [];
-        currentTab.discount = { 
-            type: defaultDiscountPercent > 0 ? 'percentage' : 'none', 
-            value: defaultDiscountPercent 
-        };
+        currentTab.discount = getInitialDiscount();
         currentTab.customer = { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' };
         currentTab.customCharges = null;
         currentTab.amountTendered = null;
@@ -1286,10 +1350,7 @@
 
                     // Reset Active Tab Order
                     currentTab.items = [];
-                    currentTab.discount = { 
-                        type: defaultDiscountPercent > 0 ? 'percentage' : 'none', 
-                        value: defaultDiscountPercent 
-                    };
+                    currentTab.discount = getInitialDiscount();
                     currentTab.customer = { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' };
                     currentTab.customCharges = null;
                     currentTab.amountTendered = null;
