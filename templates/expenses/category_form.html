@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Edit{% else %}Add{% endif %} Category | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--secondary); margin-bottom: 1.5rem;">
+        {% if object %}Edit Expense Category{% else %}Add Expense Category{% endif %}
+    </h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="field-group">
+            <label class="field-label">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div class="text-danger" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ form.name.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="field-group" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;">
+            {{ form.is_active }}
+            <label class="field-label" style="margin-bottom: 0;">{{ form.is_active.label }}</label>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Save Category</button>
+            <a href="{% url 'expenses:category_list' %}" class="btn btn-outline" style="flex: 1;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

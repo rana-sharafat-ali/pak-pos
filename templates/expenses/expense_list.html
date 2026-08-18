@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Expenses | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.45rem; font-weight: 800; color: var(--secondary); margin: 0;">Expenses Ledger</h1>
+        <p style="font-size: 0.85rem; color: var(--muted-text); margin-top: 0.2rem;">Track and manage business expenses.</p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        {% if user.role == 'admin' or user.is_superuser %}
+        <a href="{% url 'expenses:category_list' %}" class="btn btn-outline">
+            Categories
+        </a>
+        {% endif %}
+        <a href="{% url 'expenses:expense_create' %}" class="btn btn-primary">
+            + Log Expense
+        </a>
+    </div>
+</div>
+
+<div class="card" style="padding: 0;">
+    <div style="overflow-x: auto;">
+        <table class="retailos-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Description</th>
+                    <th>Logged By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td style="white-space: nowrap;">{{ expense.date|date:"d M Y, h:i A" }}</td>
+                    <td><span class="pill-status status-in-stock" style="background: #e2e8f0; color: #475569;">{{ expense.category.name }}</span></td>
+                    <td style="font-weight: 700; color: #dc2626;">- PKR {{ expense.amount }}</td>
+                    <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ expense.description }}">{{ expense.description|default:"-" }}</td>
+                    <td>{{ expense.logged_by.get_full_name|default:expense.logged_by.username }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--muted-text);">
+                        No expenses logged yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

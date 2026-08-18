@@ -9,4 +9,5 @@ urlpatterns = [
     path('products/', include('pakpos_project.apps.products.urls')),
     path('users/', include('pakpos_project.apps.users.urls')),
     path('sales/', include('pakpos_project.apps.sales.urls')),
+    path('expenses/', include('pakpos_project.apps.expenses.urls')),
 ]

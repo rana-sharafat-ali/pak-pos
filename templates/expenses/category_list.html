@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Expense Categories | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.45rem; font-weight: 800; color: var(--secondary); margin: 0;">Expense Categories</h1>
+        <p style="font-size: 0.85rem; color: var(--muted-text); margin-top: 0.2rem;">Manage the types of expenses you can log.</p>
+    </div>
+    <a href="{% url 'expenses:category_create' %}" class="btn btn-primary">
+        + Add Category
+    </a>
+</div>
+
+<div class="card" style="padding: 0;">
+    <table class="retailos-table">
+        <thead>
+            <tr>
+                <th>Category Name</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <td style="font-weight: 600;">{{ cat.name }}</td>
+                <td>
+                    {% if cat.is_active %}
+                        <span class="pill-status status-in-stock">Active</span>
+                    {% else %}
+                        <span class="pill-status status-out-stock">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'expenses:category_update' cat.pk %}" class="btn btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Edit</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; padding: 2rem; color: var(--muted-text);">No expense categories found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

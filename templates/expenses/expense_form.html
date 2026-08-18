@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Expense | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 650px; margin: 0 auto;">
+    <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--secondary); margin-bottom: 0.5rem;">
+        Log a New Expense
+    </h2>
+    <p style="font-size: 0.85rem; color: var(--muted-text); margin-bottom: 2rem;">
+        Record an expense paid from the business or petty cash.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="field-group">
+                <label class="field-label">{{ form.date.label }} <span class="text-danger">*</span></label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <div class="text-danger" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ form.date.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">{{ form.amount.label }} ({{ APP_CURRENCY }}) <span class="text-danger">*</span></label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                    <div class="text-danger" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ form.amount.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="field-group" style="margin-bottom: 1.25rem;">
+            <label class="field-label">{{ form.category.label }} <span class="text-danger">*</span></label>
+            {{ form.category }}
+            {% if form.category.errors %}
+                <div class="text-danger" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ form.category.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <div class="field-group">
+            <label class="field-label">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <div class="text-danger" style="font-size: 0.8rem; margin-top: 0.25rem;">{{ form.description.errors.0 }}</div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: 2.5rem; display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Save Expense</button>
+            <a href="{% url 'expenses:expense_list' %}" class="btn btn-outline" style="flex: 1;">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -364,7 +364,7 @@
     <!-- Total Revenue -->
     <div class="kpi-metric-card" style="--card-accent: #2563eb;">
         <div class="kpi-metric-header">
-            <span class="kpi-metric-label">Total Net Revenue</span>
+            <span class="kpi-metric-label">Total Sales</span>
             <div class="kpi-metric-icon" style="--icon-bg: #eff6ff;">💰</div>
         </div>
         <div class="kpi-metric-value" style="color: #1d4ed8;">PKR {{ total_revenue|floatformat:0 }}</div>
@@ -378,22 +378,35 @@
     <!-- Net Profit & Margin -->
     <div class="kpi-metric-card" style="--card-accent: #16a34a;">
         <div class="kpi-metric-header">
-            <span class="kpi-metric-label">Net Gross Profit</span>
+            <span class="kpi-metric-label">Net Profit</span>
             <div class="kpi-metric-icon" style="--icon-bg: #f0fdf4;">📈</div>
         </div>
         <div class="kpi-metric-value" style="color: #15803d;">PKR {{ total_profit|floatformat:0 }}</div>
-        <div class="kpi-metric-footer">
+        <div class="kpi-metric-footer" style="flex-wrap: wrap; gap: 0.25rem;">
             <span class="pill-variant" style="font-size: 0.7rem; background: #dcfce7; color: #166534; font-weight: 800; padding: 0.1rem 0.45rem;">
                 {{ profit_margin_pct }}% Net Margin
             </span>
-            <span style="color: var(--muted-text); font-size: 0.72rem;">COGS: PKR {{ total_cogs|floatformat:0 }}</span>
+            <span style="color: var(--muted-text); font-size: 0.72rem;">Costs: {{ total_cogs|floatformat:0 }}</span>
+            <span style="color: var(--muted-text); font-size: 0.72rem;">Expenses: {{ total_expenses|floatformat:0 }}</span>
+        </div>
+    </div>
+
+    <!-- Operating Expenses -->
+    <div class="kpi-metric-card" style="--card-accent: #eab308;">
+        <div class="kpi-metric-header">
+            <span class="kpi-metric-label">Total Expenses</span>
+            <div class="kpi-metric-icon" style="--icon-bg: #fefce8;">💸</div>
+        </div>
+        <div class="kpi-metric-value" style="color: #ca8a04;">PKR {{ total_expenses|floatformat:0 }}</div>
+        <div class="kpi-metric-footer">
+            <a href="{% url 'expenses:expense_list' %}" style="font-size: 0.72rem; color: #ca8a04; text-decoration: underline;">View Expense Ledger</a>
         </div>
     </div>
 
     <!-- Cash vs Digital Flow -->
     <div class="kpi-metric-card" style="--card-accent: #0284c7;">
         <div class="kpi-metric-header">
-            <span class="kpi-metric-label">Cash vs Digital Collections</span>
+            <span class="kpi-metric-label">Payment Methods</span>
             <div class="kpi-metric-icon" style="--icon-bg: #f0f9ff;">💳</div>
         </div>
         <div class="kpi-metric-value" style="font-size: 1.35rem; color: var(--secondary);">
@@ -407,7 +420,7 @@
     <!-- Discounts & Refunds -->
     <div class="kpi-metric-card" style="--card-accent: #dc2626;">
         <div class="kpi-metric-header">
-            <span class="kpi-metric-label">Discounts & Returns</span>
+            <span class="kpi-metric-label">Discounts & Refunds</span>
             <div class="kpi-metric-icon" style="--icon-bg: #fef2f2;">🏷️</div>
         </div>
         <div class="kpi-metric-value" style="font-size: 1.35rem; color: #dc2626;">

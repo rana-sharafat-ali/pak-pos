@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'pakpos_project.apps.products',
     'pakpos_project.apps.users',
     'pakpos_project.apps.sales',
+    'pakpos_project.apps.expenses',
 ]
 
 # Custom User Model & Authentication Backends

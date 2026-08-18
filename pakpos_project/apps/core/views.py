@@ -8,6 +8,7 @@ from django.db.models import Sum, Count, F, Q
 from pakpos_project.apps.products.models import Product, Category
 from pakpos_project.apps.sales.models import Sale, SaleItem, DiningTable
 from pakpos_project.apps.users.models import User
+from pakpos_project.apps.expenses.models import Expense
 from pakpos_project.apps.users.decorators import admin_required
 from .forms import SystemSettingsForm
 from .services import get_current_system_settings, save_system_settings
@@ -115,12 +116,24 @@ def home(request):
     online_revenue = completed_sales.filter(payment_method=Sale.PaymentMethod.ONLINE).aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00')
     digital_revenue = card_revenue + online_revenue
 
+    # Expenses Calculation
+    expenses_qs = Expense.objects.all()
+    if start_date:
+        expenses_qs = expenses_qs.filter(date__date__gte=start_date)
+    if end_date:
+        expenses_qs = expenses_qs.filter(date__date__lte=end_date)
+    
+    total_expenses = expenses_qs.aggregate(e=Sum('amount'))['e'] or Decimal('0.00')
+
     # COGS and Profitability
     completed_items = SaleItem.objects.filter(sale__in=completed_sales)
     total_cogs = completed_items.aggregate(c=Sum(F('cost_price') * F('quantity')))['c'] or Decimal('0.00')
     net_revenue_basis = completed_sales.aggregate(nr=Sum(F('subtotal') - F('discount_amount')))['nr'] or Decimal('0.00')
-    total_profit = max(Decimal('0.00'), net_revenue_basis - total_cogs)
+    
+    # Net profit considers COGS and operating expenses
+    total_profit = net_revenue_basis - total_cogs - total_expenses
     profit_margin_pct = round((float(total_profit) / float(net_revenue_basis)) * 100, 1) if net_revenue_basis > 0 else 0.0
+    
     avg_order_value = round(float(total_revenue) / total_orders_count, 2) if total_orders_count > 0 else 0.0
     total_items_sold = completed_items.aggregate(q=Sum('quantity'))['q'] or 0
 
@@ -238,9 +251,10 @@ def home(request):
         # Financial KPIs
         'total_revenue': total_revenue,
         'gross_sales': gross_sales,
+        'total_cogs': total_cogs,
+        'total_expenses': total_expenses,
         'total_profit': total_profit,
         'profit_margin_pct': profit_margin_pct,
-        'total_cogs': total_cogs,
         'total_orders_count': total_orders_count,
         'total_refunds_count': total_refunds_count,
         'total_refunds_amount': total_refunds_amount,
