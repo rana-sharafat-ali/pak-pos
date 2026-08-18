@@ -433,10 +433,10 @@
     }
 
     // ================= 4. PRODUCT CATALOG & GRID =================
-    window.filterByCategory = function (catId, btnEl) {
-        currentCategoryId = parseInt(catId, 10);
-        document.querySelectorAll('.pos-cat-pill').forEach(btn => btn.classList.remove('active'));
-        if (btnEl) btnEl.classList.add('active');
+    window.filterByCategory = function (catId) {
+        currentCategoryId = parseInt(catId, 10) || 0;
+        const selectEl = document.getElementById('pos-category-select');
+        if (selectEl) selectEl.value = currentCategoryId;
         renderProductGrid();
         focusSearchInput();
     };
@@ -470,18 +470,33 @@
             card.onclick = () => handleProductClick(prod);
 
             let variantBadgeHtml = '';
-            if (prod.has_variants) {
+            let priceFormatted = prod.price_display;
+
+            if (prod.has_variants && prod.variants && prod.variants.length > 0) {
                 variantBadgeHtml = `<span class="pos-variant-tag">${prod.variants.length} Sizes</span>`;
+                const prices = prod.variants.map(v => parseFloat(v.selling_price || 0)).filter(p => p > 0);
+                if (prices.length > 0) {
+                    const minP = Math.min(...prices);
+                    const maxP = Math.max(...prices);
+                    if (minP === maxP) {
+                        priceFormatted = `PKR ${minP % 1 === 0 ? minP.toLocaleString() : minP.toFixed(2)}`;
+                    } else {
+                        priceFormatted = `PKR ${minP.toLocaleString()} - ${maxP.toLocaleString()}`;
+                    }
+                }
+            } else if (prod.base_price) {
+                const bp = parseFloat(prod.base_price);
+                priceFormatted = `PKR ${bp % 1 === 0 ? bp.toLocaleString() : bp.toFixed(2)}`;
             }
 
             card.innerHTML = `
-                <div>
-                    <div class="pos-card-icon-box">${prod.category_icon || '📦'}</div>
-                    <div class="pos-card-name" title="${prod.name}">${prod.name}</div>
-                </div>
-                <div>
-                    <div class="pos-card-price">${prod.price_display}</div>
+                <div class="pos-card-top-row">
+                    <span class="pos-card-icon">${prod.category_icon || '📦'}</span>
                     ${variantBadgeHtml}
+                </div>
+                <div class="pos-card-name" title="${prod.name}">${prod.name}</div>
+                <div class="pos-card-bottom-row">
+                    <span class="pos-card-price">${priceFormatted}</span>
                 </div>
             `;
             productGrid.appendChild(card);
@@ -982,10 +997,10 @@
     window.onInlineDiscountInputChange = function (val) {
         const currentTab = getActiveTab();
         const num = parseFloat(val) || 0;
-        const type = inlineDiscTypeSelect ? inlineDiscTypeSelect.value : 'percentage';
+        const currentType = (currentTab.discount && currentTab.discount.type === 'fixed') ? 'fixed' : 'percentage';
 
         currentTab.discount = {
-            type: num > 0 ? type : 'none',
+            type: currentType,
             value: num,
         };
         renderActiveCart();
@@ -993,10 +1008,10 @@
 
     window.toggleDiscountUnit = function () {
         const currentTab = getActiveTab();
-        const currentType = currentTab.discount.type;
+        const currentType = (currentTab.discount && currentTab.discount.type === 'fixed') ? 'fixed' : 'percentage';
         const nextType = (currentType === 'fixed') ? 'percentage' : 'fixed';
+        
         currentTab.discount.type = nextType;
-        if (inlineDiscTypeSelect) inlineDiscTypeSelect.value = nextType;
         renderActiveCart();
         focusSearchInput();
     };
@@ -1194,8 +1209,8 @@
             payment_method: currentTab.paymentMethod || 'cash',
             order_type: currentTab.orderType || 'walk_in',
             amount_tendered: tendered,
-            discount_type: currentTab.discount.type,
-            discount_value: currentTab.discount.value,
+            discount_type: (currentTab.discount && currentTab.discount.value > 0) ? currentTab.discount.type : 'none',
+            discount_value: (currentTab.discount && currentTab.discount.value) ? currentTab.discount.value : 0,
             tax_rate: totals.taxRate,
             service_charge_rate: totals.serviceRate,
             service_charge_amount: totals.serviceAmount,

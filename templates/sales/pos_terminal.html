@@ -91,11 +91,11 @@
     }
 
     .pos-top-toolbar {
-        padding: 0.5rem 0.85rem;
+        padding: 0.45rem 0.65rem;
         border-bottom: 1px solid var(--border-card);
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.45rem;
         background: #ffffff;
     }
 
@@ -116,7 +116,7 @@
 
     .pos-search-input {
         width: 100%;
-        padding: 0.5rem 0.85rem 0.5rem 2.4rem;
+        padding: 0.48rem 0.85rem 0.48rem 2.4rem;
         font-size: 0.88rem;
         font-family: inherit;
         border: 1.5px solid var(--border-card);
@@ -132,66 +132,44 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
-    .pos-category-bar {
-        padding: 0.35rem 0.75rem;
-        background: #f8fafc;
-        border-bottom: 1px solid var(--border-card);
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        overflow-x: auto;
-        white-space: nowrap;
-        scrollbar-width: none;
-    }
-
-    .pos-category-bar::-webkit-scrollbar {
-        display: none;
-    }
-
-    .pos-cat-pill {
-        padding: 0.28rem 0.75rem;
-        font-size: 0.76rem;
+    .pos-category-select {
+        padding: 0.48rem 0.65rem;
+        font-size: 0.8rem;
         font-weight: 700;
-        border-radius: 9999px;
-        background: #ffffff;
-        border: 1px solid var(--border-card);
+        font-family: inherit;
+        border: 1.5px solid var(--border-card);
+        border-radius: 8px;
+        outline: none;
+        background: #f8fafc;
         color: var(--secondary);
         cursor: pointer;
+        max-width: 160px;
+        white-space: nowrap;
         transition: all 0.15s ease;
-        user-select: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
     }
 
-    .pos-cat-pill:hover {
-        border-color: #cbd5e1;
-        background: #f1f5f9;
-    }
-
-    .pos-cat-pill.active {
-        background: var(--primary);
-        color: #ffffff;
+    .pos-category-select:focus {
+        background: #ffffff;
         border-color: var(--primary);
-        box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
     /* Product Grid */
     .pos-product-grid {
         flex: 1;
-        padding: 0.65rem;
+        padding: 0.55rem 0.65rem;
         overflow-y: auto;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-        gap: 0.55rem;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 0.5rem;
         align-content: start;
     }
 
     .pos-item-card {
         background: #ffffff;
         border: 1px solid var(--border-card);
-        border-radius: 10px;
-        padding: 0.55rem 0.5rem;
+        border-radius: 9px;
+        padding: 0.45rem 0.55rem;
         cursor: pointer;
         display: flex;
         flex-direction: column;
@@ -200,60 +178,74 @@
         user-select: none;
         position: relative;
         text-align: left;
-        min-height: 85px;
+        min-height: 84px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
 
     .pos-item-card:hover {
         transform: translateY(-2px);
         border-color: var(--primary);
-        box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.12);
+        background: #fafcff;
     }
 
     .pos-item-card:active {
         transform: translateY(0);
     }
 
-    .pos-card-icon-box {
-        width: 26px;
-        height: 26px;
-        border-radius: 6px;
-        background: #f8fafc;
-        border: 1px solid var(--border-card);
+    .pos-card-top-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 0.95rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .pos-card-name {
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: var(--secondary);
-        line-height: 1.25;
+        justify-content: space-between;
         margin-bottom: 0.2rem;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
     }
 
-    .pos-card-price {
-        font-size: 0.82rem;
-        font-weight: 800;
-        color: var(--primary);
+    .pos-card-icon {
+        font-size: 1.15rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
     }
 
     .pos-variant-tag {
-        font-size: 0.65rem;
-        font-weight: 700;
+        font-size: 0.62rem;
+        font-weight: 800;
         background: #eff6ff;
         color: #2563eb;
         border: 1px solid #bfdbfe;
         border-radius: 4px;
         padding: 0.05rem 0.25rem;
-        margin-top: 0.2rem;
-        display: inline-block;
+        letter-spacing: 0.02em;
+    }
+
+    .pos-card-name {
+        font-size: 0.70rem;
+        font-weight: 700;
+        color: var(--secondary);
+        line-height: 1.22;
+        margin-bottom: 0.2rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+        min-height: 2.45em;
+    }
+
+    .pos-card-bottom-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+    }
+
+    .pos-card-price {
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: var(--primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* --- RIGHT COLUMN: HALF-PAGE SPACIOUS CART & BILLING PANEL --- */
@@ -682,7 +674,7 @@
     <!-- LEFT COLUMN: PRODUCT CATALOG & BARCODE -->
     <div class="pos-catalog-pane" id="pos-pane-catalog">
         
-        <!-- Live Barcode & Text Search -->
+        <!-- Live Barcode & Text Search + Integrated Category Dropdown -->
         <div class="pos-top-toolbar">
             <div class="pos-search-wrapper">
                 <span class="pos-search-icon">
@@ -699,21 +691,17 @@
                     autofocus
                 >
             </div>
+
+            <!-- Integrated Category Dropdown (Saves vertical space, 0 extra rows) -->
+            <select id="pos-category-select" class="pos-category-select" onchange="filterByCategory(this.value)">
+                <option value="0">📂 All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.icon|default:"📁" }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Category Horizontal Filter Ribbon -->
-        <div class="pos-category-bar" id="pos-category-bar">
-            <button type="button" class="pos-cat-pill active" onclick="filterByCategory(0, this)">
-                All
-            </button>
-            {% for cat in categories %}
-            <button type="button" class="pos-cat-pill" onclick="filterByCategory({{ cat.id }}, this)">
-                {{ cat.name }}
-            </button>
-            {% endfor %}
-        </div>
-
-        <!-- Dynamic Product Tiles Grid -->
+        <!-- Dynamic Product Tiles Grid (Full Height) -->
         <div class="pos-product-grid" id="pos-product-grid">
             <!-- Rendered dynamically by pos_controller.js -->
         </div>
