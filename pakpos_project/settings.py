@@ -94,6 +94,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'pakpos_project.apps.core.middleware.ExceptionLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'pakpos_project.urls'
