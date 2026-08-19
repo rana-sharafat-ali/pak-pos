@@ -60,6 +60,7 @@ class User(AbstractUser):
         verbose_name='User Role'
     )
     phone_number = models.CharField(max_length=25, blank=True, null=True, verbose_name='Phone Number')
+    is_synced = models.BooleanField(default=False)
 
     objects = UserManager()
 

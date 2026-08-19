@@ -129,3 +129,20 @@ class SystemSettingsForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '30'})
     )
+    
+    # 4. Email Notifications
+    owner_email_1 = forms.EmailField(
+        label="Owner Email 1 (Primary)",
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-input', 'placeholder': 'owner1@example.com'})
+    )
+    owner_email_2 = forms.EmailField(
+        label="Owner Email 2",
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-input', 'placeholder': 'owner2@example.com'})
+    )
+    owner_email_3 = forms.EmailField(
+        label="Owner Email 3",
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-input', 'placeholder': 'owner3@example.com'})
+    )

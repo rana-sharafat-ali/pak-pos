@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #eef0f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #e53935, #c62828);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 3px solid #b71c1c;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 15px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 35px 40px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555555;
+            margin-bottom: 30px;
+        }
+        .details-box {
+            background-color: #fffafb;
+            border: 1px solid #ffebee;
+            border-left: 4px solid #e53935;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 10px 15px 10px 0;
+            color: #7f8c8d;
+            font-weight: 500;
+            font-size: 14px;
+            width: 40%;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        td {
+            padding: 10px 0;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        tr:last-child th, tr:last-child td {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        tr:first-child th, tr:first-child td {
+            padding-top: 0;
+        }
+        .highlight {
+            color: #e53935;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .warning-text {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+            border: 1px solid #ffeeba;
+            margin-top: 20px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
+        }
+        .footer strong {
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Refund Alert</h2>
+            <p>A transaction was recently refunded</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello Admin,</div>
+            
+            <div class="message">
+                A refund has just been processed through the <strong>{{ app_name }}</strong> POS system. The items from this invoice have been marked as returned and restocked in inventory.
+            </div>
+            
+            <div class="details-box">
+                <table>
+                    <tr>
+                        <th>Invoice Number</th>
+                        <td>{{ sale.invoice_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>Refunded Amount</th>
+                        <td class="highlight">{{ currency }} {{ sale.total_amount }}</td>
+                    </tr>
+                    <tr>
+                        <th>Refund Reason</th>
+                        <td>{{ sale.refund_reason|default:"No reason provided" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Processed By</th>
+                        <td>{{ sale.refunded_by.get_full_name|default:sale.refunded_by.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date & Time</th>
+                        <td>{{ sale.refunded_at|date:"d M Y, h:i A" }}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="warning-text">
+                <strong>Note:</strong> Please review this refund to ensure it aligns with your store's return policies.
+            </div>
+        </div>
+        
+        <div class="footer">
+            This is an automated security alert from <strong>{{ app_name }}</strong> POS System.<br>
+            Please do not reply to this email.
+        </div>
+    </div>
+</body>
+</html>

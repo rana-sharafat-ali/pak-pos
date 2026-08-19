@@ -8,6 +8,7 @@ class Category(models.Model):
     icon = models.CharField(max_length=20, default='📦', blank=True, verbose_name="Category Emoji / Icon")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
     created_at = models.DateTimeField(auto_now_add=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Category"
@@ -52,6 +53,7 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Active for Sale")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Product"
@@ -130,6 +132,7 @@ class ProductVariant(models.Model):
     )
     stock_quantity = models.IntegerField(default=0, blank=True, verbose_name="Stock Quantity")
     is_active = models.BooleanField(default=True, verbose_name="Active")
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Product Size / Variant"

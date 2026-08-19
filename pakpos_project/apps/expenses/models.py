@@ -6,6 +6,7 @@ class ExpenseCategory(models.Model):
     name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = 'Expense Categories'
@@ -21,6 +22,7 @@ class Expense(models.Model):
     logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='logged_expenses')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_synced = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.category.name} - {self.amount}"

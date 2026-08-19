@@ -17,6 +17,36 @@ from pakpos_project.apps.products.models import Product, ProductVariant, Categor
 from .models import Customer, Sale, SaleItem, CashDrawerShift, DiningTable
 from .forms import DiningTableForm
 from pakpos_project.apps.users.decorators import manager_or_admin_required
+from pakpos_project.apps.core.services import get_current_system_settings
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+
+def queue_sales_alert(sale, template_name, subject):
+    from pakpos_project.apps.core.models import EmailQueue
+    try:
+        settings = get_current_system_settings()
+        emails = [settings.get(f'owner_email_{i}') for i in range(1, 4) if settings.get(f'owner_email_{i}')]
+        if not emails:
+            return
+            
+        app_name = settings.get('app_name', 'PakPOS')
+        context = {
+            'sale': sale,
+            'app_name': app_name,
+            'currency': settings.get('app_currency', 'PKR')
+        }
+        html_content = render_to_string(template_name, context)
+        text_content = strip_tags(html_content)
+        
+        email_job = EmailQueue(
+            subject=subject.format(app_name=app_name, invoice=sale.invoice_number),
+            text_content=text_content,
+            html_content=html_content
+        )
+        email_job.set_emails(emails)
+        email_job.save()
+    except Exception as e:
+        print(f"Error queueing sales alert: {e}")
 
 
 @login_required
@@ -251,6 +281,13 @@ def api_create_sale(request):
             total_price=item_data['total_price'],
         )
 
+    if sale.total_amount >= 10000:
+        queue_sales_alert(
+            sale, 
+            'emails/large_order_alert.html', 
+            '[{app_name}] High Value Order Alert: {invoice}'
+        )
+
     return JsonResponse({
         'success': True,
         'sale_id': sale.id,
@@ -439,6 +476,12 @@ def sale_refund_view(request, pk):
     sale.refunded_at = timezone.now()
     sale.refunded_by = request.user
     sale.save()
+
+    queue_sales_alert(
+        sale, 
+        'emails/refund_alert.html', 
+        '[{app_name}] Refund Alert: {invoice}'
+    )
 
     messages.success(request, f"Invoice {sale.invoice_number} successfully refunded. Inventory restored ({sale.total_items_count} items restocked).")
     return _redirect_back()

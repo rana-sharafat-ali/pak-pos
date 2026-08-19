@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #eef0f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 3px solid #b45309;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 15px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 35px 40px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555555;
+            margin-bottom: 30px;
+        }
+        .details-box {
+            background-color: #fffbf0;
+            border: 1px solid #fef3c7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 10px 15px 10px 0;
+            color: #7f8c8d;
+            font-weight: 500;
+            font-size: 14px;
+            width: 40%;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        td {
+            padding: 10px 0;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        tr:last-child th, tr:last-child td {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        tr:first-child th, tr:first-child td {
+            padding-top: 0;
+        }
+        .highlight {
+            color: #d97706;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #edf2f7;
+            color: #4a5568;
+            border-radius: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
+        }
+        .footer strong {
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>New Expense Alert</h2>
+            <p>A new expense has been logged</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello Admin,</div>
+            
+            <div class="message">
+                A new business expense was just logged into the <strong>{{ app_name }}</strong> system. Please find the details below for your records.
+            </div>
+            
+            <div class="details-box">
+                <table>
+                    <tr>
+                        <th>Amount</th>
+                        <td class="highlight">{{ currency }} {{ expense.amount }}</td>
+                    </tr>
+                    <tr>
+                        <th>Category</th>
+                        <td><span class="badge">{{ expense.category.name }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Description</th>
+                        <td>{{ expense.description|default:"No description provided" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Logged By</th>
+                        <td>{{ expense.logged_by.get_full_name|default:expense.logged_by.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Date & Time</th>
+                        <td>{{ expense.date|date:"d M Y, h:i A" }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="footer">
+            This is an automated notification from <strong>{{ app_name }}</strong> POS System.<br>
+            Please do not reply to this email.
+        </div>
+    </div>
+</body>
+</html>

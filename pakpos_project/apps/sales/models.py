@@ -16,6 +16,7 @@ class Customer(models.Model):
     notes = models.TextField(blank=True, null=True, verbose_name="Customer Notes / Preferences")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Customer"
@@ -116,6 +117,7 @@ class Sale(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Sale Invoice"
@@ -211,6 +213,7 @@ class SaleItem(models.Model):
     # Item-Level Refund Tracking
     is_refunded = models.BooleanField(default=False)
     refunded_quantity = models.IntegerField(default=0)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Sale Line Item"
@@ -250,6 +253,7 @@ class CashDrawerShift(models.Model):
     
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.OPEN)
     notes = models.TextField(blank=True, null=True, verbose_name="Shift Notes / Discrepancy Reason")
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Cash Drawer Shift"
@@ -278,6 +282,7 @@ class DiningTable(models.Model):
     notes = models.TextField(blank=True, null=True, verbose_name="Notes / Location Description")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_synced = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Dining Table"

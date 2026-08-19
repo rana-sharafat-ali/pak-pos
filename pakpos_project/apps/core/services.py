@@ -28,6 +28,10 @@ def get_current_system_settings():
         'pos_shift_end_hour': int(os.getenv('POS_SHIFT_END_HOUR', getattr(settings, 'POS_SHIFT_END_HOUR', 23))),
         'products_per_page': int(os.getenv('PRODUCTS_PER_PAGE', getattr(settings, 'PRODUCTS_PER_PAGE', 50))),
         'session_cookie_age_days': int(os.getenv('SESSION_COOKIE_AGE_DAYS', getattr(settings, 'SESSION_COOKIE_AGE_DAYS', 30))),
+        
+        'owner_email_1': os.getenv('OWNER_EMAIL_1', ''),
+        'owner_email_2': os.getenv('OWNER_EMAIL_2', ''),
+        'owner_email_3': os.getenv('OWNER_EMAIL_3', ''),
     }
 
 
@@ -62,6 +66,9 @@ def save_system_settings(cleaned_data):
         'pos_shift_end_hour': 'POS_SHIFT_END_HOUR',
         'products_per_page': 'PRODUCTS_PER_PAGE',
         'session_cookie_age_days': 'SESSION_COOKIE_AGE_DAYS',
+        'owner_email_1': 'OWNER_EMAIL_1',
+        'owner_email_2': 'OWNER_EMAIL_2',
+        'owner_email_3': 'OWNER_EMAIL_3',
     }
 
     env_updates = {}

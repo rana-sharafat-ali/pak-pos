@@ -239,6 +239,47 @@
         </div>
     </div>
 
+    <!-- 4. EMAIL NOTIFICATIONS -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px;">
+        <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 1.25rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-card);">
+            <span style="font-size: 1.35rem;">✉️</span>
+            <div>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Email Notifications
+                </h3>
+                <span style="font-size: 0.78rem; color: var(--muted-text);">
+                    Set up to 3 owner email addresses to receive system alerts and reports.
+                </span>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+            <div class="form-group">
+                <label class="form-label" for="{{ form.owner_email_1.id_for_label }}">Owner Email 1 (Primary)</label>
+                {{ form.owner_email_1 }}
+                {% if form.owner_email_1.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.owner_email_1.errors.0 }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="{{ form.owner_email_2.id_for_label }}">Owner Email 2</label>
+                {{ form.owner_email_2 }}
+                {% if form.owner_email_2.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.owner_email_2.errors.0 }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="{{ form.owner_email_3.id_for_label }}">Owner Email 3</label>
+                {{ form.owner_email_3 }}
+                {% if form.owner_email_3.errors %}
+                    <span style="color: var(--danger); font-size: 0.8rem;">{{ form.owner_email_3.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <!-- SUBMIT BUTTONS -->
     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; margin-top: 1rem;">
         <a href="{% url 'core:home' %}" class="btn btn-outline btn-sm">Cancel</a>
