@@ -1,0 +1,537 @@
+<!-- PAYMENT DUE ALERT MODAL & NAVBAR BADGE COMPONENT -->
+<style>
+    /* Pulsing Badge & Animation */
+    @keyframes pa-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.1); opacity: 0.85; }
+    }
+    @keyframes pa-glow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+
+    /* Top Navbar Badge */
+    .payment-alert-navbar-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08);
+    }
+    .payment-alert-navbar-pill:hover {
+        background: #fee2e2;
+        border-color: #f87171;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+    }
+    .pa-indicator-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #dc2626;
+        animation: pa-pulse 1.8s infinite ease-in-out;
+    }
+
+    /* Modal Backdrop & Dialog */
+    .pa-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        box-sizing: border-box;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .pa-modal-backdrop.pa-show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .pa-modal-card {
+        background: #ffffff;
+        width: 100%;
+        max-width: 520px;
+        border-radius: 20px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(239, 68, 68, 0.2);
+        overflow: hidden;
+        position: relative;
+        transform: scale(0.95) translateY(10px);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        border-top: 6px solid #dc2626;
+    }
+    .pa-modal-backdrop.pa-show .pa-modal-card {
+        transform: scale(1) translateY(0);
+    }
+
+    .pa-modal-header {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        position: relative;
+    }
+    .pa-icon-box {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 14px;
+        background: #fee2e2;
+        color: #dc2626;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #fecaca;
+        animation: pa-glow 2s infinite ease-in-out;
+    }
+    .pa-close-btn {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.25rem;
+        background: #f1f5f9;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #64748b;
+        font-size: 1rem;
+        font-weight: 700;
+        transition: all 0.15s ease;
+    }
+    .pa-close-btn:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+        transform: rotate(90deg);
+    }
+
+    .pa-modal-body {
+        padding: 0 1.5rem 1.5rem 1.5rem;
+    }
+
+    /* Pending Info Hero Banner */
+    .pa-amount-card {
+        background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+        border: 1.5px dashed #f43f5e;
+        border-radius: 14px;
+        padding: 1.15rem;
+        margin: 1rem 0;
+        text-align: center;
+    }
+    .pa-month-badge {
+        display: inline-block;
+        background: #e11d48;
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.2rem 0.65rem;
+        border-radius: 9999px;
+        margin-bottom: 0.4rem;
+    }
+    .pa-amount-val {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #9f1239;
+        letter-spacing: -0.02em;
+        margin: 0.15rem 0;
+    }
+
+    /* Account Details Box */
+    .pa-account-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 1rem 0;
+        font-size: 0.88rem;
+        color: #1e293b;
+        line-height: 1.5;
+        position: relative;
+    }
+    .pa-account-box-title {
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .pa-copy-btn {
+        background: #e2e8f0;
+        border: none;
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+    .pa-copy-btn:hover {
+        background: #cbd5e1;
+        color: #0f172a;
+    }
+
+    /* Footer Buttons */
+    .pa-modal-footer {
+        padding: 1rem 1.5rem;
+        background: #f8fafc;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+    .pa-interval-note {
+        font-size: 0.76rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .pa-dismiss-btn {
+        background: #0f172a;
+        color: #ffffff;
+        border: none;
+        padding: 0.65rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .pa-dismiss-btn:hover {
+        background: #1e293b;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+    }
+</style>
+
+<!-- POPUP MODAL HTML -->
+<div id="payment-alert-modal" class="pa-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pa-title">
+    <div class="pa-modal-card">
+        <!-- Header -->
+        <div class="pa-modal-header">
+            <div class="pa-icon-box">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <div style="flex: 1; padding-right: 2rem;">
+                <h3 id="pa-title" style="font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 0.25rem 0;">
+                    {{ PAYMENT_ALERT.alert_title|default:"Software Subscription Payment Due" }}
+                </h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin: 0; line-height: 1.4;">
+                    Official notice regarding your monthly POS maintenance & license fee.
+                </p>
+            </div>
+            <button type="button" class="pa-close-btn" onclick="PaymentAlertEngine.dismiss()" aria-label="Close">✕</button>
+        </div>
+
+        <!-- Body -->
+        <div class="pa-modal-body">
+            <!-- Amount & Month Card -->
+            <div class="pa-amount-card">
+                <div class="pa-month-badge" id="pa-display-month">
+                    Payment Pending for: {{ PAYMENT_ALERT.pending_month|default:"Current Month" }}
+                </div>
+                <div class="pa-amount-val" id="pa-display-amount">
+                    {{ PAYMENT_ALERT.pending_amount|default:"0" }}
+                </div>
+                {% if PAYMENT_ALERT.due_date %}
+                <div style="font-size: 0.8rem; color: #b91c1c; font-weight: 600; margin-top: 0.25rem;" id="pa-display-due-date">
+                    Due Date: {{ PAYMENT_ALERT.due_date }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Custom Message -->
+            <div style="font-size: 0.88rem; color: #334155; line-height: 1.5; margin: 0.75rem 0;" id="pa-display-message">
+                {{ PAYMENT_ALERT.alert_message|default:"Your monthly POS software maintenance fee is pending. Please clear your dues to avoid system service interruption." }}
+            </div>
+
+            <!-- Bank / Account Information Box -->
+            <div class="pa-account-box">
+                <div class="pa-account-box-title">
+                    <span>💳 Payment / Transfer Details:</span>
+                    <button type="button" class="pa-copy-btn" onclick="PaymentAlertEngine.copyAccountInfo()">
+                        📋 Copy Info
+                    </button>
+                </div>
+                <div id="pa-display-account-info" style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #0f172a; white-space: pre-line; word-break: break-word;">
+                    {{ PAYMENT_ALERT.account_info|default:"Please contact support for payment account details." }}
+                </div>
+            </div>
+
+            <!-- Contact / Support Helpline -->
+            {% if PAYMENT_ALERT.contact_info %}
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #475569; margin-top: 0.5rem;" id="pa-display-contact">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                <span>Support Contact: <strong>{{ PAYMENT_ALERT.contact_info }}</strong></span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="pa-modal-footer" style="justify-content: flex-end;">
+            <button type="button" class="pa-dismiss-btn" onclick="PaymentAlertEngine.dismiss()">
+                <span>Remind Me Later</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CLIENT-SIDE RECURRING ENGINE SCRIPT -->
+<script>
+window.PaymentAlertEngine = (function() {
+    let state = {
+        isPopupActive: {{ PAYMENT_ALERT.is_popup_active|yesno:"true,false" }},
+        isNavbarActive: {{ PAYMENT_ALERT.is_navbar_active|yesno:"true,false" }},
+        intervalMinutes: parseInt("{{ PAYMENT_ALERT.interval_minutes|default:15 }}") || 15,
+        pendingMonth: "{{ PAYMENT_ALERT.pending_month|escapejs }}",
+        pendingAmount: "{{ PAYMENT_ALERT.pending_amount|escapejs }}",
+        accountInfo: `{{ PAYMENT_ALERT.account_info|escapejs }}`,
+        alertTitle: "{{ PAYMENT_ALERT.alert_title|escapejs }}",
+        alertMessage: `{{ PAYMENT_ALERT.alert_message|escapejs }}`,
+        dueDate: "{{ PAYMENT_ALERT.due_date|escapejs }}",
+        contactInfo: "{{ PAYMENT_ALERT.contact_info|escapejs }}",
+    };
+
+    let timerHandle = null;
+    let heartbeatHandle = null;
+
+    function init() {
+        renderNavbarBadge();
+        scheduleNextCheck();
+        
+        // Live Heartbeat polling every 45s to fetch real-time updates from Sheet
+        if (!heartbeatHandle) {
+            heartbeatHandle = setInterval(fetchLiveStatus, 45000);
+        }
+    }
+
+    function sanitizeDisplayMonth(raw) {
+        if (!raw) return 'Current Month';
+        let str = String(raw).trim();
+        if (str.includes('GMT') || str.includes('Pakistan Standard Time') || str.includes('PKT') || str.includes('UTC') || str.includes('+0500')) {
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) {
+                const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                return months[d.getMonth()] + ' ' + d.getFullYear();
+            }
+            str = str.split(' GMT')[0].replace(/\b\d{2}:\d{2}:\d{2}\b/, '').replace(/\(.*?\)/g, '').trim();
+        }
+        return str || 'Current Month';
+    }
+
+    function renderNavbarBadge() {
+        const badge = document.getElementById('payment-alert-navbar-pill');
+        if (!badge) return;
+
+        if (state.isNavbarActive) {
+            badge.style.display = 'inline-flex';
+            const textSpan = badge.querySelector('.pa-navbar-text');
+            if (textSpan) {
+                const cleanMonth = sanitizeDisplayMonth(state.pendingMonth);
+                textSpan.innerHTML = `⚠️ Due: <strong>${cleanMonth}</strong> (${state.pendingAmount || ''})`;
+            }
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    function checkAndShow() {
+        if (!state.isPopupActive) {
+            hideModal();
+            return;
+        }
+
+        const now = Date.now();
+        const lastDismissed = parseInt(localStorage.getItem('pakpos_pa_last_dismissed') || '0', 10);
+        const intervalMs = state.intervalMinutes * 60 * 1000;
+
+        if (now - lastDismissed >= intervalMs) {
+            showModal();
+        } else {
+            const remainingMs = intervalMs - (now - lastDismissed);
+            scheduleTimer(remainingMs);
+        }
+    }
+
+    function showModal() {
+        updateDOM();
+        const modal = document.getElementById('payment-alert-modal');
+        if (modal) {
+            modal.classList.add('pa-show');
+        }
+    }
+
+    function hideModal() {
+        const modal = document.getElementById('payment-alert-modal');
+        if (modal) {
+            modal.classList.remove('pa-show');
+        }
+    }
+
+    function dismiss() {
+        localStorage.setItem('pakpos_pa_last_dismissed', Date.now().toString());
+        hideModal();
+        scheduleNextCheck();
+    }
+
+    function scheduleNextCheck() {
+        if (timerHandle) clearTimeout(timerHandle);
+        if (!state.isPopupActive) return;
+
+        const intervalMs = state.intervalMinutes * 60 * 1000;
+        scheduleTimer(intervalMs);
+    }
+
+    function scheduleTimer(delayMs) {
+        if (timerHandle) clearTimeout(timerHandle);
+        const safeDelay = Math.max(1000, delayMs);
+        timerHandle = setTimeout(() => {
+            checkAndShow();
+        }, safeDelay);
+    }
+
+    function updateDOM() {
+        const cleanMonth = sanitizeDisplayMonth(state.pendingMonth);
+        const monthEl = document.getElementById('pa-display-month');
+        if (monthEl) monthEl.innerText = 'Payment Pending for: ' + cleanMonth;
+
+        const amountEl = document.getElementById('pa-display-amount');
+        if (amountEl) amountEl.innerText = state.pendingAmount || '0';
+
+        const titleEl = document.getElementById('pa-title');
+        if (titleEl) titleEl.innerText = state.alertTitle || 'Software Subscription Payment Due';
+
+        const msgEl = document.getElementById('pa-display-message');
+        if (msgEl) msgEl.innerText = state.alertMessage || '';
+
+        const accEl = document.getElementById('pa-display-account-info');
+        if (accEl) accEl.innerText = state.accountInfo || 'Please contact support for payment details.';
+
+        renderNavbarBadge();
+    }
+
+
+    function fetchLiveStatus() {
+        fetch('/api/payment-alert/')
+            .then(res => res.json())
+            .then(data => {
+                const wasPopupActive = state.isPopupActive;
+                state.isPopupActive = Boolean(data.is_popup_active);
+                state.isNavbarActive = Boolean(data.is_navbar_active);
+                state.intervalMinutes = parseInt(data.interval_minutes) || 15;
+                state.pendingMonth = data.pending_month || '';
+                state.pendingAmount = data.pending_amount || '';
+                state.accountInfo = data.account_info || '';
+                state.alertTitle = data.alert_title || '';
+                state.alertMessage = data.alert_message || '';
+                state.dueDate = data.due_date || '';
+                state.contactInfo = data.contact_info || '';
+
+                updateDOM();
+
+                if (!state.isPopupActive && wasPopupActive) {
+                    hideModal();
+                } else if (state.isPopupActive && !wasPopupActive) {
+                    checkAndShow();
+                }
+            })
+            .catch(err => {
+                // Offline resilience: Silent fallback
+            });
+    }
+
+
+    function copyAccountInfo() {
+        const text = state.accountInfo || document.getElementById('pa-display-account-info').innerText;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showCopyFeedback();
+            }).catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
+    }
+
+    function fallbackCopy(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopyFeedback();
+    }
+
+    function showCopyFeedback() {
+        const btn = document.querySelector('.pa-copy-btn');
+        if (btn) {
+            const orig = btn.innerText;
+            btn.innerText = '✓ Copied!';
+            btn.style.background = '#22c55e';
+            btn.style.color = '#ffffff';
+            setTimeout(() => {
+                btn.innerText = orig;
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 1800);
+        }
+    }
+
+    // Auto-run on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    return {
+        show: showModal,
+        hide: hideModal,
+        dismiss: dismiss,
+        copyAccountInfo: copyAccountInfo,
+        fetchLiveStatus: fetchLiveStatus
+    };
+})();
+</script>

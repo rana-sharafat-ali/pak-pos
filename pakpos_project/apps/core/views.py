@@ -314,3 +314,28 @@ def system_settings_view(request):
         'form': form,
     }
     return render(request, 'core/settings.html', context)
+
+
+def payment_alert_status_api(request):
+    """
+    Lightweight JSON endpoint to provide live Payment Alert status to frontend client polling.
+    """
+    from django.http import JsonResponse
+    from pakpos_project.apps.core.models import PaymentAlert
+    
+    alert = PaymentAlert.load()
+    return JsonResponse({
+        'is_active': alert.is_active,
+        'is_popup_active': alert.is_popup_active,
+        'is_navbar_active': alert.is_navbar_active,
+        'interval_minutes': alert.interval_minutes,
+        'pending_month': alert.pending_month,
+        'pending_amount': alert.pending_amount,
+        'account_info': alert.account_info,
+        'alert_title': alert.alert_title,
+        'alert_message': alert.alert_message,
+        'due_date': alert.due_date,
+        'contact_info': alert.contact_info,
+    })
+
+

@@ -2,6 +2,7 @@ import time
 import threading
 import traceback
 from django.core.mail import EmailMultiAlternatives
+from django.db import close_old_connections
 
 from django.conf import settings
 import os
@@ -28,16 +29,25 @@ def start_sync_worker():
         thread.start()
 
 # ---------------------------------------------------------
-# 1. EMAIL WORKER (1 Minute Interval)
+# 1. EMAIL WORKER (1 Minute Interval, 20 Min Sleep on Pause)
 # ---------------------------------------------------------
 def email_worker_loop():
     time.sleep(10) # Initial boot delay
-    from pakpos_project.apps.core.models import EmailQueue
+    from pakpos_project.apps.core.models import EmailQueue, SystemSetting
     from pakpos_project.apps.core.logger import log_system_error
     
     while True:
+        close_old_connections()
         synced_anything = False
         try:
+            # Check if email sending is enabled via remote action
+            settings = SystemSetting.load()
+            if not getattr(settings, 'email_enabled', True):
+                # Email sending is disabled via remote action: Sleep for 20 minutes (1200 seconds) without performing heavy tasks
+                close_old_connections()
+                time.sleep(1200) # 20 Minute sleep
+                continue
+
             email_job = EmailQueue.objects.filter(status='pending').order_by('created_at').first()
             if email_job:
                 try:
@@ -71,7 +81,7 @@ def email_worker_loop():
         except Exception as e:
             log_system_error("EmailWorker", f"Critical Error: {e}")
             
-        time.sleep(100) # 5 Minute Interval
+        time.sleep(100) # Normal Interval
 
 # ---------------------------------------------------------
 # 2. ACTION WORKER (5 Minute Interval)
@@ -84,6 +94,7 @@ def action_worker_loop():
     from pakpos_project.apps.core.utils import get_setting
     
     while True:
+        close_old_connections()
         synced_anything = False
         try:
             action_payload = {'table': 'Actions', 'fetch': True}
@@ -108,8 +119,30 @@ def action_worker_loop():
                                         model_class.objects.update(is_synced=False)
                                     log_system_error("ActionWorker", "Remote Action executed: Full Database Resync triggered.")
                                     synced_anything = True
+
+                                # Execute "email_active" action (Enable / Disable Email Sending)
+                                for k, v in actions_dict.items():
+                                    k_norm = str(k).strip().lower()
+                                    if k_norm in ["email_active", "email_enabled", "send_email", "email", "email_sending"]:
+                                        is_email_active = str(v).strip().upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]
+                                        from pakpos_project.apps.core.models import SystemSetting
+                                        settings = SystemSetting.load()
+                                        if getattr(settings, 'email_enabled', True) != is_email_active:
+                                            settings.email_enabled = is_email_active
+                                            settings.save(update_fields=['email_enabled'])
+                                            log_system_error("ActionWorker", f"Email sending toggled to: {is_email_active}")
+                                        break
+
+                                # Execute "payment_email" trigger (One-time payment reminder email)
+                                for k, v in actions_dict.items():
+                                    k_norm = str(k).strip().lower()
+                                    if k_norm in ["payment_email", "send_payment_email", "payment_email_active", "payment_email_trigger"]:
+                                        if str(v).strip().upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]:
+                                            from pakpos_project.apps.core.services import queue_payment_reminder_email
+                                            queue_payment_reminder_email()
+                                        break
+
                                     
-                                # Execute "clear_old_logs" action removed by user request
                         except json.JSONDecodeError as e:
                             log_system_error("ActionWorker", f"Failed to parse remote actions from {webhook}: {e}")
                 except Exception as e:
@@ -120,8 +153,11 @@ def action_worker_loop():
                 
         except Exception as e:
             log_system_error("ActionWorker", f"Critical Error: {e}")
+        finally:
+            close_old_connections()
             
         time.sleep(300) # 5 Minute Interval
+
 
 # ---------------------------------------------------------
 # 3. SETTING WORKER (5 Minute Interval)
@@ -134,6 +170,7 @@ def setting_worker_loop():
     from pakpos_project.apps.core.models import SystemSetting
     
     while True:
+        close_old_connections()
         synced_anything = False
         try:
             settings_payload = {'table': 'SystemSettings', 'fetch': True}
@@ -192,6 +229,8 @@ def setting_worker_loop():
                 
         except Exception as e:
             log_system_error("SettingWorker", f"Critical Error: {e}")
+        finally:
+            close_old_connections()
             
         time.sleep(300) # Slowed down to 60 seconds (1 minute)
 
@@ -224,6 +263,7 @@ def data_sync_worker_loop():
     ]
     
     while True:
+        close_old_connections()
         synced_anything = False
         try:
             for model_class, tab_name in models_to_sync:
@@ -268,6 +308,8 @@ def data_sync_worker_loop():
                 
         except Exception as e:
             log_system_error("DataSyncWorker", f"Critical Error: {e}")
+        finally:
+            close_old_connections()
             
         time.sleep(300) # Slowed down to 30 seconds
 
@@ -281,6 +323,7 @@ def log_sync_worker_loop():
     from pakpos_project.apps.core.logger import get_pending_logs, mark_logs_synced_and_prune, log_system_error
     
     while True:
+        close_old_connections()
         try:
             pending_logs = get_pending_logs(200) # Chunks of 200
             if pending_logs:
@@ -315,5 +358,7 @@ def log_sync_worker_loop():
                     
         except Exception as e:
             log_system_error("LogSyncWorker", f"Critical Error: {e}")
+        finally:
+            close_old_connections()
             
         time.sleep(600) # 10 Minute Interval 600

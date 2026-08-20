@@ -66,6 +66,7 @@ class SystemSetting(models.Model):
     owner_email_1 = models.EmailField(blank=True, null=True)
     owner_email_2 = models.EmailField(blank=True, null=True)
     owner_email_3 = models.EmailField(blank=True, null=True)
+    email_enabled = models.BooleanField(default=True, help_text="Global switch to enable/disable background email sending")
     
     # Sync metadata
     is_synced = models.BooleanField(default=False)
@@ -90,3 +91,47 @@ class SystemSetting(models.Model):
 
     def __str__(self):
         return "Global System Settings"
+
+
+class PaymentAlert(models.Model):
+    """
+    Singleton model for Payment Alert, Due Reminder & Navbar Notification.
+    Controlled dynamically via Google Sheets 'Actions' tab.
+    """
+    is_popup_active = models.BooleanField(default=False, help_text="Enable or disable the recurring popup modal")
+    is_navbar_active = models.BooleanField(default=False, help_text="Enable or disable the top navbar badge")
+    interval_minutes = models.IntegerField(default=15, help_text="Popup re-occurrence interval in minutes after dismissal")
+    pending_month = models.CharField(max_length=100, default='Current Month', blank=True, help_text="Month or period for which payment is due")
+    pending_amount = models.CharField(max_length=100, default='0', blank=True, help_text="Amount due (e.g. Rs. 15,000)")
+    account_info = models.TextField(blank=True, default='', help_text="Bank details, Account Title, Account No, Raast ID, IBAN")
+    alert_title = models.CharField(max_length=200, default='Software Subscription Payment Due', blank=True)
+    alert_message = models.TextField(blank=True, default='Your monthly POS software maintenance/subscription fee is pending. Please transfer the payment to keep all system services running without disruption.')
+    due_date = models.CharField(max_length=100, blank=True, default='', help_text="Due date (e.g. 25-Aug-2026 or Immediate)")
+    contact_info = models.CharField(max_length=200, blank=True, default='', help_text="Support helpline / WhatsApp")
+    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Payment Alert"
+        verbose_name_plural = "Payment Alerts"
+
+    @property
+    def is_active(self):
+        return self.is_popup_active or self.is_navbar_active
+
+    def save(self, *args, **kwargs):
+        # Enforce Singleton pattern: always save to id=1
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """
+        Fetch the singleton instance. If it doesn't exist, create it with defaults.
+        """
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Payment Alert [Popup: {self.is_popup_active}, Navbar: {self.is_navbar_active}] - Month: {self.pending_month} | Interval: {self.interval_minutes}m"
+

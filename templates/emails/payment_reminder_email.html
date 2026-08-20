@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f7f9fc;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            border: 1px solid #eef0f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 3px solid #b91c1c;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 15px;
+            opacity: 0.95;
+        }
+        .content {
+            padding: 35px 40px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #555555;
+            margin-bottom: 25px;
+        }
+        .details-box {
+            background-color: #fff8f8;
+            border: 1px solid #fee2e2;
+            border-left: 4px solid #ef4444;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 10px 15px 10px 0;
+            color: #7f8c8d;
+            font-weight: 500;
+            font-size: 14px;
+            width: 42%;
+            border-bottom: 1px solid #f2d6d6;
+        }
+        td {
+            padding: 10px 0;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid #f2d6d6;
+        }
+        tr:last-child th, tr:last-child td {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        tr:first-child th, tr:first-child td {
+            padding-top: 0;
+        }
+        .highlight {
+            color: #dc2626;
+            font-size: 22px;
+            font-weight: 800;
+        }
+        .bank-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 25px;
+        }
+        .bank-title {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #0284c7;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .bank-info {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+            background: #ffffff;
+            border: 1px dashed #cbd5e1;
+            border-radius: 6px;
+            padding: 12px 15px;
+            color: #1e293b;
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+        .contact-note {
+            background-color: #f0fdf4;
+            border: 1px solid #dcfce7;
+            border-radius: 6px;
+            padding: 12px 15px;
+            font-size: 13px;
+            color: #166534;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: #95a5a6;
+            border-top: 1px solid #ecf0f1;
+        }
+        .footer strong {
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>{{ alert_title }}</h2>
+            <p>{{ app_name }} — {{ app_subtitle }}</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello Admin,</div>
+            
+            <div class="message">
+                {{ alert_message }}
+            </div>
+            
+            <div class="details-box">
+                <table>
+                    <tr>
+                        <th>Billing Month / Period</th>
+                        <td><strong>{{ pending_month }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Total Due Amount</th>
+                        <td class="highlight">{{ pending_amount }}</td>
+                    </tr>
+                    {% if due_date %}
+                    <tr>
+                        <th>Due Date</th>
+                        <td style="color: #d97706;">{{ due_date }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+
+            <div class="bank-box">
+                <div class="bank-title">💳 Official Bank & Payment Transfer Details</div>
+                <div class="bank-info">{{ account_info|safe }}</div>
+            </div>
+
+            {% if contact_info %}
+            <div class="contact-note">
+                For confirmation or receipt sharing, please contact: <strong>{{ contact_info }}</strong>
+            </div>
+            {% endif %}
+
+            <p style="font-size: 13px; color: #888888; line-height: 1.5; margin: 0;">
+                <em>Please share the payment transaction ID or receipt with the support team to ensure uninterrupted POS software and cloud synchronization services.</em>
+            </p>
+        </div>
+        
+        <div class="footer">
+            Automated system notification for <strong>{{ app_name }}</strong>.<br>
+            © {{ app_name }} — All Rights Reserved.
+        </div>
+    </div>
+</body>
+</html>

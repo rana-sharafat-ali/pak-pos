@@ -249,23 +249,16 @@
                             <line x1="3" y1="18" x2="21" y2="18"></line>
                         </svg>
                     </button>
-                    <form method="GET" action="{% if request.user.role == 'cashier' %}{% url 'sales:pos' %}{% else %}{% url 'products:product_list' %}{% endif %}" class="header-search">
-                        <span class="search-icon-svg">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                        </span>
-                        <input 
-                            type="text" 
-                            name="q" 
-                            value="{{ request.GET.q|default:'' }}" 
-                            placeholder="Search {{ APP_NAME }} catalog, SKUs, or categories..."
-                        >
-                    </form>
                 </div>
 
                 <div class="header-actions">
+                    <!-- Dynamic Payment Due Navbar Badge -->
+                    <button type="button" id="payment-alert-navbar-pill" class="payment-alert-navbar-pill" style="display: {% if PAYMENT_ALERT.is_navbar_active %}inline-flex{% else %}none{% endif %};" onclick="PaymentAlertEngine.show()" title="Click to view payment transfer details">
+                        <span class="pa-indicator-dot"></span>
+                        <span class="pa-navbar-text">⚠️ Due: <strong>{{ PAYMENT_ALERT.pending_month|default:"Payment" }}</strong> ({{ PAYMENT_ALERT.pending_amount|default:"" }})</span>
+                    </button>
+
+
                     <div class="top-header-branding">
                         <span class="top-brand-dot"></span>
                         <span class="top-brand-name">{{ APP_NAME }}</span>
@@ -335,8 +328,12 @@
         </div>
     </div>
 
+    <!-- PAYMENT DUE ALERT MODAL & ENGINE -->
+    {% include 'components/payment_alert_modal.html' %}
+
     <!-- Scripts -->
     <script src="{% static 'js/main.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+

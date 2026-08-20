@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "db49c27e-46a4-49b1-b07d-85ddf95b30bf",
+    "timestamp": "2026-08-21T01:27:39.897249",
+    "component": "HTTPRequest",
+    "error_message": "HTTP 200 Success at /api/payment-alert/ (GET)",
+    "is_synced": false
+  },
+  {
+    "id": "518825fc-04a6-45b6-8db6-ac99f4435e96",
+    "timestamp": "2026-08-21T01:28:24.516021",
+    "component": "HTTPRequest",
+    "error_message": "HTTP 200 Success at /api/payment-alert/ (GET)",
+    "is_synced": false
+  }
+]
