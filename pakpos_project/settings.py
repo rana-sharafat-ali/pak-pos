@@ -32,23 +32,7 @@ DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '').split(',') if host.strip()]
 
-# Application Branding & Global Configuration (Default: PakPOS)
-APP_NAME = os.getenv('APP_NAME', 'PakPOS')
-APP_SUBTITLE = os.getenv('APP_SUBTITLE', 'Management Portal')
-APP_CURRENCY = os.getenv('APP_CURRENCY', 'PKR')
-APP_FOOTER_TEXT = os.getenv('APP_FOOTER_TEXT', 'PakPOS — Modern Point of Sale System.')
-APP_PRIMARY_COLOR = os.getenv('APP_PRIMARY_COLOR', '#2563eb')
-PRODUCTS_PER_PAGE = int(os.getenv('PRODUCTS_PER_PAGE', '50'))
 
-# Point of Sale (POS) Settings
-POS_DEFAULT_DISCOUNT_PERCENT = float(os.getenv('POS_DEFAULT_DISCOUNT_PERCENT', '0'))
-POS_AUTO_APPLY_DISCOUNT = os.getenv('POS_AUTO_APPLY_DISCOUNT', 'False').lower() in ('true', '1', 't')
-POS_DEFAULT_TAX_PERCENT = float(os.getenv('POS_DEFAULT_TAX_PERCENT', '0'))
-POS_DEFAULT_SERVICE_CHARGE_PERCENT = float(os.getenv('POS_DEFAULT_SERVICE_CHARGE_PERCENT', '0'))
-POS_DEFAULT_DELIVERY_CHARGES = float(os.getenv('POS_DEFAULT_DELIVERY_CHARGES', '150'))
-POS_OPERATION_MODE = os.getenv('POS_OPERATION_MODE', 'retail')
-POS_SHIFT_START_HOUR = int(os.getenv('POS_SHIFT_START_HOUR', '9'))
-POS_SHIFT_END_HOUR = int(os.getenv('POS_SHIFT_END_HOUR', '23'))
 
 
 # Application definition

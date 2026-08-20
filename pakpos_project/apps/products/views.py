@@ -71,8 +71,11 @@ def product_list(request):
 
     categories = Category.objects.annotate(product_count=Count('products')).all()
 
+    from pakpos_project.apps.core.services import get_current_system_settings
+    sys_settings = get_current_system_settings()
+    
     # Pagination: 50 items per page by default, configurable
-    per_page = getattr(settings, 'PRODUCTS_PER_PAGE', 50)
+    per_page = sys_settings.get('products_per_page', 50)
     paginator = Paginator(products, per_page)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)

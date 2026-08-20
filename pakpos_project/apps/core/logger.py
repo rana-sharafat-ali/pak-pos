@@ -54,11 +54,9 @@ def get_pending_logs(limit=10):
         except Exception:
             return []
 
-def mark_logs_synced_and_prune(sent_log_ids, existing_sheet_ids):
+def mark_logs_synced_and_prune(sent_log_ids, existing_sheet_ids=None):
     """
-    Two-way sync logic:
-    1. Marks `sent_log_ids` as is_synced=True
-    2. Deletes ANY synced log whose ID is NOT in `existing_sheet_ids` (meaning user deleted it from Google Sheets)
+    Deletes logs from the local file once they are successfully synced to Google Sheets.
     """
     with _log_lock:
         _ensure_log_dir()
@@ -70,20 +68,16 @@ def mark_logs_synced_and_prune(sent_log_ids, existing_sheet_ids):
             for log in logs:
                 log_id = log.get('id')
                 
-                # Mark as synced if it was just sent
+                # If the log was just successfully synced to the cloud, remove it (don't append)
                 if log_id in sent_log_ids:
-                    log['is_synced'] = True
+                    continue
                 
-                # Retention rule:
-                # If it's NOT synced yet, keep it.
-                if not log.get('is_synced', False):
-                    new_logs.append(log)
-                # If it IS synced, keep it ONLY if Google Sheets still has it.
-                elif log_id in existing_sheet_ids:
-                    new_logs.append(log)
-                else:
-                    # It was synced, but Google Sheets says it's gone. Prune it!
-                    pass
+                # If it was somehow marked as synced previously, remove it
+                if log.get('is_synced', False):
+                    continue
+                    
+                # If it's NOT synced yet, keep it in the file so it can be tried again next time
+                new_logs.append(log)
 
             with open(LOG_FILE_PATH, 'w') as f:
                 json.dump(new_logs, f, indent=2)

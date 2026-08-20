@@ -1,23 +1,21 @@
-from django.conf import settings
-
+from pakpos_project.apps.core.models import SystemSetting
 
 def branding(request):
     """
-    Inject global branding and system configuration from settings (.env) into all templates
+    Inject global branding and system configuration from Singleton SystemSetting Database into all templates
     """
+    settings = SystemSetting.load()
     return {
-        'APP_NAME': getattr(settings, 'APP_NAME', 'PakPOS'),
-        'APP_SUBTITLE': getattr(settings, 'APP_SUBTITLE', 'Management Portal'),
-        'APP_CURRENCY': getattr(settings, 'APP_CURRENCY', 'PKR'),
-        'APP_FOOTER_TEXT': getattr(settings, 'APP_FOOTER_TEXT', 'PakPOS — Modern Point of Sale System.'),
-        'APP_PRIMARY_COLOR': getattr(settings, 'APP_PRIMARY_COLOR', '#2563eb'),
-        'PRODUCTS_PER_PAGE': getattr(settings, 'PRODUCTS_PER_PAGE', 50),
-        'SESSION_COOKIE_AGE_DAYS': getattr(settings, 'SESSION_COOKIE_AGE_DAYS', 30),
-        'POS_DEFAULT_TAX_PERCENT': getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0),
-        'POS_DEFAULT_SERVICE_CHARGE_PERCENT': getattr(settings, 'POS_DEFAULT_SERVICE_CHARGE_PERCENT', 0),
-        'POS_DEFAULT_DISCOUNT_PERCENT': getattr(settings, 'POS_DEFAULT_DISCOUNT_PERCENT', 0),
-        'POS_AUTO_APPLY_DISCOUNT': getattr(settings, 'POS_AUTO_APPLY_DISCOUNT', False),
-        'POS_DEFAULT_DELIVERY_CHARGES': getattr(settings, 'POS_DEFAULT_DELIVERY_CHARGES', 150),
-        'POS_OPERATION_MODE': getattr(settings, 'POS_OPERATION_MODE', 'retail'),
+        'APP_NAME': settings.app_name,
+        'APP_SUBTITLE': settings.app_subtitle,
+        'APP_CURRENCY': settings.app_currency,
+        'APP_FOOTER_TEXT': settings.app_footer_text,
+        'APP_PRIMARY_COLOR': settings.app_primary_color,
+        'PRODUCTS_PER_PAGE': settings.products_per_page,
+        'POS_DEFAULT_TAX_PERCENT': settings.pos_default_tax_percent,
+        'POS_DEFAULT_SERVICE_CHARGE_PERCENT': settings.pos_default_service_charge_percent,
+        'POS_DEFAULT_DISCOUNT_PERCENT': settings.pos_default_discount_percent,
+        'POS_AUTO_APPLY_DISCOUNT': settings.pos_auto_apply_discount,
+        'POS_DEFAULT_DELIVERY_CHARGES': settings.pos_default_delivery_charges,
+        'POS_OPERATION_MODE': settings.pos_operation_mode,
     }
-

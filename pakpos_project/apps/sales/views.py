@@ -91,17 +91,19 @@ def pos_terminal_view(request):
             'variants': variants_data,
         })
 
+    sys_settings = get_current_system_settings()
+    
     context = {
         'title': 'Point of Sale (POS)',
         'categories': categories,
         'products_json': json.dumps(product_catalog_json),
         'dining_tables': dining_tables,
-        'default_discount_percent': getattr(settings, 'POS_DEFAULT_DISCOUNT_PERCENT', 0),
-        'pos_auto_apply_discount': getattr(settings, 'POS_AUTO_APPLY_DISCOUNT', False),
-        'default_tax_percent': getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0),
-        'default_service_charge_percent': getattr(settings, 'POS_DEFAULT_SERVICE_CHARGE_PERCENT', 0),
-        'default_delivery_charges': getattr(settings, 'POS_DEFAULT_DELIVERY_CHARGES', 150),
-        'pos_mode': getattr(settings, 'POS_OPERATION_MODE', 'retail'),
+        'default_discount_percent': sys_settings.get('pos_default_discount_percent', 0),
+        'pos_auto_apply_discount': sys_settings.get('pos_auto_apply_discount', False),
+        'default_tax_percent': sys_settings.get('pos_default_tax_percent', 0),
+        'default_service_charge_percent': sys_settings.get('pos_default_service_charge_percent', 0),
+        'default_delivery_charges': sys_settings.get('pos_default_delivery_charges', 150),
+        'pos_mode': sys_settings.get('pos_operation_mode', 'retail'),
     }
     return render(request, 'sales/pos_terminal.html', context)
 
@@ -195,8 +197,10 @@ def api_create_sale(request):
             'total_price': line_subtotal,
         })
 
+    sys_settings = get_current_system_settings()
+
     # 1. Tax Calculation (calculated on Subtotal)
-    tax_rate = Decimal(str(data.get('tax_rate', getattr(settings, 'POS_DEFAULT_TAX_PERCENT', 0)) or 0))
+    tax_rate = Decimal(str(data.get('tax_rate', sys_settings.get('pos_default_tax_percent', 0)) or 0))
     tax_amount = (subtotal * (tax_rate / Decimal('100'))).quantize(Decimal('0.01')) if tax_rate > 0 else Decimal('0.00')
 
     # 2. Order Type & Service / Delivery Charge Calculation (calculated on Subtotal)
@@ -210,9 +214,9 @@ def api_create_sale(request):
         if 'service_charge_amount' in data and data.get('service_charge_amount') is not None:
             service_charge_amount = Decimal(str(data.get('service_charge_amount') or 0)).quantize(Decimal('0.01'))
         else:
-            service_charge_amount = Decimal(str(getattr(settings, 'POS_DEFAULT_DELIVERY_CHARGES', 150))).quantize(Decimal('0.01'))
+            service_charge_amount = Decimal(str(sys_settings.get('pos_default_delivery_charges', 150))).quantize(Decimal('0.01'))
     else: # Dine-In
-        service_charge_rate = Decimal(str(data.get('service_charge_rate', getattr(settings, 'POS_DEFAULT_SERVICE_CHARGE_PERCENT', 0)) or 0))
+        service_charge_rate = Decimal(str(data.get('service_charge_rate', sys_settings.get('pos_default_service_charge_percent', 0)) or 0))
         if 'service_charge_amount' in data and data.get('service_charge_amount') is not None:
             service_charge_amount = Decimal(str(data.get('service_charge_amount') or 0)).quantize(Decimal('0.01'))
         else:
@@ -570,11 +574,11 @@ def _get_shift_context(request):
     today_margin = round((today_profit / net_rev_today) * 100, 1) if net_rev_today > 0 else 0.0
 
     # Hourly sales progression for today (dynamic timing from .env)
-    from dotenv import load_dotenv
-    load_dotenv(settings.BASE_DIR / '.env', override=True)
+    from pakpos_project.apps.core.services import get_current_system_settings
+    sys_settings = get_current_system_settings()
     
-    start_hour = int(os.getenv('POS_SHIFT_START_HOUR', getattr(settings, 'POS_SHIFT_START_HOUR', 9)))
-    end_hour = int(os.getenv('POS_SHIFT_END_HOUR', getattr(settings, 'POS_SHIFT_END_HOUR', 23)))
+    start_hour = sys_settings.get('pos_shift_start_hour', 9)
+    end_hour = sys_settings.get('pos_shift_end_hour', 23)
 
     hourly_dict = {}
     for sale in completed_today:
