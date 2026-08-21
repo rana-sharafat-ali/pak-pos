@@ -14,11 +14,11 @@ class ExceptionLoggingMiddleware(MiddlewareMixin):
         return None  # Let Django continue its normal error handling
 
     def process_response(self, request, response):
-        # Ignore static and media files to prevent spamming the logs
-        if request.path.startswith('/static/') or request.path.startswith('/media/'):
+        # Ignore static, media, and background polling endpoints to prevent spamming the logs
+        if request.path.startswith('/static/') or request.path.startswith('/media/') or request.path == '/api/payment-alert/':
             return response
             
-        # Log every HTTP request
+        # Log HTTP requests
         if response.status_code >= 400:
             error_msg = f"HTTP {response.status_code} Error at {request.path} ({request.method})"
             log_system_error(f"HTTP Error ({response.status_code})", error_msg)
