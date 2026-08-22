@@ -661,17 +661,42 @@ window.OwnerPortal = (function() {
         }
 
         // 2. Bar Chart: Top Selling Products (Net Quantity Sold)
-        const validSaleIds = new Set(sales.map(s => String(s.id).trim()));
+        const validSaleIds = new Set();
+        sales.forEach(s => {
+            if (s.id !== undefined && s.id !== null) validSaleIds.add(String(s.id).trim());
+            if (s.invoice_number) validSaleIds.add(String(s.invoice_number).trim());
+        });
+
         const itemQtyMap = {};
         
         saleItems.forEach(it => {
             const saleRef = String(it.sale || it.sale_id || '').trim();
-            // Count items from valid sales
-            if (validSaleIds.has(saleRef) || !saleRef) {
-                const baseName = it.product_name || it.product || 'Product';
+            const itInv = String(it.invoice_number || '').trim();
+
+            let belongsToValidSale = false;
+            if (!saleRef && !itInv) {
+                // If items aren't tagged to a specific sale, consider valid
+                belongsToValidSale = true;
+            } else if (validSaleIds.has(saleRef) || (itInv && validSaleIds.has(itInv))) {
+                belongsToValidSale = true;
+            } else {
+                for (const s of sales) {
+                    if (matchItemToSale(it, s)) {
+                        belongsToValidSale = true;
+                        break;
+                    }
+                }
+            }
+
+            if (belongsToValidSale) {
+                let baseName = String(it.product_name || it.product || 'Product').trim();
+                // Clean up string representations like "Product - PKR 100 (Active)"
+                if (baseName.includes(' - ')) baseName = baseName.split(' - ')[0].trim();
                 const fullName = it.variant_name ? `${baseName} (${it.variant_name})` : baseName;
                 const netQty = Math.max(0, (parseFloat(it.quantity) || 1) - (parseFloat(it.refunded_quantity) || 0));
-                itemQtyMap[fullName] = (itemQtyMap[fullName] || 0) + netQty;
+                if (netQty > 0) {
+                    itemQtyMap[fullName] = (itemQtyMap[fullName] || 0) + netQty;
+                }
             }
         });
 
@@ -873,19 +898,25 @@ window.OwnerPortal = (function() {
         }
     }
 
+    function matchItemToSale(item, sale) {
+        if (!item || !sale) return false;
+        const saleIdStr = String(sale.id).trim();
+        const invoiceStr = String(sale.invoice_number || '').trim();
+        const itemSaleRef = String(item.sale || item.sale_id || '').trim();
+        const itemInv = String(item.invoice_number || '').trim();
+
+        if (itemInv && invoiceStr && itemInv.toLowerCase() === invoiceStr.toLowerCase()) return true;
+        if (itemSaleRef && saleIdStr && itemSaleRef === saleIdStr) return true;
+        if (invoiceStr && itemSaleRef && itemSaleRef.includes(invoiceStr)) return true;
+        if (saleIdStr && itemSaleRef && (itemSaleRef.startsWith(saleIdStr + ' ') || itemSaleRef.startsWith(saleIdStr + '-') || itemSaleRef.startsWith(saleIdStr + ':'))) return true;
+        return false;
+    }
+
     function viewReceipt(invoiceNo) {
         const sale = (state.data.Sales || []).find(s => String(s.invoice_number || s.id) === String(invoiceNo));
         if (!sale) return;
 
-        // Strict Item Matching to avoid ID overlap bug
-        const saleIdStr = String(sale.id).trim();
-        const invoiceStr = String(sale.invoice_number || '').trim();
-
-        const saleItems = (state.data.SaleItems || []).filter(item => {
-            const itemSaleId = String(item.sale || item.sale_id || '').trim();
-            const itemInv = String(item.invoice_number || '').trim();
-            return (itemSaleId && itemSaleId === saleIdStr) || (itemInv && itemInv === invoiceStr);
-        });
+        const saleItems = (state.data.SaleItems || []).filter(item => matchItemToSale(item, sale));
 
         const settings = state.data.SystemSettings || {};
 

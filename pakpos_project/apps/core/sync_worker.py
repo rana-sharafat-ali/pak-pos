@@ -275,10 +275,22 @@ def data_sync_worker_loop():
                     for record in records:
                         record_dict = {}
                         for field in record._meta.fields:
-                            val = getattr(record, field.name)
-                            if hasattr(val, 'isoformat'): val = val.isoformat()
-                            elif val is not None and not isinstance(val, (int, float, bool, str)): val = str(val)
-                            record_dict[field.name] = val
+                            if field.is_relation and field.many_to_one:
+                                fk_val = getattr(record, field.attname)
+                                record_dict[field.name] = str(fk_val) if fk_val is not None else ''
+                                record_dict[field.attname] = str(fk_val) if fk_val is not None else ''
+                            else:
+                                val = getattr(record, field.name)
+                                if hasattr(val, 'isoformat'): val = val.isoformat()
+                                elif val is not None and not isinstance(val, (int, float, bool, str)): val = str(val)
+                                record_dict[field.name] = val
+                        
+                        # Extra helper fields for relational clarity in Sheets
+                        if tab_name == 'SaleItems' and hasattr(record, 'sale') and record.sale:
+                            record_dict['invoice_number'] = record.sale.invoice_number
+                            record_dict['sale_id'] = str(record.sale_id)
+                            record_dict['sale'] = str(record.sale_id)
+
                         payload_data.append(record_dict)
                         
                     payload = {'table': tab_name, 'data': payload_data}

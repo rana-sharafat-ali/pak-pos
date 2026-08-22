@@ -1,7 +1,7 @@
 [
   {
-    "id": "f87e4c91-e868-47c3-a108-86bf81f2b4a2",
-    "timestamp": "2026-08-22T19:00:26.049068",
+    "id": "046e7366-2b50-4713-af3f-21e73af1c977",
+    "timestamp": "2026-08-22T19:13:36.945851",
     "component": "SettingWorker",
     "error_message": "Network error fetching remote settings: ['\u201ctrue\u201d value must be either True or False.']",
     "is_synced": false

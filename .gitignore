@@ -1,21 +1,49 @@
-# Environments & Keys
+# Environments & Secret Keys
 .env
-venv/
 *.env
+!.env.example
+venv/
+.venv/
+env/
+ENV/
+local_settings.py
 
-# Python Cache
+# Python Bytecode & Cache
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+# Database Files
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+db.sqlite3*
+
+
+# Django Media & Collected Static Files
 media/
 staticfiles/
+static_root/
 
-# IDE
+# Logs & Temporary Files
+*.log
+logs/
+scratch/
+tmp/
+temp/
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+desktop.ini
 .vscode/
 .idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
