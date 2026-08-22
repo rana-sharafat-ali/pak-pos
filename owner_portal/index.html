@@ -75,10 +75,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     <span>Daily Shift</span>
                 </a>
-                <a class="nav-item" data-tab="products" id="nav-products">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    <span>Products & Stock</span>
-                </a>
+
             </nav>
 
             <div class="sidebar-footer">
@@ -107,9 +104,9 @@
                     <h1 class="page-title" id="current-page-title">Executive Dashboard</h1>
                 </div>
                 <div class="header-right">
-                    <button class="btn refresh-btn" id="global-refresh-btn" title="Refresh data directly from Database">
+                    <button class="btn refresh-btn" id="global-refresh-btn" onclick="OwnerPortal.fetchLiveDatabaseData(true)" title="Refresh data directly from Database">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                        <span>Sync</span>
+                        <span id="sync-btn-text">Sync</span>
                     </button>
 
                     <button class="btn btn-lock" onclick="OwnerPortal.lockPortal()" title="Lock Session Immediately">
@@ -488,40 +485,7 @@
                     </div>
                 </section>
 
-                <!-- 5. PRODUCTS & INVENTORY VIEW -->
-                <section class="tab-page" id="view-products">
-                    <div class="toolbar">
-                        <div class="toolbar-left">
-                            <div class="search-box">
-                                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                                <input type="text" id="prod-search-input" placeholder="Search product name or SKU code...">
-                            </div>
-                        </div>
-                        <div class="toolbar-right">
-                            <span class="badge badge-blue"><span id="prod-total-count">0</span> Menu Products</span>
-                        </div>
-                    </div>
 
-                    <div class="table-responsive">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Item Code</th>
-                                    <th>Product Name</th>
-                                    <th>Category</th>
-                                    <th>Cost Price</th>
-                                    <th>Selling Price</th>
-                                    <th>Profit Margin</th>
-                                    <th>Stock Level</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="products-tbody">
-                                <!-- Injected by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
 
             </main>
         </div>

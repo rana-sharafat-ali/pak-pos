@@ -848,6 +848,65 @@ table.data-table tr:hover td {
 }
 
 /* ==========================================================================
+   Payment Alert Notice Banner
+   ========================================================================== */
+.payment-alert-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    border: 1.5px solid #f87171;
+    border-left: 6px solid #dc2626;
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.12);
+    animation: slideDownAlert 0.3s ease-out;
+}
+
+.payment-alert-banner.show {
+    display: flex;
+}
+
+.payment-alert-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.payment-alert-icon {
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2);
+    flex-shrink: 0;
+}
+
+.payment-alert-text h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #991b1b;
+    margin-bottom: 4px;
+}
+
+.payment-alert-text p {
+    font-size: 13.5px;
+    color: #7f1d1d;
+    line-height: 1.45;
+    font-weight: 500;
+}
+
+@keyframes slideDownAlert {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
    Receipt Modal
    ========================================================================== */
 .modal-backdrop {

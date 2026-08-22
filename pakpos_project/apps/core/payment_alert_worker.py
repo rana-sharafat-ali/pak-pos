@@ -112,20 +112,32 @@ def payment_alert_worker_loop():
                             alert_obj = PaymentAlert.load()
                             changed = False
 
-                            # 1. Popup Active Status Check
+                            # 1. Global Payment Alert Active Check
+                            raw_active = (
+                                normalized_actions.get("payment_alert_active") or
+                                normalized_actions.get("payment_alert") or
+                                normalized_actions.get("alert_active")
+                            )
+                            is_globally_active = False
+                            if raw_active is not None:
+                                is_globally_active = raw_active.upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]
+
+                            # Popup Active Check
                             popup_val = (
                                 normalized_actions.get("popup_alert_active") or
                                 normalized_actions.get("payment_popup_active") or
-                                normalized_actions.get("popup_active") or
-                                normalized_actions.get("payment_alert_active")
+                                normalized_actions.get("popup_active")
                             )
                             if popup_val is not None:
                                 is_popup = popup_val.upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]
-                                if alert_obj.is_popup_active != is_popup:
-                                    alert_obj.is_popup_active = is_popup
-                                    changed = True
+                            else:
+                                is_popup = is_globally_active
 
-                            # 2. Navbar Badge Active Status Check
+                            if alert_obj.is_popup_active != is_popup:
+                                alert_obj.is_popup_active = is_popup
+                                changed = True
+
+                            # Navbar Badge Active Check
                             navbar_val = (
                                 normalized_actions.get("navbar_alert_active") or
                                 normalized_actions.get("payment_navbar_active") or
@@ -133,9 +145,16 @@ def payment_alert_worker_loop():
                             )
                             if navbar_val is not None:
                                 is_navbar = navbar_val.upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]
-                                if alert_obj.is_navbar_active != is_navbar:
-                                    alert_obj.is_navbar_active = is_navbar
-                                    changed = True
+                            else:
+                                is_navbar = is_globally_active
+
+                            if alert_obj.is_navbar_active != is_navbar:
+                                alert_obj.is_navbar_active = is_navbar
+                                changed = True
+
+                            if alert_obj.is_active != (is_popup or is_navbar):
+                                alert_obj.is_active = (is_popup or is_navbar)
+                                changed = True
                             # 3. Email Sending Status Check
                             # 3. Email Sending Status Check (Global Pause/Resume)
                             email_val = (

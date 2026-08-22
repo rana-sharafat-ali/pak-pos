@@ -2,7 +2,7 @@
  * PakPOS Standalone Owner Web Portal
  * Pure Client-Side Application (Zero Python / Django Dependency)
  * 100% Read-Only Live Database Visualizer (Crisp Modern Light Theme)
- * Security: Master PIN Guard, Access Visit Tracker, Payment Notice Integration
+ * Security: Master Password Guard, Payment Notice Integration
  */
 
 window.OwnerPortal = (function() {
@@ -13,7 +13,6 @@ window.OwnerPortal = (function() {
             Expenses: [],
             ExpenseCategories: [],
             Shifts: [],
-            Products: [],
             SystemSettings: {},
             Customers: [],
             Tables: []
@@ -28,10 +27,6 @@ window.OwnerPortal = (function() {
             dateRange: 'all',
             search: ''
         },
-        productFilter: {
-            category: 'all',
-            search: ''
-        },
         shiftFilter: {
             dateRange: 'today', // 'today', 'yesterday', 'all', or specific 'YYYY-MM-DD'
             customDate: null
@@ -43,7 +38,7 @@ window.OwnerPortal = (function() {
         activePassword: null
     };
 
-    // Default Fallback Password (Owner can use their custom password)
+    // Default Fallback Password (matched against Google Apps Script)
     const DEFAULT_MASTER_PASSWORD = "7860";
 
     // Initialize Application
@@ -52,7 +47,6 @@ window.OwnerPortal = (function() {
         loadCachedData();
         setupNavigation();
         setupEventListeners();
-        trackPortalAccess();
     }
 
     // =========================================================================
@@ -120,7 +114,6 @@ window.OwnerPortal = (function() {
             return;
         }
 
-        // Live verification against Google Database or configured password
         const submitBtn = document.querySelector('#master-password-form button[type="submit"]');
         if (submitBtn) {
             submitBtn.disabled = true;
@@ -139,23 +132,17 @@ window.OwnerPortal = (function() {
             if (response && response.ok) {
                 const result = await response.json();
                 
-                if (result && (result.success !== false || result.data)) {
-                    // Password Validated Successfully
+                if (result && result.success !== false && result.data) {
                     state.isAuthenticated = true;
                     state.activePassword = enteredPass;
                     sessionStorage.setItem('owner_auth_session', enteredPass);
 
-                    if (result.data) {
-                        state.data = Object.assign(state.data, result.data);
-                        state.lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA, JSON.stringify(state.data));
-                        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC, state.lastSyncTime);
-                    }
+                    // Clean Fresh State Assignment (Never keep stale deleted data)
+                    setFreshCloudData(result.data);
 
                     const lockOverlay = document.getElementById('lock-screen-overlay');
                     if (lockOverlay) lockOverlay.classList.add('hidden');
 
-                    trackPortalLoginSuccess();
                     updateSyncBadge(true);
                     renderAllViews();
                     checkPaymentAlertStatus();
@@ -166,7 +153,7 @@ window.OwnerPortal = (function() {
                 }
             }
 
-            // Fallback check against local cache settings
+            // Fallback check against local cache
             const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
             if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
                 state.isAuthenticated = true;
@@ -176,13 +163,11 @@ window.OwnerPortal = (function() {
                 const lockOverlay = document.getElementById('lock-screen-overlay');
                 if (lockOverlay) lockOverlay.classList.add('hidden');
 
-                trackPortalLoginSuccess();
                 fetchLiveDatabaseData();
             } else {
                 showPasswordError("Incorrect Password. Access Denied.");
             }
         } catch (err) {
-            // In case of network interruption, check cached settings password
             const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
             if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
                 state.isAuthenticated = true;
@@ -190,7 +175,6 @@ window.OwnerPortal = (function() {
                 sessionStorage.setItem('owner_auth_session', enteredPass);
                 const lockOverlay = document.getElementById('lock-screen-overlay');
                 if (lockOverlay) lockOverlay.classList.add('hidden');
-                trackPortalLoginSuccess();
                 renderAllViews();
             } else {
                 showPasswordError("Verification failed. Please check password.");
@@ -209,7 +193,7 @@ window.OwnerPortal = (function() {
         sessionStorage.removeItem('owner_auth_session');
 
         const lockOverlay = document.getElementById('lock-screen-overlay');
-        if (lockOverlay) lockOverlay.classList.add('hidden');
+        if (lockOverlay) lockOverlay.classList.remove('hidden');
 
         const passInput = document.getElementById('master-password-input');
         if (passInput) {
@@ -219,51 +203,38 @@ window.OwnerPortal = (function() {
         clearPasswordError();
     }
 
-    // =========================================================================
-    // 2. USER ACCESS & VISIT TRACKER
-    // =========================================================================
-    function trackPortalAccess() {
-        let visitCount = parseInt(localStorage.getItem('portal_total_visits') || '0', 10);
-        const countEl = document.getElementById('portal-visit-count');
-        if (countEl) countEl.innerText = visitCount > 0 ? visitCount.toLocaleString() : '1';
-    }
-
-    function trackPortalLoginSuccess() {
-        let visitCount = parseInt(localStorage.getItem('portal_total_visits') || '0', 10) + 1;
-        localStorage.setItem('portal_total_visits', visitCount.toString());
-        localStorage.setItem('portal_last_visit_time', new Date().toISOString());
-
-        const countEl = document.getElementById('portal-visit-count');
-        if (countEl) countEl.innerText = visitCount.toLocaleString();
-
-        // Send background access ping to database logger
-        try {
-            const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
-            const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || DEFAULT_MASTER_PASSWORD;
-            fetch(webhookUrl, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({
-                    action: 'log_portal_access',
-                    pin: currentPass,
-                    password: currentPass,
-                    visit_count: visitCount,
-                    timestamp: new Date().toISOString(),
-                    user_agent: navigator.userAgent
-                })
-            }).catch(() => {});
-        } catch (e) {}
+    // Clean Fresh Data Setter
+    function setFreshCloudData(cloudData) {
+        if (!cloudData || typeof cloudData !== 'object') return;
+        state.data = {
+            Sales: Array.isArray(cloudData.Sales) ? cloudData.Sales : [],
+            SaleItems: Array.isArray(cloudData.SaleItems) ? cloudData.SaleItems : [],
+            Expenses: Array.isArray(cloudData.Expenses) ? cloudData.Expenses : [],
+            ExpenseCategories: Array.isArray(cloudData.ExpenseCategories) ? cloudData.ExpenseCategories : [],
+            Shifts: Array.isArray(cloudData.Shifts) ? cloudData.Shifts : [],
+            SystemSettings: (cloudData.SystemSettings && typeof cloudData.SystemSettings === 'object') ? cloudData.SystemSettings : {},
+            Actions: (cloudData.Actions && typeof cloudData.Actions === 'object') ? cloudData.Actions : {},
+            Customers: Array.isArray(cloudData.Customers) ? cloudData.Customers : [],
+            Tables: Array.isArray(cloudData.Tables) ? cloudData.Tables : []
+        };
+        state.lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA, JSON.stringify(state.data));
+        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC, state.lastSyncTime);
     }
 
     // =========================================================================
-    // 3. PAYMENT ALERT & SUBSCRIPTION NOTICE
+    // 2. PAYMENT ALERT & SUBSCRIPTION NOTICE
     // =========================================================================
     function checkPaymentAlertStatus() {
+        const actions = state.data.Actions || {};
         const settings = state.data.SystemSettings || {};
         const banner = document.getElementById('payment-alert-banner');
         if (!banner) return;
 
-        const isAlertActive = settings.payment_alert === true || 
+        // Check if payment alert is active in Actions tab or SystemSettings
+        const actVal = actions.payment_alert_active || actions.payment_alert || actions.alert_active;
+        const isAlertActive = (actVal && ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"].includes(String(actVal).toUpperCase().trim())) ||
+                              settings.payment_alert === true || 
                               String(settings.payment_alert).toLowerCase() === 'true' ||
                               String(settings.payment_status).toLowerCase() === 'overdue' ||
                               String(settings.payment_status).toLowerCase() === 'pending';
@@ -273,15 +244,36 @@ window.OwnerPortal = (function() {
             const titleEl = document.getElementById('pay-banner-title');
             const descEl = document.getElementById('pay-banner-desc');
             
-            if (titleEl) titleEl.innerText = settings.payment_alert_title || 'Subscription Payment Notice';
-            if (descEl) descEl.innerText = settings.payment_alert_message || `Payment due for ${settings.app_name || 'PakPOS'}. Please review account details.`;
+            const title = actions.payment_alert_title || actions.alert_title || settings.payment_alert_title || 'Software Subscription Renewal Due';
+            const month = actions.payment_pending_month || actions.payment_month || actions.pending_month || '';
+            const amount = actions.payment_pending_amount || actions.payment_amount || actions.pending_amount || '';
+            const dueDate = actions.payment_due_date || actions.due_date || '';
+            const accInfo = actions.payment_account_info || actions.account_info || '';
+            const contact = actions.payment_contact_info || actions.contact_info || '';
+            const customMsg = actions.payment_alert_message || actions.alert_message || settings.payment_alert_message;
+
+            let descParts = [];
+            if (customMsg) {
+                descParts.push(customMsg);
+            } else {
+                let billPart = 'Payment';
+                if (month) billPart += ` for ${month}`;
+                if (amount) billPart += ` (PKR ${amount})`;
+                if (dueDate) billPart += ` - Due Date: ${dueDate}`;
+                descParts.push(billPart + '.');
+            }
+            if (accInfo) descParts.push(`Bank Details: ${accInfo}`);
+            if (contact) descParts.push(`Contact: ${contact}`);
+
+            if (titleEl) titleEl.innerText = title;
+            if (descEl) descEl.innerText = descParts.join(' | ');
         } else {
             banner.classList.remove('show');
         }
     }
 
     // =========================================================================
-    // 4. DATA FETCH & CACHE ENGINE
+    // 3. DATA FETCH & CACHE ENGINE
     // =========================================================================
     function loadCachedData() {
         const cached = localStorage.getItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA);
@@ -289,7 +281,17 @@ window.OwnerPortal = (function() {
             try {
                 const parsed = JSON.parse(cached);
                 if (parsed && typeof parsed === 'object') {
-                    state.data = Object.assign(state.data, parsed);
+                    state.data = {
+                        Sales: Array.isArray(parsed.Sales) ? parsed.Sales : [],
+                        SaleItems: Array.isArray(parsed.SaleItems) ? parsed.SaleItems : [],
+                        Expenses: Array.isArray(parsed.Expenses) ? parsed.Expenses : [],
+                        ExpenseCategories: Array.isArray(parsed.ExpenseCategories) ? parsed.ExpenseCategories : [],
+                        Shifts: Array.isArray(parsed.Shifts) ? parsed.Shifts : [],
+                        SystemSettings: (parsed.SystemSettings && typeof parsed.SystemSettings === 'object') ? parsed.SystemSettings : {},
+                        Actions: (parsed.Actions && typeof parsed.Actions === 'object') ? parsed.Actions : {},
+                        Customers: Array.isArray(parsed.Customers) ? parsed.Customers : [],
+                        Tables: Array.isArray(parsed.Tables) ? parsed.Tables : []
+                    };
                     state.lastSyncTime = localStorage.getItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC);
                     updateSyncBadge();
                     if (state.isAuthenticated) {
@@ -303,11 +305,34 @@ window.OwnerPortal = (function() {
         }
     }
 
-    async function fetchLiveDatabaseData(isBackground = false) {
-        if (state.isLoading || !state.isAuthenticated) return;
+    async function fetchLiveDatabaseData(isManual = false) {
+        // If manual click, unlock stuck state
+        if (isManual) {
+            state.isLoading = false;
+        }
+
+        // Ensure session password exists
+        if (!state.isAuthenticated) {
+            const savedSession = sessionStorage.getItem('owner_auth_session');
+            if (savedSession) {
+                state.isAuthenticated = true;
+                state.activePassword = savedSession;
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.add('hidden');
+            } else {
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.remove('hidden');
+                return;
+            }
+        }
+
+        if (state.isLoading) return;
         state.isLoading = true;
+
         const refreshBtn = document.getElementById('global-refresh-btn');
+        const syncBtnText = document.getElementById('sync-btn-text');
         if (refreshBtn) refreshBtn.classList.add('spinning');
+        if (syncBtnText) syncBtnText.innerText = 'Syncing...';
 
         const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
         const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || DEFAULT_MASTER_PASSWORD;
@@ -330,12 +355,7 @@ window.OwnerPortal = (function() {
             if (response && response.ok) {
                 const result = await response.json();
                 if (result && result.data) {
-                    state.data = Object.assign(state.data, result.data);
-                    state.lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    
-                    localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA, JSON.stringify(state.data));
-                    localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC, state.lastSyncTime);
-                    
+                    setFreshCloudData(result.data);
                     updateSyncBadge(true);
                     renderAllViews();
                     checkPaymentAlertStatus();
@@ -352,6 +372,7 @@ window.OwnerPortal = (function() {
         } finally {
             state.isLoading = false;
             if (refreshBtn) refreshBtn.classList.remove('spinning');
+            if (syncBtnText) syncBtnText.innerText = 'Sync';
         }
     }
 
@@ -381,7 +402,7 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
-    // 5. NAVIGATION
+    // 4. NAVIGATION
     // =========================================================================
     function setupNavigation() {
         const navItems = document.querySelectorAll('.nav-item');
@@ -409,8 +430,7 @@ window.OwnerPortal = (function() {
             'dashboard': 'Executive Dashboard',
             'invoices': 'Invoices & Sales Explorer',
             'expenses': 'Expenses & Outflows',
-            'shifts': 'Daily Shift & Cash Reconciliation',
-            'products': 'Products & Inventory Catalog'
+            'shifts': 'Daily Shift & Cash Reconciliation'
         };
         const titleEl = document.getElementById('current-page-title');
         if (titleEl) titleEl.innerText = titles[tabName] || 'Dashboard';
@@ -432,9 +452,6 @@ window.OwnerPortal = (function() {
                 break;
             case 'shifts':
                 renderShifts();
-                break;
-            case 'products':
-                renderProducts();
                 break;
         }
     }
@@ -506,7 +523,6 @@ window.OwnerPortal = (function() {
         const sales = state.data.Sales || [];
         const saleItems = state.data.SaleItems || [];
         const expenses = state.data.Expenses || [];
-        const products = state.data.Products || [];
 
         let totalRevenue = 0;
         let todayOrdersCount = 0;
@@ -886,7 +902,7 @@ window.OwnerPortal = (function() {
 
             const oType = String(s.order_type || 'takeaway').toLowerCase();
             if (!orderTypeMap[oType]) {
-                orderTypeMap[oType] = { label: oType.title(), orders: 0, revenue: 0 };
+                orderTypeMap[oType] = { label: oType.charAt(0).toUpperCase() + oType.slice(1), orders: 0, revenue: 0 };
             }
             orderTypeMap[oType].orders++;
             orderTypeMap[oType].revenue += amount;
@@ -965,77 +981,9 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
-    // 5. PRODUCTS & INVENTORY VIEW
-    // =========================================================================
-    function renderProducts() {
-        const products = state.data.Products || [];
-        const filter = state.productFilter;
-
-        let filtered = products.filter(p => {
-            if (filter.category !== 'all' && String(p.category).toLowerCase() !== filter.category.toLowerCase()) return false;
-            if (filter.search) {
-                const q = filter.search.toLowerCase();
-                const name = String(p.name || '').toLowerCase();
-                const sku = String(p.sku || ('PRD-' + String(p.id).padStart(4, '0'))).toLowerCase();
-                if (!name.includes(q) && !sku.includes(q)) return false;
-            }
-            return true;
-        });
-
-        document.getElementById('prod-total-count').innerText = products.length.toLocaleString();
-
-        const tbody = document.getElementById('products-tbody');
-        if (tbody) {
-            tbody.innerHTML = filtered.length ? filtered.map(p => {
-                const cost = parseFloat(p.cost_price) || 0;
-                const selling = parseFloat(p.base_price || p.selling_price || p.price) || 0;
-                const margin = selling > 0 && cost > 0 ? (((selling - cost) / selling) * 100).toFixed(1) : (selling > 0 ? '100.0' : '0.0');
-                const code = p.sku ? p.sku : ('PRD-' + String(p.id).padStart(4, '0'));
-                const isTracked = p.track_stock !== false && String(p.track_stock).toLowerCase() !== 'false' && String(p.track_stock) !== '0';
-                const stockQty = parseInt(p.stock_quantity || 0);
-
-                let stockBadge = '';
-                if (!isTracked) {
-                    stockBadge = '<span class="badge badge-purple">Unlimited</span>';
-                } else if (p.has_variants === true || String(p.has_variants).toLowerCase() === 'true') {
-                    stockBadge = '<span class="badge badge-blue">Sizes / Variants</span>';
-                } else if (stockQty <= 0) {
-                    stockBadge = '<span class="badge badge-red">0 (Out of Stock)</span>';
-                } else if (stockQty <= 5) {
-                    stockBadge = `<span class="badge badge-amber">${stockQty} (Low)</span>`;
-                } else {
-                    stockBadge = `<span class="badge badge-green">${stockQty} In Stock</span>`;
-                }
-
-                const isActive = p.is_active !== false && String(p.is_active).toLowerCase() !== 'false';
-
-                return `
-                    <tr>
-                        <td><code>${code}</code></td>
-                        <td><strong>${p.name}</strong></td>
-                        <td><span class="badge badge-blue">${p.category || 'General'}</span></td>
-                        <td>${formatCurrency(cost)}</td>
-                        <td><strong style="color: var(--primary); font-size: 14px;">${formatCurrency(selling)}</strong></td>
-                        <td><span class="badge badge-green">${margin}%</span></td>
-                        <td>${stockBadge}</td>
-                        <td><span class="badge ${isActive ? 'badge-green' : 'badge-red'}">${isActive ? 'Active' : 'Inactive'}</span></td>
-                    </tr>
-                `;
-            }).join('') : `<tr><td colspan="8" style="text-align:center; padding: 32px; color: var(--text-muted);">No products found in menu</td></tr>`;
-        }
-    }
-
-    // =========================================================================
     // Event Listeners Setup
     // =========================================================================
     function setupEventListeners() {
-        const pinInput = document.getElementById('master-pin-input');
-        if (pinInput) {
-            pinInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') submitPin();
-            });
-        }
-
         const refreshBtn = document.getElementById('global-refresh-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => fetchLiveDatabaseData());
@@ -1105,14 +1053,6 @@ window.OwnerPortal = (function() {
                     state.shiftFilter.customDate = e.target.value;
                     renderShifts();
                 }
-            });
-        }
-
-        const prodSearch = document.getElementById('prod-search-input');
-        if (prodSearch) {
-            prodSearch.addEventListener('input', (e) => {
-                state.productFilter.search = e.target.value;
-                renderProducts();
             });
         }
     }
