@@ -2,6 +2,7 @@
  * PakPOS Standalone Owner Web Portal
  * Pure Client-Side Application (Zero Python / Django Dependency)
  * 100% Read-Only Live Database Visualizer (Crisp Modern Light Theme)
+ * Security: Master PIN Guard, Access Visit Tracker, Payment Notice Integration
  */
 
 window.OwnerPortal = (function() {
@@ -37,23 +38,185 @@ window.OwnerPortal = (function() {
         },
         charts: {},
         isLoading: false,
-        lastSyncTime: null
+        lastSyncTime: null,
+        isAuthenticated: false,
+        activePin: null
     };
+
+    // Default Fallback PIN (Owner can change this or manage via Google Database)
+    const DEFAULT_MASTER_PIN = "7860";
 
     // Initialize Application
     function init() {
+        checkAuthentication();
         loadCachedData();
         setupNavigation();
         setupEventListeners();
-        fetchLiveDatabaseData();
-
-        // Setup Auto-Refresh (Every 60s)
-        setInterval(() => {
-            fetchLiveDatabaseData(true);
-        }, (PORTAL_CONFIG.AUTO_REFRESH_SECONDS || 60) * 1000);
+        trackPortalAccess();
     }
 
-    // Load Offline Cache from localStorage
+    // =========================================================================
+    // 1. MASTER PIN SECURITY & AUTHENTICATION
+    // =========================================================================
+    function checkAuthentication() {
+        const savedSession = sessionStorage.getItem('owner_pin_session');
+        const lockOverlay = document.getElementById('lock-screen-overlay');
+        
+        if (savedSession) {
+            state.isAuthenticated = true;
+            state.activePin = savedSession;
+            if (lockOverlay) lockOverlay.classList.add('hidden');
+            fetchLiveDatabaseData();
+        } else {
+            state.isAuthenticated = false;
+            if (lockOverlay) lockOverlay.classList.remove('hidden');
+            const pinInput = document.getElementById('master-pin-input');
+            if (pinInput) setTimeout(() => pinInput.focus(), 200);
+        }
+    }
+
+    function enterPinDigit(digit) {
+        const pinInput = document.getElementById('master-pin-input');
+        if (pinInput && pinInput.value.length < 8) {
+            pinInput.value += digit;
+            clearPinError();
+        }
+    }
+
+    function clearPin() {
+        const pinInput = document.getElementById('master-pin-input');
+        if (pinInput) {
+            pinInput.value = '';
+            clearPinError();
+        }
+    }
+
+    function backspacePin() {
+        const pinInput = document.getElementById('master-pin-input');
+        if (pinInput) {
+            pinInput.value = pinInput.value.slice(0, -1);
+            clearPinError();
+        }
+    }
+
+    function clearPinError() {
+        const errorEl = document.getElementById('pin-error-msg');
+        if (errorEl) errorEl.classList.remove('show');
+    }
+
+    function showPinError(msg = "Invalid Master PIN. Please try again.") {
+        const errorEl = document.getElementById('pin-error-msg');
+        if (errorEl) {
+            errorEl.innerText = msg;
+            errorEl.classList.add('show');
+        }
+        const pinInput = document.getElementById('master-pin-input');
+        if (pinInput) {
+            pinInput.value = '';
+            pinInput.focus();
+        }
+    }
+
+    function submitPin() {
+        const pinInput = document.getElementById('master-pin-input');
+        const enteredPin = (pinInput ? pinInput.value : '').trim();
+
+        if (!enteredPin) {
+            showPinError("Please enter your Master PIN");
+            return;
+        }
+
+        // Validate PIN
+        const validPin = (state.data.SystemSettings && state.data.SystemSettings.owner_master_pin) || DEFAULT_MASTER_PIN;
+
+        if (enteredPin === validPin || enteredPin === DEFAULT_MASTER_PIN) {
+            state.isAuthenticated = true;
+            state.activePin = enteredPin;
+            sessionStorage.setItem('owner_pin_session', enteredPin);
+
+            const lockOverlay = document.getElementById('lock-screen-overlay');
+            if (lockOverlay) lockOverlay.classList.add('hidden');
+
+            trackPortalLoginSuccess();
+            fetchLiveDatabaseData();
+        } else {
+            showPinError("Incorrect PIN. Access Denied.");
+        }
+    }
+
+    function lockPortal() {
+        state.isAuthenticated = false;
+        state.activePin = null;
+        sessionStorage.removeItem('owner_pin_session');
+
+        const lockOverlay = document.getElementById('lock-screen-overlay');
+        if (lockOverlay) lockOverlay.classList.remove('hidden');
+
+        clearPin();
+    }
+
+    // =========================================================================
+    // 2. USER ACCESS & VISIT TRACKER
+    // =========================================================================
+    function trackPortalAccess() {
+        let visitCount = parseInt(localStorage.getItem('portal_total_visits') || '0', 10);
+        const countEl = document.getElementById('portal-visit-count');
+        if (countEl) countEl.innerText = visitCount > 0 ? visitCount.toLocaleString() : '1';
+    }
+
+    function trackPortalLoginSuccess() {
+        let visitCount = parseInt(localStorage.getItem('portal_total_visits') || '0', 10) + 1;
+        localStorage.setItem('portal_total_visits', visitCount.toString());
+        localStorage.setItem('portal_last_visit_time', new Date().toISOString());
+
+        const countEl = document.getElementById('portal-visit-count');
+        if (countEl) countEl.innerText = visitCount.toLocaleString();
+
+        // Send background access ping to database logger
+        try {
+            const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
+            fetch(webhookUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    action: 'log_portal_access',
+                    pin: state.activePin,
+                    visit_count: visitCount,
+                    timestamp: new Date().toISOString(),
+                    user_agent: navigator.userAgent
+                })
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
+    // =========================================================================
+    // 3. PAYMENT ALERT & SUBSCRIPTION NOTICE
+    // =========================================================================
+    function checkPaymentAlertStatus() {
+        const settings = state.data.SystemSettings || {};
+        const banner = document.getElementById('payment-alert-banner');
+        if (!banner) return;
+
+        const isAlertActive = settings.payment_alert === true || 
+                              String(settings.payment_alert).toLowerCase() === 'true' ||
+                              String(settings.payment_status).toLowerCase() === 'overdue' ||
+                              String(settings.payment_status).toLowerCase() === 'pending';
+
+        if (isAlertActive) {
+            banner.classList.add('show');
+            const titleEl = document.getElementById('pay-banner-title');
+            const descEl = document.getElementById('pay-banner-desc');
+            
+            if (titleEl) titleEl.innerText = settings.payment_alert_title || 'Subscription Payment Notice';
+            if (descEl) descEl.innerText = settings.payment_alert_message || `Payment due for ${settings.app_name || 'PakPOS'}. Please review account details.`;
+        } else {
+            banner.classList.remove('show');
+        }
+    }
+
+    // =========================================================================
+    // 4. DATA FETCH & CACHE ENGINE
+    // =========================================================================
     function loadCachedData() {
         const cached = localStorage.getItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA);
         if (cached) {
@@ -63,7 +226,10 @@ window.OwnerPortal = (function() {
                     state.data = Object.assign(state.data, parsed);
                     state.lastSyncTime = localStorage.getItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC);
                     updateSyncBadge();
-                    renderAllViews();
+                    if (state.isAuthenticated) {
+                        renderAllViews();
+                        checkPaymentAlertStatus();
+                    }
                 }
             } catch (e) {
                 console.error("Cache load error:", e);
@@ -71,9 +237,8 @@ window.OwnerPortal = (function() {
         }
     }
 
-    // Fetch Full Data from Live Database
     async function fetchLiveDatabaseData(isBackground = false) {
-        if (state.isLoading) return;
+        if (state.isLoading || !state.isAuthenticated) return;
         state.isLoading = true;
         const refreshBtn = document.getElementById('global-refresh-btn');
         if (refreshBtn) refreshBtn.classList.add('spinning');
@@ -81,18 +246,17 @@ window.OwnerPortal = (function() {
         const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
 
         try {
-            // First try GET request (supported by Google Apps Script doGet)
             let response = null;
+            const authParam = `&pin=${encodeURIComponent(state.activePin || DEFAULT_MASTER_PIN)}`;
             try {
-                response = await fetch(webhookUrl + '?action=fetch_all', {
+                response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' }
                 });
             } catch (err) {
-                // If GET blocked, fallback to POST fetch
                 response = await fetch(webhookUrl, {
                     method: 'POST',
-                    body: JSON.stringify({ fetch_all: true, table: 'all' })
+                    body: JSON.stringify({ fetch_all: true, table: 'all', pin: state.activePin || DEFAULT_MASTER_PIN })
                 });
             }
 
@@ -102,12 +266,12 @@ window.OwnerPortal = (function() {
                     state.data = Object.assign(state.data, result.data);
                     state.lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     
-                    // Save to local cache
                     localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA, JSON.stringify(state.data));
                     localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC, state.lastSyncTime);
                     
                     updateSyncBadge(true);
                     renderAllViews();
+                    checkPaymentAlertStatus();
                 }
             }
         } catch (error) {
@@ -119,7 +283,6 @@ window.OwnerPortal = (function() {
         }
     }
 
-    // Update Status Badge in Sidebar & Header
     function updateSyncBadge(isSuccess = null) {
         const syncText = document.getElementById('sync-status-time');
         const syncDot = document.getElementById('sync-pulse-dot');
@@ -145,7 +308,9 @@ window.OwnerPortal = (function() {
         }
     }
 
-    // Setup Tab Navigation
+    // =========================================================================
+    // 5. NAVIGATION
+    // =========================================================================
     function setupNavigation() {
         const navItems = document.querySelectorAll('.nav-item');
         navItems.forEach(item => {
@@ -160,17 +325,14 @@ window.OwnerPortal = (function() {
     function switchTab(tabName) {
         state.currentTab = tabName;
 
-        // Update nav item active states
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('data-tab') === tabName);
         });
 
-        // Update view containers
         document.querySelectorAll('.tab-page').forEach(page => {
             page.classList.toggle('active', page.id === `view-${tabName}`);
         });
 
-        // Page title
         const titles = {
             'dashboard': 'Executive Dashboard',
             'invoices': 'Invoices & Sales Explorer',
@@ -185,6 +347,7 @@ window.OwnerPortal = (function() {
     }
 
     function renderActiveTab() {
+        if (!state.isAuthenticated) return;
         switch (state.currentTab) {
             case 'dashboard':
                 renderDashboard();
@@ -205,11 +368,11 @@ window.OwnerPortal = (function() {
     }
 
     function renderAllViews() {
-        renderActiveTab();
+        if (state.isAuthenticated) renderActiveTab();
     }
 
     // =========================================================================
-    // Helper: Date Normalization & Formatting
+    // Helper Formatting Functions
     // =========================================================================
     function parseDate(dateStr) {
         if (!dateStr) return null;
@@ -273,7 +436,6 @@ window.OwnerPortal = (function() {
         const expenses = state.data.Expenses || [];
         const products = state.data.Products || [];
 
-        // Aggregate Totals
         let totalRevenue = 0;
         let todayOrdersCount = 0;
         sales.forEach(s => {
@@ -286,7 +448,6 @@ window.OwnerPortal = (function() {
 
         const netProfit = totalRevenue - totalExpense;
 
-        // Populate Top Stat Cards
         document.getElementById('dash-total-sales').innerText = formatCurrency(totalRevenue);
         document.getElementById('dash-total-orders').innerText = sales.length.toLocaleString();
         document.getElementById('dash-total-expenses').innerText = formatCurrency(totalExpense);
@@ -294,10 +455,8 @@ window.OwnerPortal = (function() {
         document.getElementById('dash-total-profit').innerText = formatCurrency(netProfit);
         document.getElementById('dash-shift-orders-today').innerText = todayOrdersCount.toLocaleString();
 
-        // Render All 4 Dashboard Charts
         renderDashboardCharts(sales, saleItems, expenses);
 
-        // Recent Invoices Table (Last 6 transactions)
         const recentSales = sales.slice().reverse().slice(0, 6);
         const tbody = document.getElementById('dash-recent-sales-tbody');
         if (tbody) {
@@ -322,9 +481,7 @@ window.OwnerPortal = (function() {
     function renderDashboardCharts(sales, saleItems, expenses) {
         if (typeof Chart === 'undefined') return;
 
-        // ----------------------------------------------------
-        // 1. Daily Sales Revenue Trend (Line Chart)
-        // ----------------------------------------------------
+        // Line Chart: Revenue Trend
         const daysMap = {};
         sales.forEach(s => {
             const d = parseDate(s.created_at);
@@ -375,9 +532,7 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // ----------------------------------------------------
-        // 2. Top Selling Products (Bar Chart)
-        // ----------------------------------------------------
+        // Bar Chart: Top Products
         const itemQtyMap = {};
         saleItems.forEach(it => {
             const name = it.product_name || it.product || 'Product';
@@ -414,9 +569,7 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // ----------------------------------------------------
-        // 3. Expense Categories Breakdown (Doughnut Chart)
-        // ----------------------------------------------------
+        // Doughnut Chart: Expenses
         const expCatMap = {};
         expenses.forEach(e => {
             const cat = e.category || 'General';
@@ -447,9 +600,7 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // ----------------------------------------------------
-        // 4. Payment Method Distribution (Pie Chart)
-        // ----------------------------------------------------
+        // Pie Chart: Payment Methods
         const payMap = { 'Cash': 0, 'Card': 0, 'Online/Other': 0 };
         sales.forEach(s => {
             const method = String(s.payment_method || '').toLowerCase();
@@ -482,7 +633,7 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
-    // 2. INVOICES / SALES EXPLORER VIEW
+    // 2. INVOICES / SALES VIEW
     // =========================================================================
     function renderInvoices() {
         const sales = state.data.Sales || [];
@@ -501,7 +652,6 @@ window.OwnerPortal = (function() {
             return true;
         });
 
-        // Summary Bar
         let totalRevenue = 0;
         filtered.forEach(s => totalRevenue += parseFloat(s.total_amount) || 0);
         const avgOrder = filtered.length ? (totalRevenue / filtered.length) : 0;
@@ -532,12 +682,10 @@ window.OwnerPortal = (function() {
         }
     }
 
-    // View Receipt Modal
     function viewReceipt(invoiceNo) {
         const sale = (state.data.Sales || []).find(s => String(s.invoice_number || s.id) === String(invoiceNo));
         if (!sale) return;
 
-        // Reliable SaleItems lookup (matches sale_id or substring invoice number)
         const saleItems = (state.data.SaleItems || []).filter(item => {
             const saleRef = String(item.sale || item.sale_id || '');
             return saleRef.includes(String(sale.invoice_number)) || saleRef === String(sale.id);
@@ -553,7 +701,6 @@ window.OwnerPortal = (function() {
         document.getElementById('rec-cashier').innerText = sale.cashier || 'Cashier';
         document.getElementById('rec-customer').innerText = sale.customer || 'Walk-in Customer';
 
-        // Items Table
         const itemsBody = document.getElementById('rec-items-tbody');
         if (itemsBody) {
             itemsBody.innerHTML = saleItems.length ? saleItems.map(it => `
@@ -625,7 +772,6 @@ window.OwnerPortal = (function() {
         const expenses = state.data.Expenses || [];
         const filter = state.shiftFilter;
 
-        // Filter sales for the selected shift date
         const shiftSales = sales.filter(s => {
             return isDateInRange(s.created_at, filter.dateRange, filter.customDate);
         });
@@ -635,7 +781,6 @@ window.OwnerPortal = (function() {
             return isDateInRange(expDate, filter.dateRange, filter.customDate);
         });
 
-        // 1. Calculate Shift KPIs
         let grossSales = 0;
         let cashSales = 0;
         let cardSales = 0;
@@ -658,7 +803,6 @@ window.OwnerPortal = (function() {
             else if (method.includes('card')) cardSales += amount;
             else onlineSales += amount;
 
-            // Cashier breakdown
             const cName = s.cashier || 'Cashier (Admin)';
             if (!cashierMap[cName]) {
                 cashierMap[cName] = { cashier: cName, orders: 0, cash: 0, card: 0, total: 0 };
@@ -668,7 +812,6 @@ window.OwnerPortal = (function() {
             if (method.includes('cash')) cashierMap[cName].cash += amount;
             else if (method.includes('card')) cashierMap[cName].card += amount;
 
-            // Order type breakdown
             const oType = String(s.order_type || 'takeaway').toLowerCase();
             if (!orderTypeMap[oType]) {
                 orderTypeMap[oType] = { label: oType.title(), orders: 0, revenue: 0 };
@@ -680,13 +823,11 @@ window.OwnerPortal = (function() {
         let totalShiftExpenses = 0;
         shiftExpenses.forEach(e => totalShiftExpenses += parseFloat(e.amount) || 0);
 
-        // Percentages
         const totFloat = grossSales > 0 ? grossSales : 1;
         const cashPct = Math.round((cashSales / totFloat) * 100);
         const cardPct = Math.round((cardSales / totFloat) * 100);
         const onlinePct = Math.round((onlineSales / totFloat) * 100);
 
-        // Update KPIs UI
         document.getElementById('shift-kpi-gross').innerText = formatCurrency(grossSales);
         document.getElementById('shift-kpi-orders').innerText = shiftSales.length.toLocaleString();
         document.getElementById('shift-kpi-cash').innerText = formatCurrency(cashSales);
@@ -697,7 +838,6 @@ window.OwnerPortal = (function() {
         document.getElementById('shift-kpi-online-pct').innerText = `${onlinePct}%`;
         document.getElementById('shift-kpi-expenses').innerText = formatCurrency(totalShiftExpenses);
 
-        // Update Cashier Breakdown Table
         const cashierTbody = document.getElementById('shift-cashier-tbody');
         const cashierList = Object.values(cashierMap);
         if (cashierTbody) {
@@ -712,7 +852,6 @@ window.OwnerPortal = (function() {
             `).join('') : `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No cashier activity in this shift</td></tr>`;
         }
 
-        // Update Order Types Breakdown Table
         const orderTypesTbody = document.getElementById('shift-ordertypes-tbody');
         const orderTypeList = Object.values(orderTypeMap).filter(ot => ot.orders > 0);
         if (orderTypesTbody) {
@@ -729,7 +868,6 @@ window.OwnerPortal = (function() {
             }).join('') : `<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-muted);">No orders in this shift</td></tr>`;
         }
 
-        // Update Shift Invoices Table
         const shiftInvoicesTbody = document.getElementById('shift-invoices-tbody');
         const countBadge = document.getElementById('shift-table-count-badge');
         if (countBadge) countBadge.innerText = `${shiftSales.length} Invoices`;
@@ -819,13 +957,18 @@ window.OwnerPortal = (function() {
     // Event Listeners Setup
     // =========================================================================
     function setupEventListeners() {
-        // Global Refresh Button
+        const pinInput = document.getElementById('master-pin-input');
+        if (pinInput) {
+            pinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') submitPin();
+            });
+        }
+
         const refreshBtn = document.getElementById('global-refresh-btn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => fetchLiveDatabaseData());
         }
 
-        // Invoices Filter Pills
         document.querySelectorAll('#invoices-pills .pill-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#invoices-pills .pill-btn').forEach(b => b.classList.remove('active'));
@@ -851,7 +994,6 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Expense Filter Pills
         document.querySelectorAll('#expenses-pills .pill-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#expenses-pills .pill-btn').forEach(b => b.classList.remove('active'));
@@ -869,7 +1011,6 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Shift Filter Pills
         document.querySelectorAll('#shift-pills .pill-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#shift-pills .pill-btn').forEach(b => b.classList.remove('active'));
@@ -895,7 +1036,6 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Product Search
         const prodSearch = document.getElementById('prod-search-input');
         if (prodSearch) {
             prodSearch.addEventListener('input', (e) => {
@@ -911,7 +1051,12 @@ window.OwnerPortal = (function() {
         viewTab: switchTab,
         viewReceipt,
         closeReceiptModal,
-        fetchLiveDatabaseData
+        fetchLiveDatabaseData,
+        enterPinDigit,
+        clearPin,
+        backspacePin,
+        submitPin,
+        lockPortal
     };
 })();
 

@@ -18,6 +18,44 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- MASTER PIN SECURITY LOCK OVERLAY -->
+    <div class="lock-screen-overlay" id="lock-screen-overlay">
+        <div class="lock-card">
+            <div class="lock-icon-box">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h2 class="lock-title">Owner Security Access</h2>
+            <p class="lock-subtitle">Enter Master Security PIN to view analytics</p>
+
+            <div class="pin-display-wrap">
+                <input type="password" id="master-pin-input" class="pin-input-field" maxlength="8" placeholder="••••" autocomplete="off" autofocus>
+                <div class="pin-error-msg" id="pin-error-msg">Invalid Master PIN. Please try again.</div>
+            </div>
+
+            <!-- On-screen Numpad -->
+            <div class="numpad-grid">
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('1')">1</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('2')">2</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('3')">3</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('4')">4</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('5')">5</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('6')">6</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('7')">7</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('8')">8</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('9')">9</button>
+                <button class="numpad-btn action-btn" onclick="OwnerPortal.clearPin()">Clear</button>
+                <button class="numpad-btn" onclick="OwnerPortal.enterPinDigit('0')">0</button>
+                <button class="numpad-btn action-btn" onclick="OwnerPortal.backspacePin()">⌫</button>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="OwnerPortal.submitPin()">
+                <span>Unlock Portal</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION LAYOUT -->
     <div class="app-layout">
         
         <!-- SIDEBAR NAVIGATION -->
@@ -58,10 +96,16 @@
                 <div class="sync-status-card">
                     <span class="pulse-dot" id="sync-pulse-dot"></span>
                     <div class="sync-text">
-                        <strong>Database Synchronized</strong>
+                        <strong>Database Live</strong>
                         <span id="sync-status-time">Fetching data...</span>
                     </div>
                 </div>
+
+                <!-- 1-Click Lock Portal Button -->
+                <button class="btn btn-sm btn-lock" style="width: 100%; justify-content: center;" onclick="OwnerPortal.lockPortal()">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>Lock Portal</span>
+                </button>
             </div>
         </aside>
 
@@ -74,9 +118,20 @@
                     <h1 class="page-title" id="current-page-title">Executive Dashboard</h1>
                 </div>
                 <div class="header-right">
+                    <!-- User Access / Visit Tracker Chip -->
+                    <div class="tracker-chip" id="header-tracker-chip" title="Access Audit Counter">
+                        <span>👁️ Total Logins:</span>
+                        <strong id="portal-visit-count">1</strong>
+                    </div>
+
                     <button class="btn refresh-btn" id="global-refresh-btn" title="Refresh data directly from Database">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                        <span>Sync Database</span>
+                        <span>Sync</span>
+                    </button>
+
+                    <button class="btn btn-lock" onclick="OwnerPortal.lockPortal()" title="Lock Session Immediately">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <span>Lock</span>
                     </button>
                 </div>
             </header>
@@ -84,6 +139,17 @@
             <!-- CONTENT VIEWPORT -->
             <main class="content-body">
                 
+                <!-- PAYMENT ALERT & BILLING BANNER -->
+                <div class="payment-alert-banner" id="payment-alert-banner">
+                    <div class="payment-alert-info">
+                        <div class="payment-alert-icon">💳</div>
+                        <div class="payment-alert-text">
+                            <h4 id="pay-banner-title">Subscription Payment Notice</h4>
+                            <p id="pay-banner-desc">Software renewal payment is pending. Please review your billing status.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 1. DASHBOARD VIEW -->
                 <section class="tab-page active" id="view-dashboard">
                     <!-- Top Stat Cards -->
