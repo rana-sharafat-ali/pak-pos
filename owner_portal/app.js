@@ -40,11 +40,11 @@ window.OwnerPortal = (function() {
         isLoading: false,
         lastSyncTime: null,
         isAuthenticated: false,
-        activePin: null
+        activePassword: null
     };
 
-    // Default Fallback PIN (Owner can change this or manage via Google Database)
-    const DEFAULT_MASTER_PIN = "7860";
+    // Default Fallback Password (Owner can use their custom password)
+    const DEFAULT_MASTER_PASSWORD = "7860";
 
     // Initialize Application
     function init() {
@@ -56,103 +56,167 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
-    // 1. MASTER PIN SECURITY & AUTHENTICATION
+    // 1. MASTER PASSWORD SECURITY & AUTHENTICATION
     // =========================================================================
     function checkAuthentication() {
-        const savedSession = sessionStorage.getItem('owner_pin_session');
+        const savedSession = sessionStorage.getItem('owner_auth_session');
         const lockOverlay = document.getElementById('lock-screen-overlay');
         
         if (savedSession) {
             state.isAuthenticated = true;
-            state.activePin = savedSession;
+            state.activePassword = savedSession;
             if (lockOverlay) lockOverlay.classList.add('hidden');
             fetchLiveDatabaseData();
         } else {
             state.isAuthenticated = false;
             if (lockOverlay) lockOverlay.classList.remove('hidden');
-            const pinInput = document.getElementById('master-pin-input');
-            if (pinInput) setTimeout(() => pinInput.focus(), 200);
+            const passInput = document.getElementById('master-password-input');
+            if (passInput) setTimeout(() => passInput.focus(), 200);
         }
     }
 
-    function enterPinDigit(digit) {
-        const pinInput = document.getElementById('master-pin-input');
-        if (pinInput && pinInput.value.length < 8) {
-            pinInput.value += digit;
-            clearPinError();
+    function togglePasswordVisibility() {
+        const passInput = document.getElementById('master-password-input');
+        const eyeIcon = document.getElementById('eye-icon');
+        if (!passInput) return;
+
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            if (eyeIcon) {
+                eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            }
+        } else {
+            passInput.type = 'password';
+            if (eyeIcon) {
+                eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
         }
     }
 
-    function clearPin() {
-        const pinInput = document.getElementById('master-pin-input');
-        if (pinInput) {
-            pinInput.value = '';
-            clearPinError();
-        }
-    }
-
-    function backspacePin() {
-        const pinInput = document.getElementById('master-pin-input');
-        if (pinInput) {
-            pinInput.value = pinInput.value.slice(0, -1);
-            clearPinError();
-        }
-    }
-
-    function clearPinError() {
+    function clearPasswordError() {
         const errorEl = document.getElementById('pin-error-msg');
         if (errorEl) errorEl.classList.remove('show');
     }
 
-    function showPinError(msg = "Invalid Master PIN. Please try again.") {
+    function showPasswordError(msg = "Incorrect Password. Please try again.") {
         const errorEl = document.getElementById('pin-error-msg');
         if (errorEl) {
             errorEl.innerText = msg;
             errorEl.classList.add('show');
         }
-        const pinInput = document.getElementById('master-pin-input');
-        if (pinInput) {
-            pinInput.value = '';
-            pinInput.focus();
+        const passInput = document.getElementById('master-password-input');
+        if (passInput) {
+            passInput.focus();
+            passInput.select();
         }
     }
 
-    function submitPin() {
-        const pinInput = document.getElementById('master-pin-input');
-        const enteredPin = (pinInput ? pinInput.value : '').trim();
+    async function submitPassword() {
+        const passInput = document.getElementById('master-password-input');
+        const enteredPass = (passInput ? passInput.value : '').trim();
 
-        if (!enteredPin) {
-            showPinError("Please enter your Master PIN");
+        if (!enteredPass) {
+            showPasswordError("Please enter your Master Password");
             return;
         }
 
-        // Validate PIN
-        const validPin = (state.data.SystemSettings && state.data.SystemSettings.owner_master_pin) || DEFAULT_MASTER_PIN;
+        // Live verification against Google Database or configured password
+        const submitBtn = document.querySelector('#master-password-form button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Verifying...</span>';
+        }
 
-        if (enteredPin === validPin || enteredPin === DEFAULT_MASTER_PIN) {
-            state.isAuthenticated = true;
-            state.activePin = enteredPin;
-            sessionStorage.setItem('owner_pin_session', enteredPin);
+        try {
+            const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
+            const authParam = `&pin=${encodeURIComponent(enteredPass)}&password=${encodeURIComponent(enteredPass)}`;
+            
+            const response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
 
-            const lockOverlay = document.getElementById('lock-screen-overlay');
-            if (lockOverlay) lockOverlay.classList.add('hidden');
+            if (response && response.ok) {
+                const result = await response.json();
+                
+                if (result && (result.success !== false || result.data)) {
+                    // Password Validated Successfully
+                    state.isAuthenticated = true;
+                    state.activePassword = enteredPass;
+                    sessionStorage.setItem('owner_auth_session', enteredPass);
 
-            trackPortalLoginSuccess();
-            fetchLiveDatabaseData();
-        } else {
-            showPinError("Incorrect PIN. Access Denied.");
+                    if (result.data) {
+                        state.data = Object.assign(state.data, result.data);
+                        state.lastSyncTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.CACHED_DATA, JSON.stringify(state.data));
+                        localStorage.setItem(PORTAL_CONFIG.STORAGE_KEYS.LAST_SYNC, state.lastSyncTime);
+                    }
+
+                    const lockOverlay = document.getElementById('lock-screen-overlay');
+                    if (lockOverlay) lockOverlay.classList.add('hidden');
+
+                    trackPortalLoginSuccess();
+                    updateSyncBadge(true);
+                    renderAllViews();
+                    checkPaymentAlertStatus();
+                    return;
+                } else if (result && result.error && String(result.error).toLowerCase().includes('denied')) {
+                    showPasswordError("Access Denied: Incorrect Master Password");
+                    return;
+                }
+            }
+
+            // Fallback check against local cache settings
+            const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
+            if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
+                state.isAuthenticated = true;
+                state.activePassword = enteredPass;
+                sessionStorage.setItem('owner_auth_session', enteredPass);
+
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.add('hidden');
+
+                trackPortalLoginSuccess();
+                fetchLiveDatabaseData();
+            } else {
+                showPasswordError("Incorrect Password. Access Denied.");
+            }
+        } catch (err) {
+            // In case of network interruption, check cached settings password
+            const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
+            if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
+                state.isAuthenticated = true;
+                state.activePassword = enteredPass;
+                sessionStorage.setItem('owner_auth_session', enteredPass);
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.add('hidden');
+                trackPortalLoginSuccess();
+                renderAllViews();
+            } else {
+                showPasswordError("Verification failed. Please check password.");
+            }
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Unlock Portal</span>';
+            }
         }
     }
 
     function lockPortal() {
         state.isAuthenticated = false;
-        state.activePin = null;
-        sessionStorage.removeItem('owner_pin_session');
+        state.activePassword = null;
+        sessionStorage.removeItem('owner_auth_session');
 
         const lockOverlay = document.getElementById('lock-screen-overlay');
-        if (lockOverlay) lockOverlay.classList.remove('hidden');
+        if (lockOverlay) lockOverlay.classList.add('hidden');
 
-        clearPin();
+        const passInput = document.getElementById('master-password-input');
+        if (passInput) {
+            passInput.value = '';
+            setTimeout(() => passInput.focus(), 150);
+        }
+        clearPasswordError();
     }
 
     // =========================================================================
@@ -1052,10 +1116,8 @@ window.OwnerPortal = (function() {
         viewReceipt,
         closeReceiptModal,
         fetchLiveDatabaseData,
-        enterPinDigit,
-        clearPin,
-        backspacePin,
-        submitPin,
+        submitPassword,
+        togglePasswordVisibility,
         lockPortal
     };
 })();

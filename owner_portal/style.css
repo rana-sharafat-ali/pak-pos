@@ -715,7 +715,7 @@ table.data-table tr:hover td {
 }
 
 /* ==========================================================================
-   Master PIN Security Lock Screen
+   Master Password Security Lock Screen
    ========================================================================== */
 .lock-screen-overlay {
     position: fixed;
@@ -741,9 +741,9 @@ table.data-table tr:hover td {
 .lock-card {
     background: #ffffff;
     border-radius: var(--radius-lg);
-    width: 360px;
-    max-width: 90vw;
-    padding: 32px 28px;
+    width: 400px;
+    max-width: 92vw;
+    padding: 36px 30px;
     text-align: center;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-color);
@@ -756,8 +756,8 @@ table.data-table tr:hover td {
 }
 
 .lock-icon-box {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: var(--radius-md);
     background: linear-gradient(135deg, var(--primary), var(--purple));
     color: #ffffff;
@@ -769,31 +769,31 @@ table.data-table tr:hover td {
 }
 
 .lock-title {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 800;
     color: var(--text-primary);
     margin-bottom: 4px;
 }
 
 .lock-subtitle {
-    font-size: 13px;
+    font-size: 13.5px;
     color: var(--text-muted);
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
-.pin-display-wrap {
+.password-input-wrap {
     position: relative;
-    margin-bottom: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
 }
 
-.pin-input-field {
+.password-input-field {
     width: 100%;
-    text-align: center;
-    letter-spacing: 8px;
-    font-size: 24px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    padding: 10px 14px;
+    font-size: 15px;
+    font-family: var(--font-main);
+    font-weight: 600;
+    padding: 12px 44px 12px 16px;
     background: var(--bg-input);
     border: 2px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -802,17 +802,36 @@ table.data-table tr:hover td {
     transition: var(--transition);
 }
 
-.pin-input-field:focus {
+.password-input-field:focus {
     border-color: var(--primary);
     background: #ffffff;
     box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+.password-toggle-btn {
+    position: absolute;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.password-toggle-btn:hover {
+    color: var(--text-primary);
+}
+
 .pin-error-msg {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--danger);
     margin-top: 6px;
+    margin-bottom: 12px;
     min-height: 18px;
     display: none;
 }
@@ -826,41 +845,6 @@ table.data-table tr:hover td {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-6px); }
     40%, 80% { transform: translateX(6px); }
-}
-
-/* Numpad */
-.numpad-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.numpad-btn {
-    padding: 12px;
-    font-size: 18px;
-    font-weight: 700;
-    font-family: var(--font-main);
-    background: #f8fafc;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--text-primary);
-    transition: var(--transition);
-}
-
-.numpad-btn:hover {
-    background: #e2e8f0;
-    border-color: #cbd5e1;
-}
-
-.numpad-btn:active {
-    transform: scale(0.95);
-}
-
-.numpad-btn.action-btn {
-    font-size: 14px;
-    color: var(--text-muted);
 }
 
 /* ==========================================================================
