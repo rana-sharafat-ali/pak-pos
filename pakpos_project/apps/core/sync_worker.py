@@ -81,7 +81,7 @@ def email_worker_loop():
         except Exception as e:
             log_system_error("EmailWorker", f"Critical Error: {e}")
             
-        time.sleep(100) # Normal Interval
+        time.sleep(60) # 1 Minute Interval
 
 # ---------------------------------------------------------
 # 2. ACTION WORKER (5 Minute Interval)
@@ -156,7 +156,7 @@ def action_worker_loop():
         finally:
             close_old_connections()
             
-        time.sleep(300) # 5 Minute Interval
+        time.sleep(60) # 1 Minute Interval
 
 
 # ---------------------------------------------------------
@@ -232,7 +232,7 @@ def setting_worker_loop():
         finally:
             close_old_connections()
             
-        time.sleep(300) # Slowed down to 60 seconds (1 minute)
+        time.sleep(60) # 1 Minute Interval
 
 # ---------------------------------------------------------
 # 4. DATA SYNC WORKER (5 Minute Interval, 50 Items)
@@ -311,7 +311,7 @@ def data_sync_worker_loop():
         finally:
             close_old_connections()
             
-        time.sleep(300) # Slowed down to 30 seconds
+        time.sleep(60) # 1 Minute Interval
 
 # ---------------------------------------------------------
 # 5. LOG SYNC WORKER (10 Minute Interval, 200 Items)
@@ -361,4 +361,4 @@ def log_sync_worker_loop():
         finally:
             close_old_connections()
             
-        time.sleep(600) # 10 Minute Interval 600
+        time.sleep(60) # 1 Minute Interval

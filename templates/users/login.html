@@ -383,12 +383,12 @@
 
             <!-- Quick Demo Accounts (Discreet Pill Helpers) -->
             <div class="demo-bar">
-                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Demo:</span>
-                <button type="button" class="demo-pill" onclick="fillDemoCredentials('admin', 'admin123')">
-                    Admin
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+                <button type="button" class="demo-pill" onclick="fillDemoCredentials('admin', 'admin123')" title="Log in as Admin (admin / admin123)">
+                    👑 Admin (admin123)
                 </button>
-                <button type="button" class="demo-pill" onclick="fillDemoCredentials('cashier', 'cashier123')">
-                    Cashier
+                <button type="button" class="demo-pill" onclick="fillDemoCredentials('cashier', 'cashier123')" title="Log in as Cashier (cashier / cashier123)">
+                    🛒 Cashier (cashier123)
                 </button>
             </div>
 
@@ -400,29 +400,32 @@
     <script src="{% static 'js/main.js' %}"></script>
     <script>
         function togglePasswordVisibility() {
-            const passInput = document.getElementById('password-input-field');
+            const passInput = document.getElementById('password-input-field') || document.querySelector('input[name="password"]');
             const eyeOpen = document.getElementById('eye-icon-open');
             const eyeClosed = document.getElementById('eye-icon-closed');
             if (passInput) {
                 if (passInput.type === 'password') {
                     passInput.type = 'text';
-                    eyeOpen.style.display = 'none';
-                    eyeClosed.style.display = 'block';
+                    if (eyeOpen) eyeOpen.style.display = 'none';
+                    if (eyeClosed) eyeClosed.style.display = 'block';
                 } else {
                     passInput.type = 'password';
-                    eyeOpen.style.display = 'block';
-                    eyeClosed.style.display = 'none';
+                    if (eyeOpen) eyeOpen.style.display = 'block';
+                    if (eyeClosed) eyeClosed.style.display = 'none';
                 }
             }
         }
 
         function fillDemoCredentials(user, pass) {
-            const userInput = document.getElementById('{{ form.username_or_email.id_for_label }}');
-            const passInput = document.getElementById('password-input-field');
+            const userInput = document.querySelector('input[name="username_or_email"]') || document.getElementById('{{ form.username_or_email.id_for_label }}');
+            const passInput = document.getElementById('password-input-field') || document.querySelector('input[name="password"]');
+            const form = document.getElementById('login-form') || document.querySelector('form');
             if (userInput && passInput) {
                 userInput.value = user;
                 passInput.value = pass;
-                document.getElementById('login-form').submit();
+                if (form) {
+                    form.submit();
+                }
             }
         }
     </script>

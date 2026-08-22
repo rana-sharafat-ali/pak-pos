@@ -239,12 +239,14 @@ window.OwnerPortal = (function() {
         // Send background access ping to database logger
         try {
             const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
+            const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || DEFAULT_MASTER_PASSWORD;
             fetch(webhookUrl, {
                 method: 'POST',
                 mode: 'no-cors',
                 body: JSON.stringify({
                     action: 'log_portal_access',
-                    pin: state.activePin,
+                    pin: currentPass,
+                    password: currentPass,
                     visit_count: visitCount,
                     timestamp: new Date().toISOString(),
                     user_agent: navigator.userAgent
@@ -308,10 +310,11 @@ window.OwnerPortal = (function() {
         if (refreshBtn) refreshBtn.classList.add('spinning');
 
         const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
+        const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || DEFAULT_MASTER_PASSWORD;
 
         try {
             let response = null;
-            const authParam = `&pin=${encodeURIComponent(state.activePin || DEFAULT_MASTER_PIN)}`;
+            const authParam = `&pin=${encodeURIComponent(currentPass)}&password=${encodeURIComponent(currentPass)}`;
             try {
                 response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
                     method: 'GET',
@@ -320,7 +323,7 @@ window.OwnerPortal = (function() {
             } catch (err) {
                 response = await fetch(webhookUrl, {
                     method: 'POST',
-                    body: JSON.stringify({ fetch_all: true, table: 'all', pin: state.activePin || DEFAULT_MASTER_PIN })
+                    body: JSON.stringify({ fetch_all: true, table: 'all', pin: currentPass, password: currentPass })
                 });
             }
 
@@ -336,7 +339,12 @@ window.OwnerPortal = (function() {
                     updateSyncBadge(true);
                     renderAllViews();
                     checkPaymentAlertStatus();
+                } else if (result && result.error && String(result.error).toLowerCase().includes('denied')) {
+                    console.warn("Auth check failed:", result.error);
+                    updateSyncBadge(false);
                 }
+            } else {
+                updateSyncBadge(false);
             }
         } catch (error) {
             console.warn("Live Database fetch notice:", error);

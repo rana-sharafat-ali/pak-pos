@@ -20,6 +20,13 @@ class CoreConfig(AppConfig):
 
         connection_created.connect(configure_sqlite)
 
+        # Register Auto-Delete Sync Signals for Google Sheets
+        try:
+            from pakpos_project.apps.core.signals import register_delete_signals
+            register_delete_signals()
+        except Exception:
+            pass
+
         # Avoid running worker during migrations or management commands
         if 'runserver' in sys.argv or 'gunicorn' in ''.join(sys.argv) or 'uwsgi' in ''.join(sys.argv):
             # In development, runserver starts two processes (one for auto-reload)
