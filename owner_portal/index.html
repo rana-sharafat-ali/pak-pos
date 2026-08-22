@@ -75,6 +75,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     <span>Daily Shift</span>
                 </a>
+                <a class="nav-item" data-tab="customers" id="nav-customers">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Customers</span>
+                </a>
 
             </nav>
 
@@ -232,6 +236,31 @@
                             </div>
                             <div class="chart-container">
                                 <canvas id="chart-order-channels"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Customers & Loyalty Spotlight Grid -->
+                    <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); margin-bottom: 20px;">
+                        <!-- Top 3 VIP Spenders -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">👑 Top 3 VIP Customers</h3>
+                                <button class="btn btn-sm" onclick="OwnerPortal.viewTab('customers')">Directory &rarr;</button>
+                            </div>
+                            <div id="dash-top-customers-list" style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+                                <!-- Injected by JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Most Returning Customer -->
+                        <div class="card" style="border-left: 4px solid var(--success);">
+                            <div class="card-header">
+                                <h3 class="card-title">⭐ Most Loyal Customer</h3>
+                                <span class="badge badge-green">Repeat Buyer</span>
+                            </div>
+                            <div id="dash-most-loyal-customer" style="padding-top: 4px;">
+                                <!-- Injected by JavaScript -->
                             </div>
                         </div>
                     </div>
@@ -540,7 +569,91 @@
                     </div>
                 </section>
 
+                <!-- 5. CUSTOMERS & CRM VIEW -->
+                <section class="tab-page" id="view-customers">
+                    <!-- Search & Filter Toolbar -->
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="cust-search-input" placeholder="Search customer by name, phone, email, or address...">
+                            </div>
+                        </div>
+                    </div>
 
+                    <!-- CRM Summary Cards Grid -->
+                    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+                        <div class="stat-card" style="padding: 16px 20px; border-top: 3px solid #3b82f6;">
+                            <div class="stat-label">Total Customers</div>
+                            <div class="stat-val" id="cust-total-count" style="font-size: 22px; color: var(--text-main);">0</div>
+                            <span style="font-size: 11px; color: var(--text-muted);">Registered in database</span>
+                        </div>
+                        <div class="stat-card" style="padding: 16px 20px; border-top: 3px solid #10b981;">
+                            <div class="stat-label">Active Buyers</div>
+                            <div class="stat-val" id="cust-active-count" style="font-size: 22px; color: var(--success);">0</div>
+                            <span style="font-size: 11px; color: var(--text-muted);">&ge;1 completed purchases</span>
+                        </div>
+                        <div class="stat-card" style="padding: 16px 20px; border-top: 3px solid #8b5cf6;">
+                            <div class="stat-label">Customer Revenue (LTV)</div>
+                            <div class="stat-val" id="cust-total-ltv" style="font-size: 22px; color: #6d28d9;">Rs. 0</div>
+                            <span style="font-size: 11px; color: var(--text-muted);">Total customer spend</span>
+                        </div>
+                        <div class="stat-card" style="padding: 16px 20px; border-top: 3px solid #f59e0b;">
+                            <div class="stat-label">Average Spend / Buyer</div>
+                            <div class="stat-val" id="cust-avg-spend" style="font-size: 22px; color: #d97706;">Rs. 0</div>
+                            <span style="font-size: 11px; color: var(--text-muted);">Average lifetime spend</span>
+                        </div>
+                    </div>
+
+                    <!-- Customer Analytics Charts Grid -->
+                    <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); margin-bottom: 20px;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Top 5 VIP Customers by Spend</h3>
+                                <span class="badge badge-purple">PKR Revenue</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-owner-top-customers"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Customer Loyalty Segments</h3>
+                                <span class="badge badge-green">Visit Frequency</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-owner-customer-segments"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customers Data Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Customer Directory</h3>
+                            <span class="badge badge-blue" id="cust-table-count-badge">0 Customers</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Name</th>
+                                        <th>Phone Number</th>
+                                        <th>Email Address</th>
+                                        <th>Delivery Address</th>
+                                        <th style="text-align: center;">Total Orders</th>
+                                        <th style="text-align: right;">Lifetime Spend</th>
+                                        <th style="text-align: right;">History</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-tbody">
+                                    <!-- Injected by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
 
             </main>
         </div>

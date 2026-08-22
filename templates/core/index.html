@@ -537,6 +537,95 @@
     </div>
 </div>
 
+<!-- 5.5 CUSTOMER INSIGHTS & VIP LEADERBOARD -->
+<div style="margin-bottom: 1.75rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h2 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                <span>👑</span>
+                <span>Top Customers & Loyalty Spotlight</span>
+            </h2>
+            <span class="pill-variant" style="font-size: 0.72rem;">{{ preset_label }}</span>
+        </div>
+        <a href="{% url 'sales:customer_list' %}" class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.78rem; text-decoration: none;">
+            Customer Directory & CRM &rarr;
+        </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+        <!-- Top 3 VIP Customers Leaderboard -->
+        <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+                <strong style="font-size: 0.92rem; color: var(--secondary); display: flex; align-items: center; gap: 0.4rem;">
+                    <span>🏆</span> Top 3 Highest Spending Customers
+                </strong>
+                <span style="font-size: 0.72rem; color: #64748b; font-weight: 700;">By Total Spend</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.55rem;">
+                {% for vip in top_3_customers %}
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 0.55rem 0.85rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.3rem;">{{ vip.medal }}</span>
+                        <div>
+                            <a href="{% url 'sales:customer_detail' vip.id %}" style="font-weight: 800; font-size: 0.88rem; color: var(--secondary); text-decoration: none;">
+                                {{ vip.name }}
+                            </a>
+                            <div style="font-size: 0.74rem; color: #64748b;">
+                                📞 {{ vip.phone }} • <span style="color: #0369a1; font-weight: 700;">{{ vip.orders_count }} orders</span>
+                            </div>
+                        </div>
+                    </div>
+                    <strong style="color: #059669; font-size: 0.95rem;">PKR {{ vip.spend|floatformat:0 }}</strong>
+                </div>
+                {% empty %}
+                <div style="font-size: 0.82rem; color: var(--muted-text); text-align: center; padding: 1.5rem 0;">
+                    No registered customer orders found in {{ preset_label|lower }}.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Most Returning Customer Spotlight -->
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border: 1px solid #bbf7d0; border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <span style="font-size: 0.74rem; font-weight: 800; text-transform: uppercase; color: #15803d; letter-spacing: 0.05em;">
+                        ⭐ Most Returning Customer
+                    </span>
+                    <span class="status-badge status-active" style="font-size: 0.7rem;">Repeat Buyer</span>
+                </div>
+                {% if most_returning_customer %}
+                <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 0.85rem;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background: #dcfce7; border: 2px solid #86efac; color: #15803d; font-weight: 900; font-size: 1.2rem; display: flex; align-items: center; justify-content: center;">
+                        {{ most_returning_customer.customer__name|slice:":2" }}
+                    </div>
+                    <div>
+                        <a href="{% url 'sales:customer_detail' most_returning_customer.customer__id %}" style="font-size: 1.05rem; font-weight: 800; color: #166534; text-decoration: none;">
+                            {{ most_returning_customer.customer__name }}
+                        </a>
+                        <div style="font-size: 0.8rem; color: #4b5563;">📞 {{ most_returning_customer.customer__phone }}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 6px; padding: 0.45rem 0.75rem; flex: 1;">
+                        <div style="font-size: 0.68rem; color: #6b7280; font-weight: 700;">REPEAT VISITS</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: #15803d;">{{ most_returning_customer.orders_count }} Orders</div>
+                    </div>
+                    <div style="background: #ffffff; border: 1px solid #dcfce7; border-radius: 6px; padding: 0.45rem 0.75rem; flex: 1;">
+                        <div style="font-size: 0.68rem; color: #6b7280; font-weight: 700;">TOTAL SPENT</div>
+                        <div style="font-size: 1rem; font-weight: 800; color: #15803d;">PKR {{ most_returning_customer.spend|floatformat:0 }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div style="font-size: 0.84rem; color: var(--muted-text); padding: 1.2rem 0; text-align: center;">
+                    No repeat customer orders recorded in this period.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 6. LIVE OPERATIONS: RECENT INVOICES + INVENTORY HEALTH -->
 <div class="operations-grid">
     <!-- Recent Live Invoices Table -->
@@ -635,21 +724,21 @@
         }
 
         // Datasets from Django Backend
-        const timelineLabels = {{ timeline_labels_json|safe }};
-        const timelineRevenue = {{ timeline_revenue_json|safe }};
-        const timelineOrders = {{ timeline_orders_json|safe }};
+        const timelineLabels = {{ timeline_labels_json|default:"[]"|safe }};
+        const timelineRevenue = {{ timeline_revenue_json|default:"[]"|safe }};
+        const timelineOrders = {{ timeline_orders_json|default:"[]"|safe }};
 
-        const orderTypeLabels = {{ order_type_labels_json|safe }};
-        const orderTypeRevenue = {{ order_type_revenue_json|safe }};
+        const orderTypeLabels = {{ order_type_labels_json|default:"[]"|safe }};
+        const orderTypeRevenue = {{ order_type_revenue_json|default:"[]"|safe }};
 
-        const paymentLabels = {{ payment_labels_json|safe }};
-        const paymentData = {{ payment_data_json|safe }};
+        const paymentLabels = {{ payment_labels_json|default:"[]"|safe }};
+        const paymentData = {{ payment_data_json|default:"[]"|safe }};
 
-        const topProdNames = {{ top_prod_names_json|safe }};
-        const topProdQtys = {{ top_prod_qtys_json|safe }};
+        const topProdNames = {{ top_prod_names_json|default:"[]"|safe }};
+        const topProdQtys = {{ top_prod_qtys_json|default:"[]"|safe }};
 
-        const expCatLabels = {{ exp_cat_labels_json|safe }};
-        const expCatData = {{ exp_cat_data_json|safe }};
+        const expCatLabels = {{ exp_cat_labels_json|default:"[]"|safe }};
+        const expCatData = {{ exp_cat_data_json|default:"[]"|safe }};
 
         // Common Chart Defaults
         Chart.defaults.font.family = 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';

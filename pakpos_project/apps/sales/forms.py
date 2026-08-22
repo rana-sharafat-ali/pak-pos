@@ -1,5 +1,64 @@
 from django import forms
-from .models import DiningTable
+from .models import DiningTable, Customer
+
+
+class CustomerForm(forms.ModelForm):
+    """
+    Form for Creating and Updating Customers in POS Directory & Admin Management.
+    """
+    class Meta:
+        model = Customer
+        fields = ['name', 'phone', 'email', 'address', 'notes']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-input',
+                'id': 'id_customer_name',
+                'placeholder': 'e.g. Muhammad Ali, Sheikh Enterprises',
+                'required': True
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-input',
+                'id': 'id_customer_phone',
+                'placeholder': 'e.g. 03001234567, +92 321 9876543',
+                'required': True
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-input',
+                'id': 'id_customer_email',
+                'placeholder': 'e.g. customer@example.com'
+            }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-textarea',
+                'id': 'id_customer_address',
+                'rows': 3,
+                'placeholder': 'House / Shop #, Street, Block, Area, City (for delivery routing)'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-textarea',
+                'id': 'id_customer_notes',
+                'rows': 2,
+                'placeholder': 'Special preferences, VIP status, dietary restrictions...'
+            }),
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError("Customer name is required.")
+        return name
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if not phone:
+            raise forms.ValidationError("Phone number is required.")
+
+        qs = Customer.objects.filter(phone__iexact=phone)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise forms.ValidationError(f'A customer with phone number "{phone}" is already registered.')
+        return phone
 
 
 class DiningTableForm(forms.ModelForm):

@@ -248,7 +248,35 @@ def home(request):
         chart_exp_cat_labels.append(ec['category__name'] or 'General')
         chart_exp_cat_data.append(float(ec['cat_total']))
 
-    # 9. Live Operational Activity
+    # 9. Top 3 VIP Customers & Most Returning Customer in Filtered Period
+    top_cust_qs = completed_sales.filter(customer__isnull=False).values(
+        'customer__id', 'customer__name', 'customer__phone'
+    ).annotate(
+        spend=Sum('total_amount'),
+        orders_count=Count('id')
+    ).order_by('-spend')[:3]
+
+    top_3_customers = []
+    medals = ['🥇', '🥈', '🥉']
+    for idx, c in enumerate(top_cust_qs):
+        top_3_customers.append({
+            'rank': idx + 1,
+            'medal': medals[idx] if idx < 3 else '👤',
+            'id': c['customer__id'],
+            'name': c['customer__name'],
+            'phone': c['customer__phone'],
+            'spend': float(c['spend']),
+            'orders_count': c['orders_count'],
+        })
+
+    most_returning_cust_data = completed_sales.filter(customer__isnull=False).values(
+        'customer__id', 'customer__name', 'customer__phone'
+    ).annotate(
+        spend=Sum('total_amount'),
+        orders_count=Count('id')
+    ).order_by('-orders_count', '-spend').first()
+
+    # 10. Live Operational Activity
     recent_sales = Sale.objects.select_related('customer', 'cashier').prefetch_related('items').order_by('-created_at')[:6]
 
     # Inventory Health & Low Stock Alerts
@@ -307,6 +335,8 @@ def home(request):
         'exp_cat_labels_json': json.dumps(chart_exp_cat_labels),
         'exp_cat_data_json': json.dumps(chart_exp_cat_data),
         'top_products_list': top_products_list,
+        'top_3_customers': top_3_customers,
+        'most_returning_customer': most_returning_cust_data,
 
         # Operational Widgets
         'recent_sales': recent_sales,

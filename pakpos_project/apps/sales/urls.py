@@ -24,6 +24,14 @@ urlpatterns = [
     path('tables/<int:pk>/delete/', views.table_delete_view, name='table_delete'),
     path('tables/bulk-delete/', views.table_bulk_delete_view, name='table_bulk_delete'),
 
+    # Customer Management & Directory (CRM)
+    path('customers/', views.customer_list_view, name='customer_list'),
+    path('customers/create/', views.customer_create_view, name='customer_create'),
+    path('customers/<int:pk>/', views.customer_detail_view, name='customer_detail'),
+    path('customers/<int:pk>/edit/', views.customer_update_view, name='customer_update'),
+    path('customers/<int:pk>/delete/', views.customer_delete_view, name='customer_delete'),
+    path('customers/bulk-delete/', views.customer_bulk_delete_view, name='customer_bulk_delete'),
+
     # JSON APIs
     path('api/checkout/', views.api_create_sale, name='api_checkout'),
     path('api/customers/search/', views.api_search_customers, name='api_customer_search'),

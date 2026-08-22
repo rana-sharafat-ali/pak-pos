@@ -33,6 +33,9 @@ window.OwnerPortal = (function() {
             dateRange: 'today', // 'today', 'yesterday', 'all', or specific 'YYYY-MM-DD'
             customDate: null
         },
+        customerFilter: {
+            search: ''
+        },
         charts: {},
         isLoading: false,
         lastSyncTime: null,
@@ -429,7 +432,8 @@ window.OwnerPortal = (function() {
             'dashboard': 'Executive Dashboard',
             'invoices': 'Invoices & Sales Explorer',
             'expenses': 'Expenses & Outflows',
-            'shifts': 'Daily Shift & Cash Reconciliation'
+            'shifts': 'Daily Shift & Cash Reconciliation',
+            'customers': 'Customer Directory & CRM'
         };
         const titleEl = document.getElementById('current-page-title');
         if (titleEl) titleEl.innerText = titles[tabName] || 'Dashboard';
@@ -451,6 +455,9 @@ window.OwnerPortal = (function() {
                 break;
             case 'shifts':
                 renderShifts();
+                break;
+            case 'customers':
+                renderCustomers();
                 break;
         }
     }
@@ -580,6 +587,60 @@ window.OwnerPortal = (function() {
         const profitSub = document.getElementById('dash-profit-sub');
         if (profitSub) profitSub.innerText = `Sales (${formatCurrency(totalRevenue)}) − Tax/Fees (${formatCurrency(totalSurcharges)}) − Exp (${formatCurrency(totalExpense)})`;
         document.getElementById('dash-shift-orders-today').innerText = todayOrdersCount.toLocaleString();
+
+        // Top 3 VIP Customers & Most Returning Customer on Dashboard
+        const custAnalytics = getCustomerAnalytics(completedSales);
+
+        const topCustEl = document.getElementById('dash-top-customers-list');
+        if (topCustEl) {
+            const medals = ['🥇', '🥈', '🥉'];
+            if (custAnalytics.top3.length > 0) {
+                topCustEl.innerHTML = custAnalytics.top3.map((c, idx) => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;">${medals[idx] || '👤'}</span>
+                            <div>
+                                <strong style="color: var(--text-main); font-size: 13px;">${c.name}</strong>
+                                <div style="font-size: 11px; color: var(--text-muted);">${c.phone ? '📞 ' + c.phone + ' • ' : ''}${c.totalOrders} orders</div>
+                            </div>
+                        </div>
+                        <strong style="color: var(--success); font-size: 13px;">${formatCurrency(c.totalSpend)}</strong>
+                    </div>
+                `).join('');
+            } else {
+                topCustEl.innerHTML = `<div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 12px;">No customer purchase records found</div>`;
+            }
+        }
+
+        const mostLoyalEl = document.getElementById('dash-most-loyal-customer');
+        if (mostLoyalEl) {
+            if (custAnalytics.mostReturning) {
+                const ml = custAnalytics.mostReturning;
+                mostLoyalEl.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(16,185,129,0.12); color: #059669; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center;">
+                            ${(ml.name || 'C').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <strong style="font-size: 14px; color: var(--text-main);">${ml.name}</strong>
+                            <div style="font-size: 12px; color: var(--text-muted);">${ml.phone ? '📞 ' + ml.phone : 'Frequent Customer'}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; flex: 1;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">VISITS</div>
+                            <div style="font-size: 14px; font-weight: 800; color: #059669;">${ml.totalOrders} Orders</div>
+                        </div>
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 10px; flex: 1;">
+                            <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;">SPEND</div>
+                            <div style="font-size: 14px; font-weight: 800; color: #059669;">${formatCurrency(ml.totalSpend)}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                mostLoyalEl.innerHTML = `<div style="text-align:center; padding: 16px; color: var(--text-muted); font-size: 12px;">No repeat customer data yet</div>`;
+            }
+        }
 
         renderDashboardCharts(completedSales, saleItems, expenses);
 
@@ -1260,6 +1321,233 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
+    // 5. CUSTOMER ANALYTICS & DIRECTORY (CRM)
+    // =========================================================================
+    function getCustomerAnalytics(completedSales) {
+        const rawCustomers = state.data.Customers || state.data.Customer || [];
+        const customerMap = {};
+
+        // 1. Initialize from Customers table
+        rawCustomers.forEach(c => {
+            const key = String(c.id || c.phone || c.name);
+            customerMap[key] = {
+                id: c.id,
+                name: c.name || 'Unnamed Customer',
+                phone: c.phone || '',
+                email: c.email || '',
+                address: c.address || '',
+                totalOrders: 0,
+                totalSpend: 0
+            };
+        });
+
+        // 2. Aggregate from Completed Sales
+        completedSales.forEach(s => {
+            let custName = s.customer_name || (typeof s.customer === 'string' && !s.customer.startsWith('Customer object') && s.customer !== 'None' ? s.customer : null);
+            let custPhone = s.customer_phone || '';
+            let custId = s.customer_id;
+
+            if (custName || custPhone || custId) {
+                const key = String(custId || custPhone || custName);
+                if (!customerMap[key]) {
+                    customerMap[key] = {
+                        id: custId,
+                        name: custName || (custPhone ? `Customer (${custPhone})` : `Customer #${custId}`),
+                        phone: custPhone,
+                        email: s.customer_email || '',
+                        address: s.customer_address || '',
+                        totalOrders: 0,
+                        totalSpend: 0
+                    };
+                }
+                customerMap[key].totalOrders += 1;
+                customerMap[key].totalSpend += parseFloat(s.total_amount) || 0;
+            }
+        });
+
+        const custList = Object.values(customerMap);
+
+        // Sort Top VIPs by Spend
+        const topBySpend = [...custList].filter(c => c.totalSpend > 0).sort((a, b) => b.totalSpend - a.totalSpend);
+
+        // Sort by Frequency for Most Loyal
+        const topByOrders = [...custList].filter(c => c.totalOrders > 0).sort((a, b) => b.totalOrders - a.totalOrders);
+
+        const totalCustomers = custList.length;
+        const activeBuyers = custList.filter(c => c.totalOrders > 0).length;
+        let totalCustomerRevenue = 0;
+        custList.forEach(c => totalCustomerRevenue += c.totalSpend);
+        const avgSpend = activeBuyers > 0 ? (totalCustomerRevenue / activeBuyers) : 0;
+
+        // Loyalty Segments
+        const vipCount = custList.filter(c => c.totalOrders >= 5).length;
+        const repeatCount = custList.filter(c => c.totalOrders >= 2 && c.totalOrders < 5).length;
+        const firstTimeCount = custList.filter(c => c.totalOrders === 1).length;
+        const newCount = custList.filter(c => c.totalOrders === 0).length;
+
+        return {
+            all: custList,
+            topVips: topBySpend.slice(0, 5),
+            top3: topBySpend.slice(0, 3),
+            mostReturning: topByOrders[0] || null,
+            totalCustomers,
+            activeBuyers,
+            totalCustomerRevenue,
+            avgSpend,
+            segments: {
+                vip: vipCount,
+                repeat: repeatCount,
+                firstTime: firstTimeCount,
+                new: newCount
+            }
+        };
+    }
+
+    function renderCustomers() {
+        const allSales = state.data.Sales || [];
+        const completedSales = allSales.filter(isValidSale);
+        const analytics = getCustomerAnalytics(completedSales);
+        const filter = state.customerFilter || {};
+
+        // Update KPI Summary Cards
+        const totalCountEl = document.getElementById('cust-total-count');
+        const activeCountEl = document.getElementById('cust-active-count');
+        const totalLtvEl = document.getElementById('cust-total-ltv');
+        const avgSpendEl = document.getElementById('cust-avg-spend');
+        const badgeEl = document.getElementById('cust-table-count-badge');
+
+        if (totalCountEl) totalCountEl.innerText = analytics.totalCustomers.toLocaleString();
+        if (activeCountEl) activeCountEl.innerText = analytics.activeBuyers.toLocaleString();
+        if (totalLtvEl) totalLtvEl.innerText = formatCurrency(analytics.totalCustomerRevenue);
+        if (avgSpendEl) avgSpendEl.innerText = formatCurrency(analytics.avgSpend);
+        if (badgeEl) badgeEl.innerText = `${analytics.totalCustomers} Customers`;
+
+        // Render Charts
+        renderCustomerCharts(analytics);
+
+        // Filter Table Data
+        let list = analytics.all;
+        if (filter.search) {
+            const q = filter.search.toLowerCase().trim();
+            list = list.filter(c => 
+                (c.name && c.name.toLowerCase().includes(q)) ||
+                (c.phone && c.phone.toLowerCase().includes(q)) ||
+                (c.email && c.email.toLowerCase().includes(q)) ||
+                (c.address && c.address.toLowerCase().includes(q))
+            );
+        }
+
+        const tbody = document.getElementById('customers-tbody');
+        if (tbody) {
+            tbody.innerHTML = list.length ? list.map(c => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(37,99,235,0.1); color: var(--primary); font-weight: 800; font-size: 11px; display: flex; align-items: center; justify-content: center;">
+                                ${(c.name || 'C').slice(0, 2).toUpperCase()}
+                            </div>
+                            <strong style="color: var(--text-main); font-size: 13px;">${c.name}</strong>
+                        </div>
+                    </td>
+                    <td><strong style="font-family: monospace; font-size: 12px; color: var(--text-main);">${c.phone || '—'}</strong></td>
+                    <td><span style="font-size: 12px; color: var(--text-muted);">${c.email || '—'}</span></td>
+                    <td><span style="font-size: 12px; color: var(--text-muted); max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.address ? '📍 ' + c.address : '—'}</span></td>
+                    <td style="text-align: center;">
+                        <span class="badge ${c.totalOrders >= 5 ? 'badge-purple' : c.totalOrders >= 1 ? 'badge-green' : 'badge-amber'}">
+                            ${c.totalOrders} Orders
+                        </span>
+                    </td>
+                    <td style="text-align: right;"><strong style="color: var(--text-main); font-size: 13px;">${formatCurrency(c.totalSpend)}</strong></td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-sm" onclick="OwnerPortal.filterCustomerInvoices('${(c.name || '').replace(/'/g, "\\'")}')">
+                            <span>Invoices &rarr;</span>
+                        </button>
+                    </td>
+                </tr>
+            `).join('') : `<tr><td colspan="7" style="text-align:center; padding: 32px; color: var(--text-muted);">No customers matching search criteria</td></tr>`;
+        }
+    }
+
+    function renderCustomerCharts(analytics) {
+        if (typeof Chart === 'undefined') return;
+
+        // 1. Top 5 VIP Customers Bar Chart
+        const ctxTop = document.getElementById('chart-owner-top-customers');
+        if (ctxTop) {
+            if (state.charts.ownerTopCustomers) state.charts.ownerTopCustomers.destroy();
+            const top5 = analytics.topVips;
+            state.charts.ownerTopCustomers = new Chart(ctxTop, {
+                type: 'bar',
+                data: {
+                    labels: top5.length ? top5.map(c => c.name) : ['No customers yet'],
+                    datasets: [{
+                        label: 'Lifetime Spend',
+                        data: top5.length ? top5.map(c => c.totalSpend) : [0],
+                        backgroundColor: '#8b5cf6',
+                        borderRadius: 6,
+                        maxBarThickness: 28
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) { return ' Spend: ' + formatCurrency(ctx.raw); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
+                        y: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
+                    }
+                }
+            });
+        }
+
+        // 2. Customer Loyalty Segments Doughnut Chart
+        const ctxSeg = document.getElementById('chart-owner-customer-segments');
+        if (ctxSeg) {
+            if (state.charts.ownerCustomerSegments) state.charts.ownerCustomerSegments.destroy();
+            const seg = analytics.segments;
+            state.charts.ownerCustomerSegments = new Chart(ctxSeg, {
+                type: 'doughnut',
+                data: {
+                    labels: ['VIP (5+ Visits)', 'Repeat (2-4 Visits)', 'First-Time (1 Visit)', 'New (0 Visits)'],
+                    datasets: [{
+                        data: [seg.vip, seg.repeat, seg.firstTime, seg.new],
+                        backgroundColor: ['#8b5cf6', '#10b981', '#3b82f6', '#94a3b8'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+    }
+
+    function filterCustomerInvoices(custName) {
+        if (!custName) return;
+        switchTab('invoices');
+        const searchInput = document.getElementById('inv-search-input');
+        if (searchInput) {
+            searchInput.value = custName;
+            state.salesFilter.search = custName;
+            renderInvoices();
+        }
+    }
+
+    // =========================================================================
     // Event Listeners Setup
     // =========================================================================
     function setupEventListeners() {
@@ -1310,6 +1598,14 @@ window.OwnerPortal = (function() {
             });
         }
 
+        const custSearch = document.getElementById('cust-search-input');
+        if (custSearch) {
+            custSearch.addEventListener('input', (e) => {
+                state.customerFilter.search = e.target.value;
+                renderCustomers();
+            });
+        }
+
         document.querySelectorAll('#shift-pills .pill-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#shift-pills .pill-btn').forEach(b => b.classList.remove('active'));
@@ -1345,6 +1641,7 @@ window.OwnerPortal = (function() {
         fetchLiveDatabaseData,
         submitPassword,
         togglePasswordVisibility,
+        filterCustomerInvoices,
         lockPortal
     };
 })();

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ customer.name }} | Customer Profile | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'sales:customer_list' %}">
+            <span>&larr;</span> Customer Directory
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ customer.name }}</span>
+    </div>
+
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'sales:customer_update' customer.id %}" class="btn btn-outline btn-sm">
+            ✏️ Edit Profile
+        </a>
+        <a href="{% url 'sales:customer_delete' customer.id %}" class="btn btn-danger-outline btn-sm" style="color: var(--danger);">
+            🗑️ Delete
+        </a>
+    </div>
+</div>
+
+<!-- PROFILE HERO HEADER -->
+<div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; border: 2px solid #bfdbfe; color: #1d4ed8; font-weight: 900; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; text-transform: uppercase;">
+                {{ customer.name|slice:":2" }}
+            </div>
+            <div>
+                <h1 style="font-size: 1.4rem; font-weight: 800; color: var(--secondary); margin: 0 0 0.25rem 0;">
+                    {{ customer.name }}
+                </h1>
+                <div style="display: flex; align-items: center; gap: 0.85rem; flex-wrap: wrap; font-size: 0.84rem; color: #64748b;">
+                    <span>📞 <strong style="color: #334155;">{{ customer.phone }}</strong></span>
+                    {% if customer.email %}
+                    <span>✉️ {{ customer.email }}</span>
+                    {% endif %}
+                    <span>🗓️ Customer since {{ customer.created_at|date:"M d, Y" }}</span>
+                </div>
+            </div>
+        </div>
+
+        {% if customer.address %}
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 1rem; max-width: 320px;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: var(--muted-text); text-transform: uppercase; margin-bottom: 0.15rem;">Delivery Address</div>
+            <div style="font-size: 0.84rem; color: #334155; line-height: 1.3;">📍 {{ customer.address }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if customer.notes %}
+    <div style="margin-top: 1rem; padding-top: 0.85rem; border-top: 1px dashed #e2e8f0; font-size: 0.82rem; color: #475569;">
+        <strong>Customer Notes / Preferences:</strong> {{ customer.notes }}
+    </div>
+    {% endif %}
+</div>
+
+<!-- CRM KEY METRICS -->
+<div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="stat-card" style="border-top: 3px solid #10b981;">
+        <span class="stat-label">Lifetime Spend</span>
+        <div class="stat-value" style="color: #059669;">PKR {{ total_spent|floatformat:2 }}</div>
+        <span class="stat-subtext">Total purchases to date</span>
+    </div>
+
+    <div class="stat-card" style="border-top: 3px solid #3b82f6;">
+        <span class="stat-label">Total Visits / Orders</span>
+        <div class="stat-value" style="color: #2563eb;">{{ total_orders }}</div>
+        <span class="stat-subtext">Completed transactions</span>
+    </div>
+
+    <div class="stat-card" style="border-top: 3px solid #8b5cf6;">
+        <span class="stat-label">Avg Order Value (AOV)</span>
+        <div class="stat-value" style="color: #6d28d9;">PKR {{ avg_order_value|floatformat:2 }}</div>
+        <span class="stat-subtext">Average spend per visit</span>
+    </div>
+
+    <div class="stat-card" style="border-top: 3px solid #f59e0b;">
+        <span class="stat-label">Last Purchase</span>
+        <div class="stat-value" style="color: #d97706; font-size: 1.15rem;">
+            {% if last_sale %}
+                {{ last_sale.created_at|date:"M d, Y" }}
+            {% else %}
+                No orders yet
+            {% endif %}
+        </div>
+        <span class="stat-subtext">
+            {% if last_sale %}Invoice #{{ last_sale.invoice_number }}{% else %}Ready for first sale{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- INVOICES & PURCHASE HISTORY TABLE -->
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem;">
+    <h2 style="font-size: 1.15rem; font-weight: 800; color: var(--secondary); margin: 0;">
+        Order History & Sales Invoices ({{ sales.count }})
+    </h2>
+</div>
+
+<div class="table-card">
+    <table class="saas-table">
+        <thead>
+            <tr>
+                <th style="width: 18%;">Invoice #</th>
+                <th style="width: 15%;">Date & Time</th>
+                <th style="width: 14%;">Order Type</th>
+                <th style="width: 12%;">Payment</th>
+                <th style="width: 10%; text-align: center;">Items</th>
+                <th style="width: 15%; text-align: right;">Total Amount</th>
+                <th style="width: 12%; text-align: center;">Status</th>
+                <th style="width: 14%; text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sales %}
+            <tr>
+                <!-- Invoice # -->
+                <td>
+                    <strong style="color: var(--secondary); font-family: monospace; font-size: 0.88rem;">
+                        {{ s.invoice_number }}
+                    </strong>
+                </td>
+
+                <!-- Date -->
+                <td>
+                    <span style="font-size: 0.82rem; color: #475569;">
+                        {{ s.created_at|date:"M d, Y - h:i A" }}
+                    </span>
+                </td>
+
+                <!-- Order Type -->
+                <td>
+                    <span class="pill-variant" style="font-size: 0.75rem; text-transform: capitalize;">
+                        {% if s.order_type == 'dine_in' %}🍽️ Dine-In
+                        {% elif s.order_type == 'takeaway' %}🥡 Takeaway
+                        {% elif s.order_type == 'delivery' %}🛵 Delivery
+                        {% else %}🚶 Walk-In{% endif %}
+                    </span>
+                </td>
+
+                <!-- Payment -->
+                <td>
+                    <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: #475569;">
+                        {{ s.get_payment_method_display }}
+                    </span>
+                </td>
+
+                <!-- Items Count -->
+                <td style="text-align: center;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">
+                        {{ s.total_items_count }} items
+                    </span>
+                </td>
+
+                <!-- Total Amount -->
+                <td style="text-align: right;">
+                    <strong style="color: var(--secondary); font-size: 0.9rem;">
+                        PKR {{ s.total_amount|floatformat:2 }}
+                    </strong>
+                </td>
+
+                <!-- Status -->
+                <td style="text-align: center;">
+                    {% if s.status == 'completed' %}
+                    <span class="status-badge status-active" style="font-size: 0.72rem;">Completed</span>
+                    {% elif s.status == 'refunded' %}
+                    <span class="status-badge status-archived" style="font-size: 0.72rem;">Refunded</span>
+                    {% elif s.status == 'cancelled' %}
+                    <span class="status-badge status-draft" style="font-size: 0.72rem;">Cancelled</span>
+                    {% else %}
+                    <span class="status-badge" style="font-size: 0.72rem;">{{ s.get_status_display }}</span>
+                    {% endif %}
+                </td>
+
+                <!-- Actions -->
+                <td style="text-align: right;">
+                    <div style="display: flex; justify-content: flex-end; gap: 0.35rem;">
+                        <a href="{% url 'sales:receipt' s.id %}" target="_blank" class="action-btn-icon" title="Thermal Receipt (80mm/58mm)" style="text-decoration: none;">
+                            🧾
+                        </a>
+                        <a href="{% url 'sales:invoice_a4' s.id %}" target="_blank" class="action-btn-icon" title="A4 Corporate Invoice" style="text-decoration: none;">
+                            📄
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 2.5rem 1rem; color: var(--muted-text);">
+                    <div style="font-size: 1.8rem; margin-bottom: 0.35rem; opacity: 0.6;">🧾</div>
+                    <strong style="font-size: 0.95rem; color: var(--secondary); display: block;">No Invoices Recorded Yet</strong>
+                    <span style="font-size: 0.82rem;">This customer has not completed any purchases yet.</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

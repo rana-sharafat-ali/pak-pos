@@ -15,7 +15,7 @@ from django.core.paginator import Paginator
 
 from pakpos_project.apps.products.models import Product, ProductVariant, Category
 from .models import Customer, Sale, SaleItem, CashDrawerShift, DiningTable
-from .forms import DiningTableForm
+from .forms import DiningTableForm, CustomerForm
 from pakpos_project.apps.users.decorators import manager_or_admin_required
 from pakpos_project.apps.core.services import get_current_system_settings
 from django.template.loader import render_to_string
@@ -929,4 +929,224 @@ def table_bulk_delete_view(request):
             messages.error(request, 'No dining tables were selected for deletion.')
 
     return redirect('sales:table_list')
+
+
+# ==============================================================================
+# CUSTOMER DIRECTORY & RELATIONSHIP MANAGEMENT (CRM)
+# ==============================================================================
+
+@manager_or_admin_required
+def customer_list_view(request):
+    """
+    Comprehensive Customer Directory List View for Admin / Manager.
+    Displays KPIs, live search, and paginated customer profiles.
+    """
+    customers_qs = Customer.objects.all()
+
+    query = request.GET.get('q', '').strip()
+    if query:
+        customers_qs = customers_qs.filter(
+            Q(name__icontains=query) |
+            Q(phone__icontains=query) |
+            Q(email__icontains=query) |
+            Q(address__icontains=query)
+        )
+
+    # Calculate High-Level CRM Metrics
+    total_customers = Customer.objects.count()
+    active_buyers = Customer.objects.filter(sales__status=Sale.Status.COMPLETED).distinct().count()
+    
+    total_customer_spend = Sale.objects.filter(
+        customer__isnull=False, 
+        status=Sale.Status.COMPLETED
+    ).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    
+    avg_spend_per_customer = (total_customer_spend / active_buyers) if active_buyers > 0 else Decimal('0.00')
+
+    # Annotate total orders and total spend for sorting
+    customers_qs = customers_qs.annotate(
+        completed_orders=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED)),
+        lifetime_spend=Sum('sales__total_amount', filter=Q(sales__status=Sale.Status.COMPLETED))
+    ).order_by('-created_at')
+
+    # Pagination
+    paginator = Paginator(customers_qs, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # 1. Top 5 VIP Customers by Lifetime Spend (for Chart & Spotlight)
+    top_5_vips_qs = Customer.objects.annotate(
+        completed_orders=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED)),
+        lifetime_spend=Sum('sales__total_amount', filter=Q(sales__status=Sale.Status.COMPLETED))
+    ).filter(lifetime_spend__gt=0).order_by('-lifetime_spend')[:5]
+
+    top_vips_list = []
+    top_cust_labels = []
+    top_cust_spends = []
+    top_cust_orders = []
+    medals = ['🥇', '🥈', '🥉', '⭐', '✨']
+    for idx, c in enumerate(top_5_vips_qs):
+        spend_val = float(c.lifetime_spend or 0)
+        top_cust_labels.append(c.name)
+        top_cust_spends.append(spend_val)
+        top_cust_orders.append(c.completed_orders)
+        top_vips_list.append({
+            'rank': idx + 1,
+            'medal': medals[idx] if idx < len(medals) else '👤',
+            'id': c.id,
+            'name': c.name,
+            'phone': c.phone,
+            'completed_orders': c.completed_orders,
+            'lifetime_spend': spend_val,
+        })
+
+    # 2. Customer Loyalty & Frequency Segments
+    vip_count = Customer.objects.annotate(cnt=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED))).filter(cnt__gte=5).count()
+    repeat_count = Customer.objects.annotate(cnt=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED))).filter(cnt__gte=2, cnt__lt=5).count()
+    first_time_count = Customer.objects.annotate(cnt=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED))).filter(cnt=1).count()
+    new_count = Customer.objects.annotate(cnt=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED))).filter(cnt=0).count()
+
+    segment_labels = ['VIP (5+ Visits)', 'Repeat (2-4 Visits)', 'First-Time (1 Visit)', 'New (0 Visits)']
+    segment_data = [vip_count, repeat_count, first_time_count, new_count]
+
+    # 3. Most Returning / Loyal Customer
+    most_loyal_customer = Customer.objects.annotate(
+        completed_orders=Count('sales', filter=Q(sales__status=Sale.Status.COMPLETED)),
+        lifetime_spend=Sum('sales__total_amount', filter=Q(sales__status=Sale.Status.COMPLETED))
+    ).filter(completed_orders__gt=0).order_by('-completed_orders', '-lifetime_spend').first()
+
+    # Retention Rate %
+    retention_rate = round((float(repeat_count + vip_count) / float(active_buyers)) * 100, 1) if active_buyers > 0 else 0.0
+
+    context = {
+        'title': 'Customer Directory',
+        'customers': page_obj,
+        'page_obj': page_obj,
+        'query': query,
+        'total_customers': total_customers,
+        'active_buyers': active_buyers,
+        'total_customer_spend': total_customer_spend,
+        'avg_spend_per_customer': avg_spend_per_customer,
+        'retention_rate': retention_rate,
+        'top_vips': top_vips_list,
+        'most_loyal_customer': most_loyal_customer,
+        'chart_top_cust_labels_json': json.dumps(top_cust_labels),
+        'chart_top_cust_spends_json': json.dumps(top_cust_spends),
+        'chart_top_cust_orders_json': json.dumps(top_cust_orders),
+        'chart_segments_labels_json': json.dumps(segment_labels),
+        'chart_segments_data_json': json.dumps(segment_data),
+    }
+    return render(request, 'sales/customer_list.html', context)
+
+
+@manager_or_admin_required
+def customer_create_view(request):
+    """
+    Create a new customer from the admin dashboard
+    """
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'Customer "{customer.name}" ({customer.phone}) registered successfully!')
+            return redirect('sales:customer_detail', pk=customer.pk)
+        else:
+            messages.error(request, 'Please fix the errors indicated below.')
+    else:
+        form = CustomerForm()
+
+    context = {
+        'form': form,
+        'title': 'Add New Customer',
+        'is_edit': False,
+    }
+    return render(request, 'sales/customer_form.html', context)
+
+
+@manager_or_admin_required
+def customer_update_view(request, pk):
+    """
+    Update an existing customer profile
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'Customer profile for "{customer.name}" updated successfully!')
+            return redirect('sales:customer_detail', pk=customer.pk)
+        else:
+            messages.error(request, 'Please fix the errors indicated below.')
+    else:
+        form = CustomerForm(instance=customer)
+
+    context = {
+        'form': form,
+        'customer': customer,
+        'title': f'Edit Customer: {customer.name}',
+        'is_edit': True,
+    }
+    return render(request, 'sales/customer_form.html', context)
+
+
+@manager_or_admin_required
+def customer_detail_view(request, pk):
+    """
+    Detailed Customer View showing CRM metrics, contact info, and lifetime sales invoices.
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    sales = customer.sales.all().prefetch_related('items').order_by('-created_at')
+
+    completed_sales = sales.filter(status=Sale.Status.COMPLETED)
+    total_spent = completed_sales.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+    total_orders = completed_sales.count()
+    avg_order_value = (total_spent / total_orders) if total_orders > 0 else Decimal('0.00')
+    last_sale = completed_sales.first()
+
+    context = {
+        'title': f'Customer: {customer.name}',
+        'customer': customer,
+        'sales': sales,
+        'total_spent': total_spent,
+        'total_orders': total_orders,
+        'avg_order_value': avg_order_value,
+        'last_sale': last_sale,
+    }
+    return render(request, 'sales/customer_detail.html', context)
+
+
+@manager_or_admin_required
+def customer_delete_view(request, pk):
+    """
+    Delete a customer
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == 'POST':
+        name = customer.name
+        customer.delete()
+        messages.success(request, f'Customer "{name}" removed successfully.')
+        return redirect('sales:customer_list')
+
+    context = {
+        'customer': customer,
+        'title': f'Delete Customer: {customer.name}',
+    }
+    return render(request, 'sales/customer_confirm_delete.html', context)
+
+
+@manager_or_admin_required
+def customer_bulk_delete_view(request):
+    """
+    Bulk delete selected customers
+    """
+    if request.method == 'POST':
+        ids_list = extract_selected_ids(request)
+        if ids_list:
+            count = Customer.objects.filter(id__in=ids_list).count()
+            Customer.objects.filter(id__in=ids_list).delete()
+            messages.success(request, f'Successfully deleted {count} customers.')
+        else:
+            messages.error(request, 'No customers were selected for deletion.')
+
+    return redirect('sales:customer_list')
 

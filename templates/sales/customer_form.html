@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} | {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- BREADCRUMBS -->
+<div class="breadcrumb-action-bar">
+    <div class="breadcrumb-nav">
+        <a href="{% url 'sales:customer_list' %}">
+            <span>&larr;</span> Customer Directory
+        </a>
+        <span>&rsaquo;</span>
+        <span class="current-item">{{ title }}</span>
+    </div>
+</div>
+
+<div class="form-card-container" style="max-width: 650px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--secondary); margin: 0;">
+            {{ title }}
+        </h2>
+        {% if is_edit and customer %}
+        <a href="{% url 'sales:customer_detail' customer.id %}" class="btn btn-outline btn-sm">
+            View Profile &rsaquo;
+        </a>
+        {% endif %}
+    </div>
+
+    <form method="POST" id="customer-form">
+        {% csrf_token %}
+
+        <!-- Customer Full Name -->
+        <div class="form-group">
+            <label class="form-label" for="{{ form.name.id_for_label }}">Customer Full Name / Business Name *</label>
+            {{ form.name }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Individual customer name or organization name.
+            </span>
+            {% if form.name.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.name.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Phone Number -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.phone.id_for_label }}">Phone Number (Unique Identifier) *</label>
+            {{ form.phone }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Primary mobile number used for live autocomplete in POS & delivery notifications.
+            </span>
+            {% if form.phone.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.phone.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Email Address -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.email.id_for_label }}">Email Address (Optional)</label>
+            {{ form.email }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Used for sending digital e-receipts and promotional offers.
+            </span>
+            {% if form.email.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.email.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Delivery Address -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.address.id_for_label }}">Delivery / Street Address (Optional)</label>
+            {{ form.address }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Full physical address for delivery order routing and rider dispatch.
+            </span>
+            {% if form.address.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.address.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Internal Notes -->
+        <div class="form-group" style="margin-top: 1.25rem;">
+            <label class="form-label" for="{{ form.notes.id_for_label }}">Customer Notes & Preferences (Optional)</label>
+            {{ form.notes }}
+            <span style="font-size: 0.76rem; color: var(--muted-text); display: block; margin-top: 0.25rem;">
+                Internal tags (e.g. "VIP Customer", "No spicy food", "Always ask for extra ketchup").
+            </span>
+            {% if form.notes.errors %}
+                <span style="color: var(--danger); font-size: 0.8rem;">{{ form.notes.errors.0 }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; border-top: 1px solid var(--border-card); padding-top: 1.25rem;">
+            <a href="{% url 'sales:customer_list' %}" class="btn btn-outline">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary" style="font-weight: 800; padding: 0.65rem 1.4rem;">
+                {% if is_edit %}✓ Update Customer{% else %}+ Save Customer{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
