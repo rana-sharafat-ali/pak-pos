@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PakPOS — Owner Live Analytics & Reporting Portal</title>
+    <meta name="description" content="Standalone cloud reporting dashboard and analytics portal for store owners. Synchronized live with Cloud Database.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Chart.js CDN for Interactive Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Portal Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-layout">
+        
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">P</div>
+                <div class="brand-info">
+                    <span class="brand-title" id="portal-store-name">PakPOS</span>
+                    <span class="brand-badge">Owner Portal</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-label">Main Business Hub</div>
+                <a class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a class="nav-item" data-tab="invoices" id="nav-invoices">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <span>Invoices / Sales</span>
+                </a>
+                <a class="nav-item" data-tab="expenses" id="nav-expenses">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span>Expenses</span>
+                </a>
+                <a class="nav-item" data-tab="shifts" id="nav-shifts">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Daily Shift</span>
+                </a>
+                <a class="nav-item" data-tab="products" id="nav-products">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    <span>Products & Stock</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sync-status-card">
+                    <span class="pulse-dot" id="sync-pulse-dot"></span>
+                    <div class="sync-text">
+                        <strong>Database Synchronized</strong>
+                        <span id="sync-status-time">Fetching data...</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN WRAPPER -->
+        <div class="main-wrapper">
+            
+            <!-- TOP HEADER -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h1 class="page-title" id="current-page-title">Executive Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <button class="btn refresh-btn" id="global-refresh-btn" title="Refresh data directly from Database">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        <span>Sync Database</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- CONTENT VIEWPORT -->
+            <main class="content-body">
+                
+                <!-- 1. DASHBOARD VIEW -->
+                <section class="tab-page active" id="view-dashboard">
+                    <!-- Top Stat Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Revenue</span>
+                                <div class="stat-icon blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></div>
+                            </div>
+                            <div class="stat-val" id="dash-total-sales" style="color: var(--primary);">Rs. 0</div>
+                            <div class="stat-sub"><span id="dash-total-orders">0</span> total transactions</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Total Expenses</span>
+                                <div class="stat-icon rose"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg></div>
+                            </div>
+                            <div class="stat-val" id="dash-total-expenses" style="color: var(--danger);">Rs. 0</div>
+                            <div class="stat-sub"><span id="dash-expense-count">0</span> expense entries recorded</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Net Business Profit</span>
+                                <div class="stat-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg></div>
+                            </div>
+                            <div class="stat-val" id="dash-total-profit" style="color: var(--success);">Rs. 0</div>
+                            <div class="stat-sub">Revenue minus Expenses</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-header">
+                                <span class="stat-label">Today's Shift Status</span>
+                                <div class="stat-icon purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
+                            </div>
+                            <div class="stat-val" id="dash-shift-status" style="font-size: 20px;">Live Active</div>
+                            <div class="stat-sub"><strong id="dash-shift-orders-today">0</strong> Orders in Today's Shift</div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid 1: Sales Trend & Top Selling Products -->
+                    <div class="charts-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Daily Sales Revenue Trend</h3>
+                                <span class="badge badge-blue">Timeline</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-sales-trend"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Top Selling Products</h3>
+                                <span class="badge badge-green">By Quantity Sold</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-top-products"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid 2: Expense Categories & Payment Methods -->
+                    <div class="charts-grid">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Expense Categories Breakdown</h3>
+                                <span class="badge badge-amber">Outflows</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-expense-breakdown"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Payment Methods Distribution</h3>
+                                <span class="badge badge-purple">Cash vs Card</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-payment-methods"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Sales Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Invoices & Transactions</h3>
+                            <button class="btn btn-sm" onclick="OwnerPortal.viewTab('invoices')">View All Invoices</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Date & Time</th>
+                                        <th>Customer</th>
+                                        <th>Order Type</th>
+                                        <th>Payment</th>
+                                        <th>Total Amount</th>
+                                        <th>Receipt</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dash-recent-sales-tbody">
+                                    <!-- Injected by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. INVOICES / SALES VIEW -->
+                <section class="tab-page" id="view-invoices">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="inv-search-input" placeholder="Search invoice #, cashier, or customer...">
+                            </div>
+
+                            <div class="filter-pills" id="invoices-pills">
+                                <button class="pill-btn active" data-range="all">All Invoices</button>
+                                <button class="pill-btn" data-range="today">Today</button>
+                                <button class="pill-btn" data-range="yesterday">Yesterday</button>
+                                <button class="pill-btn" data-range="7days">Last 7 Days</button>
+                                <button class="pill-btn" data-range="month">This Month</button>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-right">
+                            <select class="date-input" id="inv-type-select">
+                                <option value="all">All Order Types</option>
+                                <option value="dine_in">Dine-In</option>
+                                <option value="takeaway">Takeaway</option>
+                                <option value="delivery">Delivery</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Summary Strip -->
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
+                        <div class="stat-card" style="padding: 16px 20px;">
+                            <div class="stat-label">Filtered Revenue</div>
+                            <div class="stat-val" id="inv-total-rev" style="font-size: 22px; color: var(--primary);">Rs. 0</div>
+                        </div>
+                        <div class="stat-card" style="padding: 16px 20px;">
+                            <div class="stat-label">Total Invoices</div>
+                            <div class="stat-val" id="inv-total-count" style="font-size: 22px;">0</div>
+                        </div>
+                        <div class="stat-card" style="padding: 16px 20px;">
+                            <div class="stat-label">Average Order Value</div>
+                            <div class="stat-val" id="inv-avg-val" style="font-size: 22px; color: var(--success);">Rs. 0</div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Date & Time</th>
+                                    <th>Customer</th>
+                                    <th>Order Type</th>
+                                    <th>Payment</th>
+                                    <th>Subtotal</th>
+                                    <th>Discount</th>
+                                    <th>Total Paid</th>
+                                    <th>Receipt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoices-tbody">
+                                <!-- Injected by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 3. EXPENSES VIEW -->
+                <section class="tab-page" id="view-expenses">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="exp-search-input" placeholder="Search expense description or category...">
+                            </div>
+
+                            <div class="filter-pills" id="expenses-pills">
+                                <button class="pill-btn active" data-range="all">All Expenses</button>
+                                <button class="pill-btn" data-range="today">Today</button>
+                                <button class="pill-btn" data-range="yesterday">Yesterday</button>
+                                <button class="pill-btn" data-range="7days">Last 7 Days</button>
+                                <button class="pill-btn" data-range="month">This Month</button>
+                            </div>
+                        </div>
+
+                        <div class="toolbar-right">
+                            <div class="stat-card" style="padding: 8px 16px; margin-bottom: 0;">
+                                <span class="stat-label">Total Outflows: <strong id="exp-total-amount" style="color: var(--danger);">Rs. 0</strong> (<span id="exp-total-count">0</span> entries)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Description / Note</th>
+                                    <th>Date & Time</th>
+                                    <th>Logged By</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-tbody">
+                                <!-- Injected by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- 4. DAILY SHIFTS VIEW (REAL-TIME CASH RECONCILIATION) -->
+                <section class="tab-page" id="view-shifts">
+                    <!-- Shift Selector Toolbar -->
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="filter-pills" id="shift-pills">
+                                <button class="pill-btn active" data-range="today">Today's Shift</button>
+                                <button class="pill-btn" data-range="yesterday">Yesterday's Shift</button>
+                                <button class="pill-btn" data-range="all">All Shifts Combined</button>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Or Pick Date:</span>
+                                <input type="date" id="shift-date-picker" class="date-input">
+                            </div>
+                        </div>
+                        <div class="toolbar-right">
+                            <span class="badge badge-green" id="shift-timing-badge">Shift Hours: 00:00 – 23:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Shift KPI Metrics Grid -->
+                    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <div class="stat-card">
+                            <div class="stat-label">Shift Gross Sales</div>
+                            <div class="stat-val" id="shift-kpi-gross" style="color: var(--primary);">Rs. 0</div>
+                            <div class="stat-sub"><span id="shift-kpi-orders">0</span> Orders Completed</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-label">💵 Cash in Drawer</div>
+                            <div class="stat-val" id="shift-kpi-cash" style="color: var(--success);">Rs. 0</div>
+                            <div class="stat-sub"><span id="shift-kpi-cash-pct">0%</span> of shift revenue</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-label">💳 Card Payments</div>
+                            <div class="stat-val" id="shift-kpi-card" style="color: #6366f1;">Rs. 0</div>
+                            <div class="stat-sub"><span id="shift-kpi-card-pct">0%</span> of shift revenue</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-label">📱 Online / Other</div>
+                            <div class="stat-val" id="shift-kpi-online" style="color: var(--warning);">Rs. 0</div>
+                            <div class="stat-sub"><span id="shift-kpi-online-pct">0%</span> of shift revenue</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-label">Total Outflows</div>
+                            <div class="stat-val" id="shift-kpi-expenses" style="color: var(--danger);">Rs. 0</div>
+                            <div class="stat-sub">Expenses during shift</div>
+                        </div>
+                    </div>
+
+                    <!-- Shift Detailed Breakdown (2 Columns) -->
+                    <div class="charts-grid" style="margin-bottom: 24px;">
+                        <!-- Cashier Breakdown -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Cashier-Wise Shift Reconciliation</h3>
+                                <span class="badge badge-purple">Operator Breakdown</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cashier</th>
+                                            <th>Orders</th>
+                                            <th>Cash Collected</th>
+                                            <th>Card Collected</th>
+                                            <th>Total Revenue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="shift-cashier-tbody">
+                                        <!-- Injected by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Order Type Breakdown -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Order Channels in Shift</h3>
+                                <span class="badge badge-blue">Dine-In vs Takeaway</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Channel</th>
+                                            <th>Orders</th>
+                                            <th>Revenue</th>
+                                            <th>Share %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="shift-ordertypes-tbody">
+                                        <!-- Injected by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoices Processed In This Shift Table -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Shift Invoices & Transactions</h3>
+                            <span class="badge badge-green" id="shift-table-count-badge">0 Invoices</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Time</th>
+                                        <th>Customer</th>
+                                        <th>Cashier</th>
+                                        <th>Order Type</th>
+                                        <th>Payment</th>
+                                        <th>Amount</th>
+                                        <th>Receipt</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shift-invoices-tbody">
+                                    <!-- Injected by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. PRODUCTS & INVENTORY VIEW -->
+                <section class="tab-page" id="view-products">
+                    <div class="toolbar">
+                        <div class="toolbar-left">
+                            <div class="search-box">
+                                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input type="text" id="prod-search-input" placeholder="Search product name or SKU code...">
+                            </div>
+                        </div>
+                        <div class="toolbar-right">
+                            <span class="badge badge-blue"><span id="prod-total-count">0</span> Menu Products</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Item Code</th>
+                                    <th>Product Name</th>
+                                    <th>Category</th>
+                                    <th>Cost Price</th>
+                                    <th>Selling Price</th>
+                                    <th>Profit Margin</th>
+                                    <th>Stock Level</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-tbody">
+                                <!-- Injected by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- DIGITAL INVOICE RECEIPT MODAL -->
+    <div class="modal-backdrop" id="receipt-modal">
+        <div class="receipt-modal-content">
+            <div class="receipt-header">
+                <button class="receipt-close-btn" onclick="OwnerPortal.closeReceiptModal()">&times;</button>
+                <h3 id="rec-store-name" style="font-size: 18px; font-weight: 800; color: #0f172a;">PakPOS</h3>
+                <p id="rec-store-sub" style="font-size: 12px; color: #64748b; margin-top: 2px;">Point of Sale</p>
+                <div style="font-size: 14px; font-weight: 700; color: var(--primary); margin-top: 8px;" id="rec-invoice-no">#INV-0001</div>
+            </div>
+
+            <div class="receipt-body">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Date:</span>
+                    <span id="rec-date">-</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Customer:</span>
+                    <span id="rec-customer">Walk-in</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Order Type:</span>
+                    <span id="rec-order-type">Takeaway</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                    <span>Cashier:</span>
+                    <span id="rec-cashier">Admin</span>
+                </div>
+
+                <div style="border-top: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1; padding: 10px 0; margin-bottom: 12px;">
+                    <table style="width: 100%; font-size: 12.5px;">
+                        <tbody id="rec-items-tbody">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Subtotal:</span>
+                    <span id="rec-subtotal">Rs. 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Tax:</span>
+                    <span id="rec-tax">Rs. 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span>Discount:</span>
+                    <span id="rec-discount">Rs. 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; border-top: 1px solid #1e293b; padding-top: 8px; margin-top: 8px;">
+                    <span>Grand Total:</span>
+                    <span id="rec-total" style="color: var(--primary);">Rs. 0</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #64748b;">
+                    <span>Paid Via:</span>
+                    <span id="rec-payment-method">Cash</span>
+                </div>
+            </div>
+
+            <div class="receipt-footer">
+                <button class="btn btn-sm" onclick="window.print()">🖨️ Print Receipt</button>
+                <button class="btn btn-sm btn-primary" onclick="OwnerPortal.closeReceiptModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

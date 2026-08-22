@@ -1,16 +1,1 @@
-[
-  {
-    "id": "e5b7b5f2-4fce-4aa4-a53a-697a0618d305",
-    "timestamp": "2026-08-21T11:49:09.431946",
-    "component": "ActionWorker",
-    "error_message": "Network error fetching remote actions: HTTPSConnectionPool(host='script.google.com', port=443): Max retries exceeded with url: /macros/s/AKfycbxiTjw3CU_dFFOfEZ0xizJHt-_Cd1Y2vogkB-1E9DdD4tlsGhaqdDjBFj-NFDzu070N/exec (Caused by NameResolutionError(\"HTTPSConnection(host='script.google.com', port=443): Failed to resolve 'script.google.com' ([Errno 11001] getaddrinfo failed)\"))",
-    "is_synced": false
-  },
-  {
-    "id": "5d9128af-86c4-419e-9063-8f484b0b9b1c",
-    "timestamp": "2026-08-21T11:49:26.135849",
-    "component": "SettingWorker",
-    "error_message": "Network error fetching remote settings: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
-    "is_synced": false
-  }
-]
+[]
