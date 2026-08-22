@@ -114,7 +114,7 @@ run.bat
 
 3. **Install dependencies**:
    ```bash
-   pip install django requests python-dotenv
+   pip install -r requirements.txt
    ```
 
 4. **Set up Environment Variables**:

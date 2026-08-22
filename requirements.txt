@@ -1,0 +1,20 @@
+# ==============================================================================
+# PakPOS - Project Dependencies & Requirements
+# Install with: pip install -r requirements.txt
+# ==============================================================================
+
+# Core Framework
+Django>=5.1,<7.0
+asgiref>=3.8.1
+sqlparse>=0.5.0
+tzdata>=2024.1
+
+# Environment & Settings Management
+python-dotenv>=1.0.1
+
+# HTTP Networking & Real-Time Cloud Sync
+requests>=2.32.0
+urllib3>=2.2.0
+certifi>=2024.7.4
+charset-normalizer>=3.3.2
+idna>=3.7
