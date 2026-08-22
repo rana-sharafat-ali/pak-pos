@@ -133,9 +133,11 @@ def home(request):
     total_cogs = completed_items.aggregate(
         c=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
     )['c'] or Decimal('0.00')
-    net_revenue_basis = completed_sales.aggregate(nr=Sum(F('subtotal') - F('discount_amount')))['nr'] or Decimal('0.00')
     
-    # Net profit considers COGS and operating expenses
+    # Net Profit = Total Revenue - Tax (Govt) - Service/Delivery Charges - COGS (Product Cost) - Operating Expenses
+    # Equivalent to: (Gross Sales - Discounts) - COGS - Expenses
+    net_revenue_basis = gross_sales - total_discounts
+    total_surcharges = total_tax + total_charges
     total_profit = net_revenue_basis - total_cogs - total_expenses
     profit_margin_pct = round((float(total_profit) / float(net_revenue_basis)) * 100, 1) if net_revenue_basis > 0 else 0.0
     
@@ -281,6 +283,8 @@ def home(request):
         'total_discounts': total_discounts,
         'total_tax': total_tax,
         'total_charges': total_charges,
+        'total_surcharges': total_surcharges,
+        'net_revenue_basis': net_revenue_basis,
         'avg_order_value': avg_order_value,
         'total_items_sold': total_items_sold,
         'cash_revenue': cash_revenue,

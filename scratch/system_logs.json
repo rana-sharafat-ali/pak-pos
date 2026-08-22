@@ -1,23 +1,9 @@
 [
   {
-    "id": "48cb06b9-f56a-4beb-98af-69f133075837",
-    "timestamp": "2026-08-22T18:31:03.560081",
-    "component": "HTTPRequest",
-    "error_message": "HTTP 200 Success at /expenses/ (GET)",
-    "is_synced": false
-  },
-  {
-    "id": "81bbeaf1-229f-43da-8f70-9b4b292873df",
-    "timestamp": "2026-08-22T18:31:05.099844",
-    "component": "HTTPRequest",
-    "error_message": "HTTP 200 Success at /sales/shift/ (GET)",
-    "is_synced": false
-  },
-  {
-    "id": "934a630e-500d-42e2-9c37-e08e082fb6e4",
-    "timestamp": "2026-08-22T18:31:16.516620",
-    "component": "HTTPRequest",
-    "error_message": "HTTP 200 Success at / (GET)",
+    "id": "f87e4c91-e868-47c3-a108-86bf81f2b4a2",
+    "timestamp": "2026-08-22T19:00:26.049068",
+    "component": "SettingWorker",
+    "error_message": "Network error fetching remote settings: ['\u201ctrue\u201d value must be either True or False.']",
     "is_synced": false
   }
 ]

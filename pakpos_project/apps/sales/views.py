@@ -415,12 +415,8 @@ def sales_ledger_view(request):
         cogs=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
     )['cogs'] or Decimal('0.00')
 
-    net_revenue_sum = completed_sales.aggregate(
-        net_rev=Sum(F('subtotal') - F('discount_amount'))
-    )['net_rev'] or Decimal('0.00')
-
-    total_profit = max(Decimal('0.00'), net_revenue_sum - total_cogs)
-    profit_margin_avg = round((total_profit / net_revenue_sum) * 100, 1) if net_revenue_sum > 0 else 0.0
+    total_profit = max(Decimal('0.00'), total_revenue - total_cogs)
+    profit_margin_avg = round((total_profit / total_revenue) * 100, 1) if total_revenue > 0 else 0.0
 
     # Pagination
     paginator = Paginator(sales_qs, 25)
@@ -597,17 +593,19 @@ def _get_shift_context(request):
         })
 
     # Profit today (Managers/Admins only)
+    total_tax_today = completed_today.aggregate(t=Sum('tax_amount'))['t'] or Decimal('0.00')
+    total_charges_today = completed_today.aggregate(sc=Sum('service_charge_amount'))['sc'] or Decimal('0.00')
+    total_discounts_today = completed_today.aggregate(d=Sum('discount_amount'))['d'] or Decimal('0.00')
+    gross_sales_today = completed_today.aggregate(g=Sum('subtotal'))['g'] or Decimal('0.00')
+
     completed_items_today = SaleItem.objects.filter(sale__in=completed_today)
     total_cogs_today = completed_items_today.aggregate(
         cogs=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
     )['cogs'] or Decimal('0.00')
 
-    net_rev_today = completed_today.aggregate(
-        net_rev=Sum(F('subtotal') - F('discount_amount'))
-    )['net_rev'] or Decimal('0.00')
-
-    today_profit = max(Decimal('0.00'), net_rev_today - total_cogs_today - shift_expenses_total)
-    today_margin = round((today_profit / net_rev_today) * 100, 1) if net_rev_today > 0 else 0.0
+    net_rev_basis_today = gross_sales_today - total_discounts_today
+    today_profit = max(Decimal('0.00'), net_rev_basis_today - total_cogs_today - shift_expenses_total)
+    today_margin = round((today_profit / net_rev_basis_today) * 100, 1) if net_rev_basis_today > 0 else 0.0
 
     # Hourly sales progression for today (dynamic timing from .env)
     from pakpos_project.apps.core.services import get_current_system_settings
@@ -672,6 +670,8 @@ def _get_shift_context(request):
         'online_pct': online_pct,
         'shift_expenses_total': shift_expenses_total,
         'shift_expenses': shift_expenses_list,
+        'total_tax_today': total_tax_today,
+        'total_charges_today': total_charges_today,
         'net_cash_in_drawer': net_cash_in_drawer,
         'expected_cash_drawer': net_cash_in_drawer,
         'order_types_summary': order_types_summary,

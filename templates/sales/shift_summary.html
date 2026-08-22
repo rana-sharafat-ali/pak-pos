@@ -276,10 +276,11 @@
         <div class="shift-kpi-amount" style="color: #047857;">
             PKR {{ today_profit|floatformat:0 }}
         </div>
-        <div class="shift-kpi-footer">
+        <div class="shift-kpi-footer" style="flex-wrap: wrap; gap: 0.2rem;">
             <span class="badge-status-completed" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
                 {{ today_margin }}% Margin
             </span>
+            <span style="font-size: 0.68rem; color: #047857;">Sales ({{ total_sales|floatformat:0 }}) − Tax/Fees ({{ total_tax_today|add:total_charges_today|floatformat:0 }}) − Exp ({{ shift_expenses_total|floatformat:0 }})</span>
         </div>
     </div>
     {% endif %}

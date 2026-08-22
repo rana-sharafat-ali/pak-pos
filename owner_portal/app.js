@@ -546,22 +546,39 @@ window.OwnerPortal = (function() {
         const completedSales = allSales.filter(isValidSale);
 
         let totalRevenue = 0;
+        let totalTax = 0;
+        let totalCharges = 0;
+        let totalDiscounts = 0;
         let todayOrdersCount = 0;
+
         completedSales.forEach(s => {
             totalRevenue += parseFloat(s.total_amount) || 0;
+            totalTax += parseFloat(s.tax_amount) || 0;
+            totalCharges += parseFloat(s.service_charge_amount) || 0;
+            totalDiscounts += parseFloat(s.discount_amount) || 0;
             if (isDateInRange(s.created_at, 'today')) todayOrdersCount++;
         });
 
         let totalExpense = 0;
         expenses.forEach(e => totalExpense += parseFloat(e.amount) || 0);
 
-        const netProfit = totalRevenue - totalExpense;
+        const totalSurcharges = totalTax + totalCharges;
+        // Net Profit = Total Revenue Inflow - Tax - Service Charges - Operating Expenses
+        const netProfit = totalRevenue - totalTax - totalCharges - totalExpense;
 
         document.getElementById('dash-total-sales').innerText = formatCurrency(totalRevenue);
         document.getElementById('dash-total-orders').innerText = completedSales.length.toLocaleString();
         document.getElementById('dash-total-expenses').innerText = formatCurrency(totalExpense);
         document.getElementById('dash-expense-count').innerText = expenses.length.toLocaleString();
+        
+        const taxEl = document.getElementById('dash-total-tax-charges');
+        const taxSubEl = document.getElementById('dash-tax-charges-sub');
+        if (taxEl) taxEl.innerText = `+${formatCurrency(totalSurcharges)}`;
+        if (taxSubEl) taxSubEl.innerText = `Tax: ${formatCurrency(totalTax)} • Service: ${formatCurrency(totalCharges)}`;
+
         document.getElementById('dash-total-profit').innerText = formatCurrency(netProfit);
+        const profitSub = document.getElementById('dash-profit-sub');
+        if (profitSub) profitSub.innerText = `Sales (${formatCurrency(totalRevenue)}) − Tax/Fees (${formatCurrency(totalSurcharges)}) − Exp (${formatCurrency(totalExpense)})`;
         document.getElementById('dash-shift-orders-today').innerText = todayOrdersCount.toLocaleString();
 
         renderDashboardCharts(completedSales, saleItems, expenses);
