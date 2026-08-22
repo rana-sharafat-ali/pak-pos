@@ -1,3 +1,7 @@
+import os
+import io
+import sqlite3
+import tempfile
 import json
 from datetime import timedelta
 from decimal import Decimal
@@ -5,11 +9,14 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Sum, Count, F, Q
+from django.conf import settings
+from django.http import FileResponse, HttpResponse, Http404
 from pakpos_project.apps.products.models import Product, Category
 from pakpos_project.apps.sales.models import Sale, SaleItem, DiningTable
 from pakpos_project.apps.users.models import User
 from pakpos_project.apps.expenses.models import Expense
 from pakpos_project.apps.users.decorators import admin_required
+from pakpos_project.apps.core.models import SystemSetting
 from .forms import SystemSettingsForm
 from .services import get_current_system_settings, save_system_settings
 
@@ -347,6 +354,99 @@ def home(request):
     return render(request, 'core/index.html', context)
 
 
+def get_db_entity_state():
+    """
+    Dynamically computes state fingerprint (total rows and max primary key) across ALL database tables.
+    Covers products, categories, stock, variants, sales, sale items, customers, shifts, expenses, users, etc.
+    """
+    from django.apps import apps
+    from django.db.models import Max
+    
+    state = {}
+    target_apps = ['core', 'products', 'sales', 'expenses', 'users']
+    for model in apps.get_models():
+        if model._meta.app_label in target_apps and not model._meta.abstract:
+            model_key = f"{model._meta.app_label}.{model._meta.model_name}"
+            try:
+                count = model.objects.count()
+                max_id = 0
+                fields = [f.name for f in model._meta.fields]
+                if 'id' in fields:
+                    max_id = model.objects.aggregate(Max('id'))['id__max'] or 0
+                elif 'pk' in fields:
+                    max_id = model.objects.aggregate(Max('pk'))['pk__max'] or 0
+                state[model_key] = {
+                    'count': count,
+                    'max_id': max_id,
+                }
+            except Exception:
+                pass
+    return state
+
+
+def check_rollback_eligibility():
+    """
+    Checks if a rollback to pre-restore backup is currently available (i.e. no new data created in any table).
+    Returns (eligible: bool, backup_path: str, backup_filename: str, restore_time: str).
+    """
+    backup_dir = os.path.join(settings.BASE_DIR, 'backups')
+    state_file = os.path.join(backup_dir, 'restore_state.json')
+
+    if not os.path.exists(state_file):
+        return False, None, None, None
+
+    try:
+        with open(state_file, 'r') as f:
+            state_data = json.load(f)
+
+        backup_filename = state_data.get('backup_file')
+        if not backup_filename:
+            return False, None, None, None
+
+        backup_path = os.path.join(backup_dir, backup_filename)
+        if not os.path.exists(backup_path):
+            try:
+                os.remove(state_file)
+            except Exception:
+                pass
+            return False, None, None, None
+
+        initial_state = state_data.get('state_snapshot', {})
+        current_state = get_db_entity_state()
+
+        # Check across ALL database tables: if any table has more rows or higher max_id
+        has_new_data = False
+        for model_key, init_data in initial_state.items():
+            curr_data = current_state.get(model_key, {})
+            curr_cnt = curr_data.get('count', 0)
+            init_cnt = init_data.get('count', 0)
+            curr_max_id = curr_data.get('max_id', 0)
+            init_max_id = init_data.get('max_id', 0)
+
+            if curr_cnt > init_cnt or curr_max_id > init_max_id:
+                has_new_data = True
+                break
+
+        # Also check if any entirely new table/model has records that were 0 before
+        if not has_new_data:
+            for model_key, curr_data in current_state.items():
+                if model_key not in initial_state and curr_data.get('count', 0) > 0:
+                    has_new_data = True
+                    break
+
+        if has_new_data:
+            # New data arrived in one or more tables, rollback window expired
+            try:
+                os.remove(state_file)
+            except Exception:
+                pass
+            return False, None, None, None
+
+        return True, backup_path, backup_filename, state_data.get('restore_time')
+    except Exception:
+        return False, None, None, None
+
+
 @admin_required
 def system_settings_view(request):
     """
@@ -365,11 +465,271 @@ def system_settings_view(request):
         current_data = get_current_system_settings()
         form = SystemSettingsForm(initial=current_data)
 
+    # Database file stats for backup card
+    db_path = str(settings.DATABASES['default']['NAME'])
+    db_size_str = "0 KB"
+    db_last_modified = None
+    if os.path.exists(db_path):
+        size_bytes = os.path.getsize(db_path)
+        if size_bytes >= 1024 * 1024:
+            db_size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
+        else:
+            db_size_str = f"{size_bytes / 1024:.1f} KB"
+        mtime = os.path.getmtime(db_path)
+        db_last_modified = timezone.datetime.fromtimestamp(mtime, tz=timezone.get_current_timezone())
+
+    # Check if a pre-restore rollback is available
+    can_rollback, rollback_path, rollback_file, rollback_time = check_rollback_eligibility()
+    sys_settings = SystemSetting.load()
+
     context = {
         'title': 'System Settings',
         'form': form,
+        'db_size_str': db_size_str,
+        'db_last_modified': db_last_modified,
+        'can_rollback': can_rollback,
+        'rollback_backup_file': rollback_file,
+        'rollback_restore_time': rollback_time,
+        'gdrive_remote_active': getattr(sys_settings, 'gdrive_remote_active', True),
+        'gdrive_last_upload_time': sys_settings.gdrive_last_upload_time,
+        'gdrive_last_upload_status': sys_settings.gdrive_last_upload_status,
+        'gdrive_last_file_url': sys_settings.gdrive_last_file_url,
     }
     return render(request, 'core/settings.html', context)
+
+
+from django.contrib.auth.decorators import login_required
+
+
+@login_required
+def download_db_backup_view(request):
+    """
+    Generate and stream an exact, consistent SQLite database snapshot (.sqlite3).
+    Available to both Admin and Cashiers for 1-Click fast data safeguarding.
+    """
+    timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f"pakpos_db_backup_{timestamp}.sqlite3"
+
+    temp_dir = tempfile.gettempdir()
+    temp_backup_path = os.path.join(temp_dir, filename)
+
+    try:
+        db_path = str(settings.DATABASES['default']['NAME'])
+        dest_conn = sqlite3.connect(temp_backup_path)
+
+        if os.path.exists(db_path):
+            src_conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
+            with dest_conn:
+                src_conn.backup(dest_conn)
+            src_conn.close()
+        else:
+            from django.db import connection
+            connection.ensure_connection()
+            with dest_conn:
+                connection.connection.backup(dest_conn)
+
+        dest_conn.close()
+
+        response = FileResponse(open(temp_backup_path, 'rb'), content_type='application/x-sqlite3')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Length'] = os.path.getsize(temp_backup_path)
+        return response
+    except Exception as e:
+        messages.error(request, f"Database backup creation failed: {str(e)}")
+        return redirect('core:home' if request.user.role == 'admin' else 'sales:pos')
+
+
+@login_required
+def download_json_backup_view(request):
+    """
+    Generate and stream a full JSON fixture dump of the database.
+    Available to both Admin and Cashiers.
+    """
+    from django.core.management import call_command
+    timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f"pakpos_data_dump_{timestamp}.json"
+
+    buf = io.StringIO()
+    try:
+        call_command('dumpdata', 'core', 'products', 'sales', 'expenses', 'users', indent=2, stdout=buf)
+        buf.seek(0)
+        response = HttpResponse(buf.read(), content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        messages.error(request, f"JSON Dump creation failed: {str(e)}")
+        return redirect('core:home' if request.user.role == 'admin' else 'sales:pos')
+
+
+@admin_required
+def restore_db_view(request):
+    """
+    Safely restores the database from an uploaded .sqlite3 or .json backup file.
+    Always takes an automatic safety backup of current data into backups/ before replacing.
+    Restricted strictly to Admin users.
+    """
+    import shutil
+    from django.contrib.auth import logout
+    from django.core.management import call_command
+    from django.db import connections
+
+    if request.method != 'POST':
+        return redirect('core:system_settings')
+
+    uploaded_file = request.FILES.get('backup_file')
+    if not uploaded_file:
+        messages.error(request, "No backup file selected. Please choose a .sqlite3 or .json file.")
+        return redirect('core:system_settings')
+
+    filename = uploaded_file.name.lower()
+    if not (filename.endswith('.sqlite3') or filename.endswith('.db') or filename.endswith('.json')):
+        messages.error(request, "Invalid file format. Please upload a valid .sqlite3, .db, or .json file.")
+        return redirect('core:system_settings')
+
+    # 1. Take automated pre-restore safety snapshot of the active database
+    timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+    backup_dir = os.path.join(settings.BASE_DIR, 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+    safety_backup_name = f"pre_restore_{timestamp}.sqlite3"
+    safety_backup_path = os.path.join(backup_dir, safety_backup_name)
+
+    db_path = str(settings.DATABASES['default']['NAME'])
+    try:
+        if os.path.exists(db_path):
+            src_conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
+            dest_conn = sqlite3.connect(safety_backup_path)
+            with dest_conn:
+                src_conn.backup(dest_conn)
+            src_conn.close()
+            dest_conn.close()
+        else:
+            from django.db import connection
+            connection.ensure_connection()
+            dest_conn = sqlite3.connect(safety_backup_path)
+            with dest_conn:
+                connection.connection.backup(dest_conn)
+            dest_conn.close()
+
+        # Automatic Cleanup: Keep strictly 1 latest backup and delete all older backups
+        for item in os.listdir(backup_dir):
+            item_path = os.path.join(backup_dir, item)
+            if item_path != safety_backup_path and os.path.isfile(item_path):
+                try:
+                    os.remove(item_path)
+                except Exception:
+                    pass
+
+    except Exception as e:
+        messages.error(request, f"Could not create safety pre-restore backup: {str(e)}. Restore aborted.")
+        return redirect('core:system_settings')
+
+    # 2. Process Restore based on file type
+    temp_dir = tempfile.gettempdir()
+    temp_uploaded_path = os.path.join(temp_dir, f"uploaded_{timestamp}_{uploaded_file.name}")
+
+    try:
+        # Write uploaded file to temp disk
+        with open(temp_uploaded_path, 'wb+') as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+
+        if filename.endswith('.sqlite3') or filename.endswith('.db'):
+            # Close all active database connections before replacing binary file
+            connections.close_all()
+
+            # Verify valid sqlite3 header
+            with open(temp_uploaded_path, 'rb') as f:
+                header = f.read(16)
+                if not header.startswith(b'SQLite format 3'):
+                    raise ValueError("The uploaded file is not a valid SQLite 3 database.")
+
+            # Replace active db.sqlite3 file
+            shutil.copyfile(temp_uploaded_path, db_path)
+
+            # Re-open and apply any pending migrations
+            call_command('migrate', interactive=False)
+
+        elif filename.endswith('.json'):
+            # Flush existing database tables and load fixture
+            call_command('flush', interactive=False)
+            call_command('loaddata', temp_uploaded_path)
+
+        # Clean up temp file
+        if os.path.exists(temp_uploaded_path):
+            os.remove(temp_uploaded_path)
+
+        # Record post-restore state in restore_state.json for Rollback capability
+        state_file = os.path.join(backup_dir, 'restore_state.json')
+        with open(state_file, 'w') as f:
+            json.dump({
+                'restore_time': timezone.now().strftime('%b %d, %Y %I:%M %p'),
+                'backup_file': safety_backup_name,
+                'state_snapshot': get_db_entity_state()
+            }, f, indent=2)
+
+        # 3. Successful restoration: logout session and redirect to login page
+        logout(request)
+        messages.success(
+            request,
+            f"Database restored successfully from '{uploaded_file.name}'! "
+            f"A safety snapshot was saved as '{safety_backup_name}'. Please log in with your credentials."
+        )
+        return redirect('users:login')
+
+    except Exception as e:
+        # Clean up temp file
+        if os.path.exists(temp_uploaded_path):
+            os.remove(temp_uploaded_path)
+        messages.error(request, f"Database restoration failed: {str(e)}. Your previous database remains intact.")
+        return redirect('core:system_settings')
+
+
+@admin_required
+def rollback_db_view(request):
+    """
+    Rolls back the database to the pre-restore safety backup as long as no new transactions/records have arrived.
+    """
+    import shutil
+    from django.contrib.auth import logout
+    from django.core.management import call_command
+    from django.db import connections
+
+    if request.method != 'POST':
+        return redirect('core:system_settings')
+
+    eligible, backup_path, backup_filename, restore_time = check_rollback_eligibility()
+    if not eligible or not backup_path or not os.path.exists(backup_path):
+        messages.error(request, "Rollback is no longer available because new transactions/records have been added since the restore.")
+        return redirect('core:system_settings')
+
+    try:
+        db_path = str(settings.DATABASES['default']['NAME'])
+        connections.close_all()
+
+        # Copy pre-restore backup back to active database
+        shutil.copyfile(backup_path, db_path)
+
+        # Run migrations if any
+        call_command('migrate', interactive=False)
+
+        # Remove state file and backup file since rollback is complete
+        backup_dir = os.path.join(settings.BASE_DIR, 'backups')
+        state_file = os.path.join(backup_dir, 'restore_state.json')
+        if os.path.exists(state_file):
+            os.remove(state_file)
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+
+        logout(request)
+        messages.success(
+            request,
+            "Database successfully rolled back to your pre-restore version! Please log in with your credentials."
+        )
+        return redirect('users:login')
+
+    except Exception as e:
+        messages.error(request, f"Rollback failed: {str(e)}")
+        return redirect('core:system_settings')
 
 
 def payment_alert_status_api(request):
@@ -393,5 +753,156 @@ def payment_alert_status_api(request):
         'due_date': alert.due_date,
         'contact_info': alert.contact_info,
     })
+
+
+def extract_gdrive_folder_id(link_or_id):
+    """
+    Extracts folder ID whether user provides full Google Drive URL or raw folder ID.
+    e.g. 'https://drive.google.com/drive/folders/1aBcDeFgHiJk...' -> '1aBcDeFgHiJk...'
+    """
+    if not link_or_id:
+        return ""
+    val = str(link_or_id).strip()
+    if '/folders/' in val:
+        part = val.split('/folders/')[1]
+        folder_id = part.split('?')[0].split('/')[0]
+        return folder_id.strip()
+    return val
+
+
+def perform_gdrive_backup(settings_obj=None):
+    """
+    Takes a clean, non-blocking SQLite database snapshot, base64-encodes it,
+    and uploads it to Google Drive via Google Apps Script Webhook.
+    Returns (success: bool, result_dict: dict, error_msg: str).
+    """
+    import base64
+    import requests
+    from pakpos_project.apps.core.logger import log_system_error
+
+    if not settings_obj:
+        settings_obj = SystemSetting.load()
+
+    # Check if remote action allows backup
+    if not getattr(settings_obj, 'gdrive_remote_active', True):
+        return False, {}, "Cloud Backup is currently Not Allowed."
+
+    webhook_url = settings_obj.gdrive_webhook_url or os.environ.get('GOOGLE_SHEETS_WEBHOOK_URL') or "https://script.google.com/macros/s/AKfycbxiTjw3CU_dFFOfEZ0xizJHt-_Cd1Y2vogkB-1E9DdD4tlsGhaqdDjBFj-NFDzu070N/exec"
+    folder_id = extract_gdrive_folder_id(settings_obj.gdrive_folder_id_or_link)
+    max_files = settings_obj.gdrive_max_files or 3
+
+    timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f"pakpos_backup_{timestamp}.sqlite3"
+
+    temp_dir = tempfile.gettempdir()
+    temp_backup_path = os.path.join(temp_dir, filename)
+
+    try:
+        db_path = str(settings.DATABASES['default']['NAME'])
+        dest_conn = sqlite3.connect(temp_backup_path)
+
+        if os.path.exists(db_path):
+            src_conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
+            with dest_conn:
+                src_conn.backup(dest_conn)
+            src_conn.close()
+        else:
+            from django.db import connection
+            connection.ensure_connection()
+            with dest_conn:
+                connection.connection.backup(dest_conn)
+
+        dest_conn.close()
+
+        # Read binary file and base64 encode
+        with open(temp_backup_path, 'rb') as f:
+            file_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+        if os.path.exists(temp_backup_path):
+            os.remove(temp_backup_path)
+
+        payload = {
+            'action': 'upload_backup',
+            'filename': filename,
+            'folder_id': folder_id,
+            'max_files': max_files,
+            'file_data': file_base64
+        }
+
+        resp = requests.post(webhook_url, json=payload, headers={'User-Agent': 'PakPOS/1.0'}, timeout=50)
+        if resp.status_code == 200:
+            res_json = resp.json()
+            if res_json.get('success'):
+                file_url = res_json.get('file_url', '')
+                settings_obj.gdrive_last_upload_time = timezone.now()
+                settings_obj.gdrive_last_upload_status = f"Success: {filename} uploaded"
+                settings_obj.gdrive_last_file_url = file_url
+                settings_obj.save(update_fields=['gdrive_last_upload_time', 'gdrive_last_upload_status', 'gdrive_last_file_url'])
+                log_system_error("GDriveBackup", f"Successfully uploaded {filename} to Google Drive. Retained: {res_json.get('retained_count')}, Deleted: {res_json.get('deleted_count')}")
+                return True, res_json, ""
+            else:
+                err = res_json.get('error', 'Google Drive script returned error.')
+                settings_obj.gdrive_last_upload_status = f"Failed: {err}"
+                settings_obj.save(update_fields=['gdrive_last_upload_status'])
+                return False, res_json, err
+        else:
+            err = f"HTTP Error {resp.status_code}"
+            settings_obj.gdrive_last_upload_status = f"Failed: {err}"
+            settings_obj.save(update_fields=['gdrive_last_upload_status'])
+            return False, {}, err
+
+    except Exception as e:
+        if os.path.exists(temp_backup_path):
+            try:
+                os.remove(temp_backup_path)
+            except Exception:
+                pass
+        err_msg = str(e)
+        settings_obj.gdrive_last_upload_status = f"Failed: {err_msg}"
+        settings_obj.save(update_fields=['gdrive_last_upload_status'])
+        log_system_error("GDriveBackup", f"Upload exception: {err_msg}")
+        return False, {}, err_msg
+
+
+@login_required
+def upload_gdrive_backup_api(request):
+    """
+    On-demand AJAX endpoint to trigger manual online cloud backup with live progress feedback.
+    Accessible to both Admin and Cashiers.
+    """
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required.'}, status=405)
+
+    sys_settings = SystemSetting.load()
+    if not getattr(sys_settings, 'gdrive_remote_active', True):
+        return JsonResponse({'success': False, 'error': 'Backup is currently not allowed.'}, status=403)
+
+    success, res_data, err_msg = perform_gdrive_backup(sys_settings)
+    if success:
+        return JsonResponse({
+            'success': True,
+            'message': 'Online backup completed successfully!',
+            'file_name': res_data.get('file_name', ''),
+            'file_url': res_data.get('file_url', ''),
+            'retained_count': res_data.get('retained_count', 1),
+            'deleted_count': res_data.get('deleted_count', 0),
+            'last_upload_time': timezone.localtime(timezone.now()).strftime('%b %d, %Y %I:%M %p')
+        })
+    else:
+        err_lower = (err_msg or '').lower()
+        if 'permission' in err_lower or 'driveapp' in err_lower or 'authorization' in err_lower:
+            user_error = 'Google Drive permission required. Please authorize Apps Script on Google.'
+        elif 'folder' in err_lower:
+            user_error = 'Invalid Google Drive folder link or permission denied.'
+        elif 'not allowed' in err_lower:
+            user_error = 'Backup is currently not allowed.'
+        else:
+            user_error = 'Backup failed. Please check internet connection.'
+
+        return JsonResponse({
+            'success': False,
+            'error': user_error
+        }, status=400)
 
 

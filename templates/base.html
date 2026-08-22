@@ -224,6 +224,15 @@
                         </div>
                     </div>
                     <div class="user-dropdown-divider"></div>
+                    <a href="{% url 'core:download_db_backup' %}" class="user-dropdown-item">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        <span>Download DB Backup</span>
+                    </a>
+                    <div class="user-dropdown-divider"></div>
                     <a href="{% url 'users:change_own_password' %}" class="user-dropdown-item">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 2l-2 2m-1.5 1.5L10 13l-4 4H2v-4l4-4 7.5-7.5"></path>
@@ -265,12 +274,28 @@
                 </div>
 
                 <div class="header-actions">
+                    <!-- Unified Online Cloud Backup Navbar Button with Live Progress Animation (Admin + Cashier) -->
+                    {% if request.user.is_authenticated %}
+                    <button 
+                        type="button" 
+                        id="globalNavbarBackupBtn" 
+                        class="btn-top-backup" 
+                        onclick="triggerGlobalOnlineBackup(this)" 
+                        title="Upload Online Cloud Backup Now"
+                        style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.38rem 0.85rem; font-size: 0.78rem; font-weight: 700; background: #ffffff; color: var(--secondary); border: 1px solid var(--border-card); border-radius: 8px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.04); transition: all 0.2s ease; position: relative; overflow: hidden;"
+                    >
+                        <span id="navBackupIcon" style="font-size: 0.92rem;">☁️</span>
+                        <span id="navBackupLabel">Online Backup</span>
+                        <!-- Subtle progress fill bar -->
+                        <div id="navBackupFillBar" style="position: absolute; left: 0; bottom: 0; height: 3px; width: 0%; background: #2563eb; transition: width 0.35s ease;"></div>
+                    </button>
+                    {% endif %}
+
                     <!-- Dynamic Payment Due Navbar Badge -->
                     <button type="button" id="payment-alert-navbar-pill" class="payment-alert-navbar-pill" style="display: {% if PAYMENT_ALERT.is_navbar_active %}inline-flex{% else %}none{% endif %};" onclick="PaymentAlertEngine.show()" title="Click to view payment transfer details">
                         <span class="pa-indicator-dot"></span>
                         <span class="pa-navbar-text">⚠️ Due: <strong>{{ PAYMENT_ALERT.pending_month|default:"Payment" }}</strong> ({{ PAYMENT_ALERT.pending_amount|default:"" }})</span>
                     </button>
-
 
                     <div class="top-header-branding">
                         <span class="top-brand-dot"></span>
@@ -346,6 +371,105 @@
 
     <!-- Scripts -->
     <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function triggerGlobalOnlineBackup(btn) {
+            if (!btn) btn = document.getElementById('globalNavbarBackupBtn');
+            if (!btn || btn.disabled) return;
+
+            const icon = document.getElementById('navBackupIcon');
+            const label = document.getElementById('navBackupLabel');
+            const fillBar = document.getElementById('navBackupFillBar');
+
+            btn.disabled = true;
+            btn.style.opacity = '0.9';
+            if (icon) icon.innerText = '⏳';
+            if (label) label.innerText = 'Backing up... 35%';
+            if (fillBar) {
+                fillBar.style.background = '#2563eb';
+                fillBar.style.width = '35%';
+            }
+
+            setTimeout(() => {
+                if (label && btn.disabled) label.innerText = 'Uploading... 75%';
+                if (fillBar && btn.disabled) fillBar.style.width = '75%';
+            }, 900);
+
+            const csrftoken = getCookie('csrftoken');
+
+            fetch("{% url 'core:gdrive_backup_upload' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (icon) icon.innerText = '✅';
+                    if (label) label.innerText = 'Backup Complete!';
+                    if (fillBar) {
+                        fillBar.style.width = '100%';
+                        fillBar.style.background = '#16a34a';
+                    }
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        if (icon) icon.innerText = '☁️';
+                        if (label) label.innerText = 'Online Backup';
+                        if (fillBar) {
+                            fillBar.style.width = '0%';
+                            fillBar.style.background = '#2563eb';
+                        }
+                    }, 3500);
+                } else {
+                    if (icon) icon.innerText = '⚠️';
+                    if (label) label.innerText = (data.error && data.error.includes('not allowed')) ? 'Not Allowed' : 'Backup Failed';
+                    if (fillBar) {
+                        fillBar.style.width = '100%';
+                        fillBar.style.background = '#dc2626';
+                    }
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        if (icon) icon.innerText = '☁️';
+                        if (label) label.innerText = 'Online Backup';
+                        if (fillBar) fillBar.style.width = '0%';
+                    }, 3500);
+                }
+            })
+            .catch(err => {
+                if (icon) icon.innerText = '⚠️';
+                if (label) label.innerText = 'Backup Failed';
+                if (fillBar) {
+                    fillBar.style.width = '100%';
+                    fillBar.style.background = '#dc2626';
+                }
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    if (icon) icon.innerText = '☁️';
+                    if (label) label.innerText = 'Online Backup';
+                    if (fillBar) fillBar.style.width = '0%';
+                }, 3500);
+            });
+        }
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

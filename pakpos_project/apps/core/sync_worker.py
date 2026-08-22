@@ -2,7 +2,7 @@ import time
 import threading
 import traceback
 from django.core.mail import EmailMultiAlternatives
-from django.db import close_old_connections
+from django.db import close_old_connections, models
 
 from django.conf import settings
 import os
@@ -23,7 +23,8 @@ def start_sync_worker():
         threading.Thread(target=action_worker_loop, daemon=True),
         threading.Thread(target=setting_worker_loop, daemon=True),
         threading.Thread(target=data_sync_worker_loop, daemon=True),
-        threading.Thread(target=log_sync_worker_loop, daemon=True)
+        threading.Thread(target=log_sync_worker_loop, daemon=True),
+        threading.Thread(target=gdrive_backup_worker_loop, daemon=True)
     ]
     for thread in threads:
         thread.start()
@@ -133,6 +134,19 @@ def action_worker_loop():
                                             log_system_error("ActionWorker", f"Email sending toggled to: {is_email_active}")
                                         break
 
+                                # Execute "backup_active" action (Enable / Disable Google Drive Backup)
+                                for k, v in actions_dict.items():
+                                    k_norm = str(k).strip().lower()
+                                    if k_norm in ["backup_active", "gdrive_backup_active", "backup_enabled", "cloud_backup_active"]:
+                                        is_backup_active = str(v).strip().upper() in ["TRUE", "1", "YES", "T", "ON", "ENABLE", "ENABLED"]
+                                        from pakpos_project.apps.core.models import SystemSetting
+                                        settings = SystemSetting.load()
+                                        if getattr(settings, 'gdrive_remote_active', True) != is_backup_active:
+                                            settings.gdrive_remote_active = is_backup_active
+                                            settings.save(update_fields=['gdrive_remote_active'])
+                                            log_system_error("ActionWorker", f"Remote backup permission toggled to: {is_backup_active}")
+                                        break
+
                                 # Execute "payment_email" trigger (One-time payment reminder email)
                                 for k, v in actions_dict.items():
                                     k_norm = str(k).strip().lower()
@@ -157,6 +171,52 @@ def action_worker_loop():
             close_old_connections()
             
         time.sleep(60) # 1 Minute Interval
+
+
+# ---------------------------------------------------------
+# 2.5. GDRIVE BACKUP WORKER (Scheduled Daily Cloud Upload)
+# ---------------------------------------------------------
+def gdrive_backup_worker_loop():
+    time.sleep(15)
+    from pakpos_project.apps.core.models import SystemSetting
+    from pakpos_project.apps.core.logger import log_system_error
+    from django.utils import timezone
+    from pakpos_project.apps.core.views import perform_gdrive_backup
+
+    last_auto_triggered_slot = ""
+
+    while True:
+        close_old_connections()
+        try:
+            settings_obj = SystemSetting.load()
+            if settings_obj.gdrive_backup_enabled and getattr(settings_obj, 'gdrive_remote_active', True):
+                sched_time = (settings_obj.gdrive_backup_time or "23:00").strip()
+                now = timezone.localtime()
+                now_hm = now.strftime('%H:%M')
+                today_slot = f"{now.strftime('%Y-%m-%d')}_{sched_time}"
+
+                # Compare current time with scheduled time
+                # Also normalize leading zeros (e.g. "09:00" vs "9:00")
+                sched_parts = sched_time.split(':')
+                if len(sched_parts) == 2:
+                    try:
+                        sched_norm = f"{int(sched_parts[0]):02d}:{int(sched_parts[1]):02d}"
+                    except ValueError:
+                        sched_norm = sched_time
+                else:
+                    sched_norm = sched_time
+
+                if now_hm == sched_norm and last_auto_triggered_slot != today_slot:
+                    last_auto_triggered_slot = today_slot
+                    log_system_error("GDriveWorker", f"Scheduled daily backup triggered for {sched_norm}")
+                    perform_gdrive_backup(settings_obj)
+
+        except Exception as e:
+            log_system_error("GDriveWorker", f"Error in backup worker: {e}")
+        finally:
+            close_old_connections()
+
+        time.sleep(30) # 30 second loop ensures we never miss the minute window
 
 
 # ---------------------------------------------------------
@@ -297,6 +357,15 @@ def data_sync_worker_loop():
                             record_dict['invoice_number'] = record.sale.invoice_number
                             record_dict['sale_id'] = str(record.sale_id)
                             record_dict['sale'] = str(record.sale_id)
+
+                        if tab_name == 'Sales':
+                            if hasattr(record, 'customer') and record.customer:
+                                record_dict['customer_name'] = record.customer.name
+                                record_dict['customer_phone'] = record.customer.phone or ''
+                                record_dict['customer_email'] = record.customer.email or ''
+                            else:
+                                record_dict['customer_name'] = 'Walk-in Customer'
+                                record_dict['customer_phone'] = ''
 
                         payload_data.append(record_dict)
                         

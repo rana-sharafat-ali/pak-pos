@@ -67,6 +67,17 @@ class SystemSetting(models.Model):
     owner_email_2 = models.EmailField(blank=True, null=True)
     owner_email_3 = models.EmailField(blank=True, null=True)
     email_enabled = models.BooleanField(default=True, help_text="Global switch to enable/disable background email sending")
+
+    # Google Drive Automated Cloud Backup
+    gdrive_backup_enabled = models.BooleanField(default=True, help_text="Enable/disable Google Drive cloud backup")
+    gdrive_remote_active = models.BooleanField(default=True, help_text="Controlled via Google Sheets Actions tab 'backup_active'")
+    gdrive_webhook_url = models.CharField(max_length=500, blank=True, null=True, help_text="Google Apps Script Webhook URL")
+    gdrive_folder_id_or_link = models.CharField(max_length=500, blank=True, null=True, help_text="Google Drive Folder Link or Folder ID")
+    gdrive_backup_time = models.CharField(max_length=10, default="23:00", help_text="Daily backup schedule time (HH:MM in 24-hour format)")
+    gdrive_max_files = models.IntegerField(default=3, help_text="Number of latest backup files to retain on Google Drive")
+    gdrive_last_upload_time = models.DateTimeField(null=True, blank=True)
+    gdrive_last_upload_status = models.CharField(max_length=255, blank=True, null=True)
+    gdrive_last_file_url = models.URLField(max_length=500, blank=True, null=True)
     
     # Sync metadata
     is_synced = models.BooleanField(default=False)

@@ -19,6 +19,14 @@
             Configure store branding, currency, POS operating mode, tax rates, and shift timings.
         </p>
     </div>
+
+    <!-- Quick 1-Click Backup Header Action -->
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <a href="{% url 'core:download_db_backup' %}" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.95rem; font-weight: 700; background: #ffffff; border-color: #cbd5e1; box-shadow: 0 1px 2px rgba(0,0,0,0.05); text-decoration: none;">
+            <span>📥</span>
+            <span>Download Backup (.sqlite3)</span>
+        </a>
+    </div>
 </div>
 
 <form method="POST" id="settings-form" style="max-width: 960px;">
@@ -282,6 +290,214 @@
         </div>
     </div>
 
+    <!-- 5. DATABASE BACKUP & DATA SAFETY (1-CLICK INSTANT DOWNLOAD) -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px; border: 1px solid #bfdbfe; background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: 0.85rem; border-bottom: 1px solid var(--border-card); flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <span style="font-size: 1.35rem;">🛡️</span>
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>Database Backup & Data Safety</span>
+                        <span class="pill-variant" style="font-size: 0.7rem; background: #dbeafe; color: #1e40af; font-weight: 800;">1-Click Download</span>
+                    </h3>
+                    <span style="font-size: 0.78rem; color: var(--muted-text);">
+                        Capture and export safe snapshots of your entire sales, product catalogue, expenses, and customer records.
+                    </span>
+                </div>
+            </div>
+            <span class="status-badge status-active" style="font-size: 0.72rem; padding: 0.2rem 0.6rem;">
+                ● SQLite Storage Active
+            </span>
+        </div>
+
+        <!-- Database Health & Metric Chips -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;">
+            <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase;">Active Database</div>
+                <strong style="font-size: 0.95rem; color: var(--secondary); font-family: var(--font-mono);">db.sqlite3</strong>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase;">Size on Disk</div>
+                <strong style="font-size: 0.95rem; color: #2563eb;">{{ db_size_str }}</strong>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid var(--border-card); border-radius: 8px; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--muted-text); text-transform: uppercase;">Last Modified</div>
+                <strong style="font-size: 0.88rem; color: var(--secondary);">{{ db_last_modified|date:"M d, Y h:i A"|default:"Active" }}</strong>
+            </div>
+        </div>
+
+        <!-- Action Download Buttons -->
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+            <a href="{% url 'core:download_db_backup' %}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.25rem; font-weight: 800; font-size: 0.88rem; text-decoration: none; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
+                <span>📥</span>
+                <span>Download Database Snapshot (.sqlite3)</span>
+            </a>
+            <a href="{% url 'core:download_json_backup' %}" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.15rem; font-weight: 700; font-size: 0.88rem; text-decoration: none; background: #ffffff;">
+                <span>📄</span>
+                <span>Download JSON Data Dump (.json)</span>
+            </a>
+        </div>
+
+        {% if can_rollback %}
+        <!-- 5.0 UNDO RESTORE & ROLLBACK ALERT -->
+        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%); border: 2px solid #f59e0b; border-radius: 10px; padding: 1.15rem; margin-bottom: 1.25rem; box-shadow: 0 4px 12px rgba(245,158,11,0.15);">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="font-size: 1.5rem;">🔙</span>
+                    <div>
+                        <strong style="color: #92400e; font-size: 0.95rem; display: block;">
+                            Undo Restore & Rollback Available
+                        </strong>
+                        <span style="font-size: 0.82rem; color: #78350f;">
+                            Revert back to pre-restore database snapshot (<code>{{ rollback_backup_file }}</code>).
+                        </span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="openRollbackModal()" style="background: #d97706; border: none; font-weight: 800; font-size: 0.85rem; padding: 0.6rem 1.2rem;">
+                    <span>🔙 Rollback Database</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 5.1 RESTORE DATABASE DROPZONE -->
+        <div style="background: #ffffff; border: 1.5px dashed #f59e0b; border-radius: 10px; padding: 1.15rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <strong style="color: var(--secondary); font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>🔄</span>
+                    <span>Restore Database from Backup File</span>
+                </strong>
+                <span class="pill-variant" style="font-size: 0.7rem; background: #fef3c7; color: #b45309; font-weight: 800;">.sqlite3 / .json</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <input 
+                    type="file" 
+                    id="restoreFileInput" 
+                    accept=".sqlite3,.db,.json" 
+                    style="display: none;" 
+                    onchange="handleRestoreFileSelected(this)"
+                >
+                <button 
+                    type="button" 
+                    class="btn btn-outline" 
+                    onclick="document.getElementById('restoreFileInput').click()"
+                    style="padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 700; background: #fffbeb; border-color: #fde68a; color: #b45309;"
+                >
+                    📁 Browse Backup File...
+                </button>
+                <span id="selectedFileName" style="font-size: 0.85rem; color: #475569; font-weight: 600; font-family: monospace;">No file chosen</span>
+
+                <button 
+                    type="button" 
+                    id="restoreTriggerBtn" 
+                    class="btn btn-danger" 
+                    onclick="openRestoreConfirmModal()" 
+                    style="margin-left: auto; padding: 0.55rem 1.15rem; font-weight: 800; font-size: 0.85rem; background: #dc2626; display: none;"
+                >
+                    🚀 Restore Database &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. GOOGLE DRIVE AUTOMATED CLOUD BACKUP & ROTATION -->
+    <div class="table-card" style="padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 12px; border: 1px solid #cbd5e1; background: #ffffff;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.15rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-card); flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                <span style="font-size: 1.35rem;">☁️</span>
+                <h3 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0;">
+                    Google Drive Online Backup
+                </h3>
+            </div>
+            <div>
+                {% if gdrive_remote_active %}
+                <span class="status-badge status-active" style="font-size: 0.75rem; padding: 0.28rem 0.75rem; font-weight: 800;">
+                    ● Active
+                </span>
+                {% else %}
+                <span class="status-badge" style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 0.75rem; padding: 0.28rem 0.75rem; font-weight: 800;">
+                    🔴 Not Allowed
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Google Drive Form Inputs -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.15rem; margin-bottom: 1.25rem;">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-weight: 700; color: var(--secondary);">
+                    {{ form.gdrive_backup_enabled }}
+                    <span>Enable Automated Daily Cloud Backup</span>
+                </label>
+            </div>
+
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label class="form-label" style="font-size: 0.82rem; font-weight: 700; color: var(--secondary);">
+                    Google Drive Folder Link or Folder ID
+                </label>
+                {{ form.gdrive_folder_id_or_link }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.82rem; font-weight: 700; color: var(--secondary);">
+                    Daily Backup Schedule Time
+                </label>
+                {{ form.gdrive_backup_time }}
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" style="font-size: 0.82rem; font-weight: 700; color: var(--secondary);">
+                    Max Files on Google Drive (Auto-Delete Older)
+                </label>
+                {{ form.gdrive_max_files }}
+            </div>
+        </div>
+
+        <!-- Live Upload Action Card -->
+        <div style="background: #f8fafc; border: 1px solid var(--border-card); border-radius: 10px; padding: 1rem 1.15rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.85rem;">
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--secondary-text);">
+                        <strong>Last Backup:</strong> 
+                        <span id="gdriveLastTimeSpan">{{ gdrive_last_upload_time|date:"M d, Y h:i A"|default:"None" }}</span>
+                    </div>
+                </div>
+
+                <div>
+                    {% if gdrive_remote_active %}
+                    <button type="button" id="triggerGDriveUploadBtn" class="btn btn-primary" onclick="startGDriveUpload()" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 800; display: inline-flex; align-items: center; gap: 0.45rem;">
+                        <span>☁️</span>
+                        <span>Online Backup Now</span>
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-outline" disabled style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 700; opacity: 0.6; cursor: not-allowed;">
+                        <span>🚫 Not Allowed</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Upload Progress Bar -->
+            <div id="gdriveProgressContainer" style="display: none; margin-top: 0.85rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                    <span id="gdriveProgressStatusText" style="font-size: 0.8rem; font-weight: 700; color: #1e40af;">
+                        Backing up...
+                    </span>
+                    <span id="gdriveProgressPercent" style="font-size: 0.8rem; font-weight: 800; color: #2563eb;">0%</span>
+                </div>
+                <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+                    <div id="gdriveProgressBar" style="width: 0%; height: 100%; background: #2563eb; transition: width 0.3s ease; border-radius: 999px;"></div>
+                </div>
+            </div>
+
+            <!-- Simple Alert Box -->
+            <div id="gdriveResultAlert" style="display: none; margin-top: 0.75rem; padding: 0.55rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;"></div>
+        </div>
+    </div>
+
     <!-- SUBMIT BUTTONS -->
     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.85rem; margin-top: 1rem;">
         <a href="{% url 'core:home' %}" class="btn btn-outline btn-sm">Cancel</a>
@@ -291,6 +507,101 @@
     </div>
 </form>
 
+<!-- RESTORE DATABASE SAFETY CONFIRMATION MODAL -->
+<div id="restoreConfirmModal" class="pos-modal-overlay" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 2100; backdrop-filter: blur(4px);">
+    <div class="pos-modal-card" style="max-width: 480px; width: 92%; background: #ffffff; border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); overflow: hidden; border: 1px solid #fed7aa;">
+        
+        <!-- Header -->
+        <div style="padding: 1.1rem 1.25rem; background: #fff7ed; border-bottom: 1px solid #ffedd5; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.35rem;">⚠️</span>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: #9a3412; margin: 0;">
+                    Confirm Database Restoration
+                </h3>
+            </div>
+            <button type="button" class="action-btn-icon" onclick="closeRestoreConfirmModal()">✕</button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 1.25rem;">
+            <!-- Warning Callout -->
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
+                <strong style="color: #991b1b; font-size: 0.88rem; display: block; margin-bottom: 0.25rem;">
+                    🚨 Warning: Current Database Will Be Overwritten
+                </strong>
+                <p style="font-size: 0.82rem; color: #b91c1c; margin: 0; line-height: 1.45;">
+                    All existing sales, products, expenses, and customer records will be replaced with the data from the uploaded backup file.
+                </p>
+            </div>
+
+            <!-- Auto-Snapshot Safeguard Notice -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.75rem 0.85rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.15rem;">🛡️</span>
+                <span style="font-size: 0.8rem; color: #166534; line-height: 1.4;">
+                    <strong>Pre-Restore Snapshot:</strong> An automated backup of your current database will be saved into <code>backups/</code> before restoring.
+                </span>
+            </div>
+
+            <!-- Selected File Badge -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase;">File to Restore:</div>
+                <strong id="modalSelectedFileName" style="font-size: 0.9rem; color: var(--secondary); font-family: monospace; word-break: break-all;">—</strong>
+            </div>
+
+            <!-- Real Form Submission -->
+            <form method="POST" action="{% url 'core:restore_db' %}" enctype="multipart/form-data" id="realRestoreForm" onsubmit="handleRestoreSubmit(event)">
+                {% csrf_token %}
+                <input type="file" name="backup_file" id="modalHiddenFileInput" style="display: none;">
+                
+                <div style="display: flex; gap: 0.65rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="closeRestoreConfirmModal()" style="padding: 0.6rem 1.1rem; font-weight: 700;">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modalRestoreSubmitBtn" class="btn btn-danger" style="padding: 0.6rem 1.3rem; font-weight: 800; background: #dc2626; border: none;">
+                        <span>🔴 Confirm & Restore Now</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ROLLBACK CONFIRMATION MODAL -->
+<div id="rollbackConfirmModal" class="pos-modal-overlay" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 2100; backdrop-filter: blur(4px);">
+    <div class="pos-modal-card" style="max-width: 480px; width: 92%; background: #ffffff; border-radius: 14px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); overflow: hidden; border: 1px solid #fde68a;">
+        
+        <div style="padding: 1.1rem 1.25rem; background: #fffbeb; border-bottom: 1px solid #fef3c7; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.35rem;">🔙</span>
+                <h3 style="font-size: 1.1rem; font-weight: 800; color: #92400e; margin: 0;">
+                    Confirm Database Rollback
+                </h3>
+            </div>
+            <button type="button" class="action-btn-icon" onclick="closeRollbackModal()">✕</button>
+        </div>
+
+        <div style="padding: 1.25rem;">
+            <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 0.85rem; margin-bottom: 1rem;">
+                <p style="font-size: 0.86rem; color: #854d0e; margin: 0; line-height: 1.45;">
+                    Are you sure you want to undo the recent restore and revert to your previous database snapshot (<strong>{{ rollback_backup_file }}</strong>)?
+                </p>
+            </div>
+
+            <form method="POST" action="{% url 'core:rollback_db' %}" id="realRollbackForm" onsubmit="handleRollbackSubmit(event)">
+                {% csrf_token %}
+                <div style="display: flex; gap: 0.65rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-outline" onclick="closeRollbackModal()" style="padding: 0.6rem 1.1rem; font-weight: 700;">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modalRollbackSubmitBtn" class="btn btn-danger" style="padding: 0.6rem 1.3rem; font-weight: 800; background: #d97706; border: none;">
+                        <span>🔙 Yes, Rollback Database</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -298,6 +609,148 @@
     function setCurrency(curr) {
         const input = document.getElementById('id_app_currency');
         if (input) input.value = curr;
+    }
+
+    let selectedBackupFile = null;
+
+    function handleRestoreFileSelected(input) {
+        if (input.files && input.files[0]) {
+            selectedBackupFile = input.files[0];
+            const fileNameSpan = document.getElementById('selectedFileName');
+            const triggerBtn = document.getElementById('restoreTriggerBtn');
+            if (fileNameSpan) fileNameSpan.innerText = `📄 ${selectedBackupFile.name} (${(selectedBackupFile.size / 1024).toFixed(1)} KB)`;
+            if (triggerBtn) triggerBtn.style.display = 'inline-flex';
+        }
+    }
+
+    function openRestoreConfirmModal() {
+        if (!selectedBackupFile) return;
+        const modalFileName = document.getElementById('modalSelectedFileName');
+        if (modalFileName) modalFileName.innerText = `${selectedBackupFile.name} (${(selectedBackupFile.size / 1024).toFixed(1)} KB)`;
+        
+        // Sync selected file to hidden form input
+        const hiddenInput = document.getElementById('modalHiddenFileInput');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(selectedBackupFile);
+        hiddenInput.files = dataTransfer.files;
+
+        const modal = document.getElementById('restoreConfirmModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeRestoreConfirmModal() {
+        const modal = document.getElementById('restoreConfirmModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function handleRestoreSubmit(e) {
+        const btn = document.getElementById('modalRestoreSubmitBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Restoring Database & Applying Migrations...</span>';
+        }
+    }
+
+    function openRollbackModal() {
+        const modal = document.getElementById('rollbackConfirmModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function closeRollbackModal() {
+        const modal = document.getElementById('rollbackConfirmModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function handleRollbackSubmit(e) {
+        const btn = document.getElementById('modalRollbackSubmitBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Rolling Back Database...</span>';
+        }
+    }
+
+    function startGDriveUpload() {
+        const btn = document.getElementById('triggerGDriveUploadBtn');
+        const container = document.getElementById('gdriveProgressContainer');
+        const bar = document.getElementById('gdriveProgressBar');
+        const percent = document.getElementById('gdriveProgressPercent');
+        const statusText = document.getElementById('gdriveProgressStatusText');
+        const alertBox = document.getElementById('gdriveResultAlert');
+
+        if (!btn || !container) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Backing up...</span>';
+        container.style.display = 'block';
+        alertBox.style.display = 'none';
+
+        // Stage 1
+        bar.style.width = '35%';
+        percent.innerText = '35%';
+        statusText.innerText = 'Backing up database...';
+
+        setTimeout(() => {
+            // Stage 2
+            bar.style.width = '75%';
+            percent.innerText = '75%';
+            statusText.innerText = 'Uploading to Google Drive...';
+        }, 900);
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+
+        fetch("{% url 'core:gdrive_backup_upload' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<span>☁️ Online Backup Now</span>';
+
+            if (data.success) {
+                bar.style.width = '100%';
+                bar.style.background = '#16a34a';
+                percent.innerText = '100%';
+                statusText.innerText = 'Backup Complete!';
+
+                const timeSpan = document.getElementById('gdriveLastTimeSpan');
+                if (timeSpan && data.last_upload_time) timeSpan.innerText = data.last_upload_time;
+
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#f0fdf4';
+                alertBox.style.border = '1px solid #bbf7d0';
+                alertBox.style.color = '#166534';
+                alertBox.innerHTML = `✅ <strong>Success!</strong> Online backup completed successfully.`;
+            } else {
+                bar.style.width = '100%';
+                bar.style.background = '#dc2626';
+                percent.innerText = 'Failed';
+                statusText.innerText = 'Backup Failed';
+
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#fef2f2';
+                alertBox.style.border = '1px solid #fecaca';
+                alertBox.style.color = '#991b1b';
+                alertBox.innerHTML = `❌ ${data.error || 'Backup failed. Please try again.'}`;
+            }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = '<span>☁️ Online Backup Now</span>';
+            bar.style.width = '100%';
+            bar.style.background = '#dc2626';
+            percent.innerText = 'Failed';
+            statusText.innerText = 'Backup Failed';
+
+            alertBox.style.display = 'block';
+            alertBox.style.background = '#fef2f2';
+            alertBox.style.border = '1px solid #fecaca';
+            alertBox.style.color = '#991b1b';
+            alertBox.innerHTML = `❌ Backup failed. Please check internet connection.`;
+        });
     }
 </script>
 {% endblock %}

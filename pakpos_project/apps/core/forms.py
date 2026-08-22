@@ -146,3 +146,29 @@ class SystemSettingsForm(forms.Form):
         required=False,
         widget=forms.EmailInput(attrs={'class': 'form-input', 'placeholder': 'owner3@example.com'})
     )
+
+    # 5. Google Drive Automated Cloud Backup
+    gdrive_backup_enabled = forms.BooleanField(
+        label="Enable Automated Google Drive Cloud Backup",
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-checkbox'})
+    )
+    gdrive_folder_id_or_link = forms.CharField(
+        label="Google Drive Folder Link or Folder ID",
+        max_length=500,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'https://drive.google.com/drive/folders/1abc... or Folder ID'})
+    )
+    gdrive_backup_time = forms.CharField(
+        label="Daily Scheduled Backup Time (24h HH:MM)",
+        max_length=10,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '23:00', 'type': 'time'})
+    )
+    gdrive_max_files = forms.IntegerField(
+        label="Auto-Rotation Retention Limit (Files to keep on Drive)",
+        min_value=1,
+        max_value=30,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-input', 'placeholder': '3'})
+    )

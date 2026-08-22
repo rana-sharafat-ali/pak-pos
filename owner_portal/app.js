@@ -651,7 +651,7 @@ window.OwnerPortal = (function() {
                 <tr>
                     <td><strong>#${s.invoice_number || s.id}</strong></td>
                     <td>${formatDateTime(s.created_at)}</td>
-                    <td>${s.customer || 'Walk-in Customer'}</td>
+                    <td>${getCustomerDisplayName(s)}</td>
                     <td><span class="badge ${s.order_type === 'dine_in' ? 'badge-blue' : s.order_type === 'delivery' ? 'badge-amber' : 'badge-green'}">${s.order_type || 'Takeaway'}</span></td>
                     <td>${s.payment_method || 'Cash'}</td>
                     <td><strong>${formatCurrency(s.total_amount)}</strong></td>
@@ -920,7 +920,7 @@ window.OwnerPortal = (function() {
                 const q = filter.search.toLowerCase();
                 const inv = String(s.invoice_number || s.id).toLowerCase();
                 const cashier = String(s.cashier || '').toLowerCase();
-                const cust = String(s.customer || '').toLowerCase();
+                const cust = getCustomerDisplayName(s).toLowerCase();
                 if (!inv.includes(q) && !cashier.includes(q) && !cust.includes(q)) return false;
             }
             return true;
@@ -942,7 +942,7 @@ window.OwnerPortal = (function() {
                     <tr>
                         <td><strong>#${s.invoice_number || s.id}</strong></td>
                         <td>${formatDateTime(s.created_at)}</td>
-                        <td>${s.customer || 'Walk-in Customer'}</td>
+                        <td>${getCustomerDisplayName(s)}</td>
                         <td><span class="badge ${s.order_type === 'dine_in' ? 'badge-blue' : s.order_type === 'delivery' ? 'badge-amber' : 'badge-green'}">${s.order_type || 'Takeaway'}</span></td>
                         <td>${s.payment_method || 'Cash'}</td>
                         <td>${formatCurrency(subtotal)}</td>
@@ -987,7 +987,7 @@ window.OwnerPortal = (function() {
         document.getElementById('rec-date').innerText = formatDateTime(sale.created_at);
         document.getElementById('rec-order-type').innerText = sale.order_type || 'Takeaway';
         document.getElementById('rec-cashier').innerText = sale.cashier || 'Cashier';
-        document.getElementById('rec-customer').innerText = sale.customer || 'Walk-in Customer';
+        document.getElementById('rec-customer').innerText = getCustomerDisplayName(sale);
 
         const itemsBody = document.getElementById('rec-items-tbody');
         if (itemsBody) {
@@ -1305,7 +1305,7 @@ window.OwnerPortal = (function() {
                 <tr>
                     <td><strong>#${s.invoice_number || s.id}</strong></td>
                     <td>${formatTimeOnly(s.created_at)}</td>
-                    <td>${s.customer || 'Walk-in'}</td>
+                    <td>${getCustomerDisplayName(s)}</td>
                     <td>${s.cashier || 'Admin'}</td>
                     <td><span class="badge ${s.order_type === 'dine_in' ? 'badge-blue' : s.order_type === 'delivery' ? 'badge-amber' : 'badge-green'}">${s.order_type || 'Takeaway'}</span></td>
                     <td>${s.payment_method || 'Cash'}</td>
@@ -1323,45 +1323,158 @@ window.OwnerPortal = (function() {
     // =========================================================================
     // 5. CUSTOMER ANALYTICS & DIRECTORY (CRM)
     // =========================================================================
+    function resolveSaleCustomer(sale, customerById, customerByPhone, customerByName, customerMap) {
+        if (!sale) return null;
+
+        // 1. Check customer_id
+        const rawId = sale.customer_id !== undefined && sale.customer_id !== null && sale.customer_id !== '' && sale.customer_id !== 'None' ? String(sale.customer_id).trim() : null;
+        if (rawId && customerById && customerById[rawId]) return customerById[rawId];
+
+        // 2. Check sale.customer (can be integer ID, numeric string, name, or object)
+        if (sale.customer !== undefined && sale.customer !== null && sale.customer !== '') {
+            if (typeof sale.customer === 'object' && sale.customer.name) {
+                return sale.customer;
+            }
+            const strVal = String(sale.customer).trim();
+            const lowerVal = strVal.toLowerCase();
+
+            // Skip obvious non-customer / walk-in values
+            if (strVal && strVal !== 'None' && strVal !== 'null' && strVal !== '0' && 
+                !lowerVal.startsWith('customer object') && lowerVal !== 'walk-in' && lowerVal !== 'walk-in customer') {
+                
+                if (customerById && customerById[strVal]) return customerById[strVal];
+                if (customerByPhone && customerByPhone[lowerVal]) return customerByPhone[lowerVal];
+                if (customerByName && customerByName[lowerVal]) return customerByName[lowerVal];
+
+                // If numeric ID not in dictionary yet, create placeholder in map
+                if (/^\d+$/.test(strVal)) {
+                    if (customerMap && !customerMap[strVal]) {
+                        customerMap[strVal] = {
+                            id: strVal,
+                            name: `Customer #${strVal}`,
+                            phone: sale.customer_phone || '',
+                            email: sale.customer_email || '',
+                            address: sale.customer_address || '',
+                            totalOrders: 0,
+                            totalSpend: 0,
+                            lastVisit: null
+                        };
+                        if (customerById) customerById[strVal] = customerMap[strVal];
+                    }
+                    return customerMap ? customerMap[strVal] : null;
+                }
+
+                // If it's a direct name string like "Ali" or "Hamza"
+                if (customerMap && !customerMap[strVal]) {
+                    customerMap[strVal] = {
+                        id: null,
+                        name: strVal,
+                        phone: sale.customer_phone || '',
+                        email: sale.customer_email || '',
+                        address: sale.customer_address || '',
+                        totalOrders: 0,
+                        totalSpend: 0,
+                        lastVisit: null
+                    };
+                    if (customerByName) customerByName[lowerVal] = customerMap[strVal];
+                }
+                return customerMap ? customerMap[strVal] : null;
+            }
+        }
+
+        // 3. Check customer_name or customer_phone
+        if (sale.customer_name && sale.customer_name !== 'Walk-in Customer' && sale.customer_name !== 'Walk-in') {
+            const cName = String(sale.customer_name).trim();
+            if (customerByName && customerByName[cName.toLowerCase()]) return customerByName[cName.toLowerCase()];
+        }
+        if (sale.customer_phone) {
+            const cPhone = String(sale.customer_phone).trim();
+            if (customerByPhone && customerByPhone[cPhone.toLowerCase()]) return customerByPhone[cPhone.toLowerCase()];
+        }
+
+        return null;
+    }
+
+    function getCustomerDisplayName(sale) {
+        if (!sale) return 'Walk-in Customer';
+        const rawCustomers = state.data.Customers || state.data.Customer || [];
+        
+        const cById = {};
+        const cByName = {};
+        rawCustomers.forEach(c => {
+            if (c.id !== undefined && c.id !== null) cById[String(c.id).trim()] = c;
+            if (c.name) cByName[String(c.name).trim().toLowerCase()] = c;
+        });
+
+        // 1. If sale has customer_name
+        if (sale.customer_name && sale.customer_name !== 'Walk-in Customer' && sale.customer_name !== 'Walk-in') {
+            return sale.customer_name;
+        }
+
+        // 2. If sale has customer_id
+        const rawId = sale.customer_id !== undefined && sale.customer_id !== null && sale.customer_id !== '' && sale.customer_id !== 'None' ? String(sale.customer_id).trim() : null;
+        if (rawId && cById[rawId]) return cById[rawId].name || `Customer #${rawId}`;
+
+        // 3. If sale.customer is set
+        if (sale.customer !== undefined && sale.customer !== null && sale.customer !== '') {
+            const strVal = String(sale.customer).trim();
+            const lowerVal = strVal.toLowerCase();
+            if (strVal && strVal !== 'None' && strVal !== 'null' && strVal !== '0' && 
+                !lowerVal.startsWith('customer object') && lowerVal !== 'walk-in' && lowerVal !== 'walk-in customer') {
+                if (cById[strVal]) return cById[strVal].name || `Customer #${strVal}`;
+                if (cByName[lowerVal]) return cByName[lowerVal].name;
+                if (/^\d+$/.test(strVal)) return `Customer #${strVal}`;
+                return strVal;
+            }
+        }
+
+        return 'Walk-in Customer';
+    }
+
     function getCustomerAnalytics(completedSales) {
         const rawCustomers = state.data.Customers || state.data.Customer || [];
         const customerMap = {};
+        const customerById = {};
+        const customerByPhone = {};
+        const customerByName = {};
 
         // 1. Initialize from Customers table
         rawCustomers.forEach(c => {
-            const key = String(c.id || c.phone || c.name);
-            customerMap[key] = {
+            const custId = c.id !== undefined && c.id !== null && c.id !== '' ? String(c.id).trim() : null;
+            const phone = c.phone !== undefined && c.phone !== null && c.phone !== '' ? String(c.phone).trim() : '';
+            const name = c.name !== undefined && c.name !== null && c.name !== '' ? String(c.name).trim() : 'Unnamed Customer';
+
+            const custObj = {
                 id: c.id,
-                name: c.name || 'Unnamed Customer',
-                phone: c.phone || '',
+                name: name,
+                phone: phone,
                 email: c.email || '',
                 address: c.address || '',
+                notes: c.notes || '',
                 totalOrders: 0,
-                totalSpend: 0
+                totalSpend: 0,
+                lastVisit: null
             };
+
+            const key = custId || phone || name;
+            customerMap[key] = custObj;
+
+            if (custId) customerById[custId] = custObj;
+            if (phone) customerByPhone[phone.toLowerCase()] = custObj;
+            if (name) customerByName[name.toLowerCase()] = custObj;
         });
 
         // 2. Aggregate from Completed Sales
         completedSales.forEach(s => {
-            let custName = s.customer_name || (typeof s.customer === 'string' && !s.customer.startsWith('Customer object') && s.customer !== 'None' ? s.customer : null);
-            let custPhone = s.customer_phone || '';
-            let custId = s.customer_id;
-
-            if (custName || custPhone || custId) {
-                const key = String(custId || custPhone || custName);
-                if (!customerMap[key]) {
-                    customerMap[key] = {
-                        id: custId,
-                        name: custName || (custPhone ? `Customer (${custPhone})` : `Customer #${custId}`),
-                        phone: custPhone,
-                        email: s.customer_email || '',
-                        address: s.customer_address || '',
-                        totalOrders: 0,
-                        totalSpend: 0
-                    };
+            const cust = resolveSaleCustomer(s, customerById, customerByPhone, customerByName, customerMap);
+            if (cust) {
+                cust.totalOrders += 1;
+                const amt = parseFloat(s.total_amount) || 0;
+                cust.totalSpend += amt;
+                const saleDate = parseDate(s.created_at);
+                if (saleDate && (!cust.lastVisit || saleDate > cust.lastVisit)) {
+                    cust.lastVisit = saleDate;
                 }
-                customerMap[key].totalOrders += 1;
-                customerMap[key].totalSpend += parseFloat(s.total_amount) || 0;
             }
         });
 
@@ -1431,7 +1544,7 @@ window.OwnerPortal = (function() {
             const q = filter.search.toLowerCase().trim();
             list = list.filter(c => 
                 (c.name && c.name.toLowerCase().includes(q)) ||
-                (c.phone && c.phone.toLowerCase().includes(q)) ||
+                (c.phone && String(c.phone).toLowerCase().includes(q)) ||
                 (c.email && c.email.toLowerCase().includes(q)) ||
                 (c.address && c.address.toLowerCase().includes(q))
             );
@@ -1474,15 +1587,25 @@ window.OwnerPortal = (function() {
         // 1. Top 5 VIP Customers Bar Chart
         const ctxTop = document.getElementById('chart-owner-top-customers');
         if (ctxTop) {
-            if (state.charts.ownerTopCustomers) state.charts.ownerTopCustomers.destroy();
-            const top5 = analytics.topVips;
+            if (state.charts.ownerTopCustomers) {
+                state.charts.ownerTopCustomers.destroy();
+                state.charts.ownerTopCustomers = null;
+            }
+            const top5 = analytics.topVips || [];
+            const hasData = top5.length > 0;
+            const labels = hasData ? top5.map(c => {
+                const phoneStr = c.phone ? ` (${c.phone})` : '';
+                return (c.name || 'Customer') + phoneStr;
+            }) : ['No VIP Customer Sales Yet'];
+            const dataValues = hasData ? top5.map(c => c.totalSpend) : [0];
+
             state.charts.ownerTopCustomers = new Chart(ctxTop, {
                 type: 'bar',
                 data: {
-                    labels: top5.length ? top5.map(c => c.name) : ['No customers yet'],
+                    labels: labels,
                     datasets: [{
                         label: 'Lifetime Spend',
-                        data: top5.length ? top5.map(c => c.totalSpend) : [0],
+                        data: dataValues,
                         backgroundColor: '#8b5cf6',
                         borderRadius: 6,
                         maxBarThickness: 28
@@ -1511,15 +1634,30 @@ window.OwnerPortal = (function() {
         // 2. Customer Loyalty Segments Doughnut Chart
         const ctxSeg = document.getElementById('chart-owner-customer-segments');
         if (ctxSeg) {
-            if (state.charts.ownerCustomerSegments) state.charts.ownerCustomerSegments.destroy();
-            const seg = analytics.segments;
+            if (state.charts.ownerCustomerSegments) {
+                state.charts.ownerCustomerSegments.destroy();
+                state.charts.ownerCustomerSegments = null;
+            }
+            const seg = analytics.segments || { vip: 0, repeat: 0, firstTime: 0, new: 0 };
+            const totalSegs = (seg.vip || 0) + (seg.repeat || 0) + (seg.firstTime || 0) + (seg.new || 0);
+
+            const segLabels = totalSegs > 0 ? 
+                ['VIP (5+ Visits)', 'Repeat (2-4 Visits)', 'First-Time (1 Visit)', 'New (0 Visits)'] :
+                ['No Customer Segments Yet'];
+            const segData = totalSegs > 0 ?
+                [seg.vip, seg.repeat, seg.firstTime, seg.new] :
+                [1];
+            const segColors = totalSegs > 0 ?
+                ['#8b5cf6', '#10b981', '#3b82f6', '#94a3b8'] :
+                ['#e2e8f0'];
+
             state.charts.ownerCustomerSegments = new Chart(ctxSeg, {
                 type: 'doughnut',
                 data: {
-                    labels: ['VIP (5+ Visits)', 'Repeat (2-4 Visits)', 'First-Time (1 Visit)', 'New (0 Visits)'],
+                    labels: segLabels,
                     datasets: [{
-                        data: [seg.vip, seg.repeat, seg.firstTime, seg.new],
-                        backgroundColor: ['#8b5cf6', '#10b981', '#3b82f6', '#94a3b8'],
+                        data: segData,
+                        backgroundColor: segColors,
                         borderWidth: 2,
                         borderColor: '#ffffff'
                     }]
@@ -1529,7 +1667,15 @@ window.OwnerPortal = (function() {
                     maintainAspectRatio: false,
                     cutout: '65%',
                     plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            enabled: totalSegs > 0,
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ` ${ctx.label}: ${ctx.raw} Customers`;
+                                }
+                            }
+                        }
                     }
                 }
             });

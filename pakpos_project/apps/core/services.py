@@ -26,6 +26,11 @@ def get_current_system_settings():
         'owner_email_1': settings.owner_email_1,
         'owner_email_2': settings.owner_email_2,
         'owner_email_3': settings.owner_email_3,
+        'gdrive_backup_enabled': settings.gdrive_backup_enabled,
+        'gdrive_folder_id_or_link': settings.gdrive_folder_id_or_link,
+        'gdrive_webhook_url': settings.gdrive_webhook_url,
+        'gdrive_backup_time': settings.gdrive_backup_time,
+        'gdrive_max_files': settings.gdrive_max_files,
     }
 
 
@@ -42,7 +47,9 @@ def save_system_settings(cleaned_data):
         'time_zone', 'pos_operation_mode', 'pos_default_tax_percent', 'pos_default_service_charge_percent',
         'pos_default_discount_percent', 'pos_auto_apply_discount', 'pos_default_delivery_charges',
         'pos_shift_start_hour', 'pos_shift_end_hour', 'products_per_page', 'session_cookie_age_days',
-        'owner_email_1', 'owner_email_2', 'owner_email_3'
+        'owner_email_1', 'owner_email_2', 'owner_email_3',
+        'gdrive_backup_enabled', 'gdrive_folder_id_or_link', 'gdrive_webhook_url',
+        'gdrive_backup_time', 'gdrive_max_files'
     ]:
         if field in cleaned_data and cleaned_data[field] is not None:
             if getattr(settings, field) != cleaned_data[field]:
