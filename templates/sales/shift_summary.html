@@ -189,7 +189,7 @@
 </div>
 
 <!-- COMPACT KPI SUMMARY CARDS -->
-<div class="shift-kpi-grid">
+<div class="shift-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
     <!-- Card 1: Gross Sales -->
     <div class="shift-kpi-card" style="border-left: 3px solid #2563eb;">
         <div class="shift-kpi-header">
@@ -201,26 +201,58 @@
         </div>
         <div class="shift-kpi-footer">
             <span class="pill-variant" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
-                {{ total_orders }} Orders
+                {{ total_orders }} Orders Completed
             </span>
         </div>
     </div>
 
-    <!-- Card 2: Cash in Drawer -->
+    <!-- Card 2: Cash Collected -->
     <div class="shift-kpi-card" style="border-left: 3px solid #16a34a;">
         <div class="shift-kpi-header">
-            <span class="shift-kpi-label">Cash in Drawer</span>
+            <span class="shift-kpi-label">Cash Collected</span>
             <span class="shift-kpi-icon">💵</span>
         </div>
         <div class="shift-kpi-amount" style="color: #15803d;">
             PKR {{ cash_sales|floatformat:0 }}
         </div>
         <div class="shift-kpi-footer">
-            <span>Physical cash</span>
+            <span>{{ cash_pct }}% of shift revenue</span>
         </div>
     </div>
 
-    <!-- Card 3: Cards & Online -->
+    <!-- Card 3: Shift Expenses / Outflows -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #dc2626;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label" style="color: #dc2626;">Total Outflows</span>
+            <span class="shift-kpi-icon">💸</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #dc2626;">
+            PKR {{ shift_expenses_total|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span>{{ shift_expenses|length }} expense logs</span>
+        </div>
+    </div>
+
+    <!-- Card 4: Net Cash in Drawer -->
+    <div class="shift-kpi-card" style="border-left: 3px solid {% if net_cash_in_drawer < 0 %}#dc2626{% else %}#0f172a{% endif %}; {% if net_cash_in_drawer < 0 %}background: #fef2f2;{% endif %}">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label" style="font-weight: 800; {% if net_cash_in_drawer < 0 %}color: #dc2626;{% endif %}">💵 Net Cash in Drawer</span>
+            <span class="shift-kpi-icon">📥</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: {% if net_cash_in_drawer < 0 %}#dc2626{% else %}#0f172a{% endif %}; font-weight: 900;">
+            PKR {{ net_cash_in_drawer|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            {% if net_cash_in_drawer < 0 %}
+            <span style="color: #dc2626; font-weight: 700;">⚠️ Deficit (Outflows exceed cash)</span>
+            {% else %}
+            <span>Cash Sales − Outflows</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Card 5: Cards & Online -->
     <div class="shift-kpi-card" style="border-left: 3px solid #7c3aed;">
         <div class="shift-kpi-header">
             <span class="shift-kpi-label">Cards & Digital</span>
@@ -234,25 +266,7 @@
         </div>
     </div>
 
-    <!-- Card 4: Net Revenue -->
-    <div class="shift-kpi-card" style="border-left: 3px solid #0f172a;">
-        <div class="shift-kpi-header">
-            <span class="shift-kpi-label">Net Revenue</span>
-            <span class="shift-kpi-icon">📊</span>
-        </div>
-        <div class="shift-kpi-amount" style="color: var(--secondary);">
-            PKR {{ net_sales|floatformat:0 }}
-        </div>
-        <div class="shift-kpi-footer">
-            {% if refunds_today > 0 %}
-            <span style="color: #dc2626;">Refunds: -PKR {{ refunds_today|floatformat:0 }}</span>
-            {% else %}
-            <span>Zero refunds today</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Card 5 (Manager & Admin ONLY): Net Profit -->
+    <!-- Card 6 (Manager & Admin ONLY): Net Profit -->
     {% if request.user.role != 'cashier' %}
     <div class="shift-kpi-card" style="border-left: 3px solid #059669; background: #f0fdf4;">
         <div class="shift-kpi-header">
@@ -325,26 +339,32 @@
         <table class="retailos-table">
             <thead>
                 <tr>
-                    <th>Cashier Name</th>
+                    <th>Cashier</th>
                     <th style="text-align: center;">Orders</th>
-                    <th style="text-align: right;">Total Sold</th>
+                    <th style="text-align: right;">Cash</th>
+                    <th style="text-align: right;">Card</th>
+                    <th style="text-align: right;">Online</th>
+                    <th style="text-align: right;">Total</th>
                 </tr>
             </thead>
             <tbody>
                 {% for op in cashier_breakdown %}
                 <tr>
                     <td>
-                        <strong style="color: var(--secondary); font-size: 0.88rem;">{{ op.full_name }}</strong>
-                        <div style="font-size: 0.72rem; color: var(--muted-text);">@{{ op.username }}</div>
+                        <strong style="color: var(--secondary); font-size: 0.85rem;">{{ op.full_name }}</strong>
+                        <div style="font-size: 0.70rem; color: var(--muted-text);">@{{ op.username }}</div>
                     </td>
                     <td style="text-align: center; font-weight: 700;">{{ op.orders_count }}</td>
+                    <td style="text-align: right; color: #16a34a; font-weight: 600;">PKR {{ op.cash_collected|floatformat:0 }}</td>
+                    <td style="text-align: right; color: #7c3aed; font-weight: 600;">PKR {{ op.card_collected|floatformat:0 }}</td>
+                    <td style="text-align: right; color: #d97706; font-weight: 600;">PKR {{ op.online_collected|floatformat:0 }}</td>
                     <td style="text-align: right; font-weight: 800; color: var(--primary);">
-                        PKR {{ op.total_revenue|floatformat:2 }}
+                        PKR {{ op.total_revenue|floatformat:0 }}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="3" style="text-align: center; color: var(--muted-text); padding: 1.5rem;">
+                    <td colspan="6" style="text-align: center; color: var(--muted-text); padding: 1.5rem;">
                         No orders recorded today yet.
                     </td>
                 </tr>
@@ -402,6 +422,61 @@
         </table>
     </div>
 
+</div>
+
+<!-- SHIFT EXPENSES & OUTFLOWS TABLE -->
+<div class="table-card" style="margin-bottom: 1.5rem; background: #ffffff; border: 1px solid var(--border-card); border-radius: 12px; padding: 1.25rem 1.5rem; box-shadow: var(--shadow-xs);">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h2 style="font-size: 1.05rem; font-weight: 800; color: var(--secondary); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                <span>💸</span>
+                <span>Expenses Incurred During Shift</span>
+            </h2>
+            <span class="pill-variant" style="font-size: 0.72rem; padding: 0.15rem 0.5rem; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; font-weight: 700;">
+                Total Outflows: PKR {{ shift_expenses_total|floatformat:0 }}
+            </span>
+        </div>
+        <a href="{% url 'expenses:expense_create' %}" class="btn btn-sm" style="font-size: 0.78rem; font-weight: 700; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; padding: 0.3rem 0.6rem; text-decoration: none;">
+            + Log Expense
+        </a>
+    </div>
+
+    <div style="overflow-x: auto; width: 100%;">
+        <table class="retailos-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding-left: 1.25rem;">Category</th>
+                    <th>Description</th>
+                    <th>Time Logged</th>
+                    <th>Logged By</th>
+                    <th style="text-align: right; padding-right: 1.25rem;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in shift_expenses %}
+                <tr>
+                    <td style="padding-left: 1.25rem;">
+                        <span class="badge-status-refunded" style="font-size: 0.75rem; background: #fef2f2; color: #dc2626; border-color: #fecaca;">
+                            {{ exp.category.name|default:"General" }}
+                        </span>
+                    </td>
+                    <td><strong style="color: var(--secondary); font-size: 0.85rem;">{{ exp.description|default:"Expense Entry" }}</strong></td>
+                    <td style="font-size: 0.82rem; color: var(--muted-text);">{{ exp.date|date:"h:i A" }}</td>
+                    <td style="font-size: 0.82rem; color: var(--secondary-text);">{{ exp.logged_by.username|default:"Admin" }}</td>
+                    <td style="text-align: right; padding-right: 1.25rem; font-weight: 800; color: #dc2626; font-size: 0.9rem;">
+                        -PKR {{ exp.amount|floatformat:2 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--muted-text); padding: 1.25rem;">
+                        No expense outflows recorded during today's shift.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- RECENT TRANSACTIONS TODAY -->

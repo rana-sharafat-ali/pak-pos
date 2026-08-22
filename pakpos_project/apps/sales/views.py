@@ -386,10 +386,20 @@ def sales_ledger_view(request):
         sales_qs = sales_qs.filter(payment_method=payment_filter)
 
     if date_from:
-        sales_qs = sales_qs.filter(created_at__date__gte=date_from)
+        try:
+            d_from = timezone.datetime.strptime(date_from, '%Y-%m-%d').date()
+            dt_from = timezone.make_aware(timezone.datetime.combine(d_from, timezone.datetime.min.time()))
+            sales_qs = sales_qs.filter(created_at__gte=dt_from)
+        except ValueError:
+            pass
 
     if date_to:
-        sales_qs = sales_qs.filter(created_at__date__lte=date_to)
+        try:
+            d_to = timezone.datetime.strptime(date_to, '%Y-%m-%d').date()
+            dt_to = timezone.make_aware(timezone.datetime.combine(d_to, timezone.datetime.max.time()))
+            sales_qs = sales_qs.filter(created_at__lte=dt_to)
+        except ValueError:
+            pass
 
     # Calculate Ledger KPIs
     total_sales_count = sales_qs.count()
@@ -399,10 +409,10 @@ def sales_ledger_view(request):
     cash_revenue = completed_sales.filter(payment_method=Sale.PaymentMethod.CASH).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
     digital_revenue = completed_sales.filter(payment_method__in=[Sale.PaymentMethod.CARD, Sale.PaymentMethod.ONLINE]).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
 
-    # Calculate Total Profit & Margin
+    # Calculate Total Profit & Margin (Net after item-level refunds)
     completed_items = SaleItem.objects.filter(sale__in=completed_sales)
     total_cogs = completed_items.aggregate(
-        cogs=Sum(F('cost_price') * F('quantity'))
+        cogs=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
     )['cogs'] or Decimal('0.00')
 
     net_revenue_sum = completed_sales.aggregate(
@@ -493,10 +503,13 @@ def sale_refund_view(request, pk):
 
 def _get_shift_context(request):
     """
-    Internal helper to build full daily shift summary data.
+    Internal helper to build full daily shift summary data with accurate drawer reconciliation.
     """
     today = timezone.localdate()
-    sales_today = Sale.objects.filter(created_at__date=today).select_related('cashier')
+    start_of_day = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+    end_of_day = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.max.time()))
+    
+    sales_today = Sale.objects.filter(created_at__gte=start_of_day, created_at__lte=end_of_day).select_related('cashier')
 
     # Aggregations by payment method
     completed_today = sales_today.filter(status=Sale.Status.COMPLETED)
@@ -508,25 +521,48 @@ def _get_shift_context(request):
     refunds_today = sales_today.filter(status=Sale.Status.REFUNDED).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
     net_sales = max(Decimal('0.00'), total_sales - refunds_today)
 
-    # Cashier breakdown with full name
-    cashier_breakdown_raw = sales_today.filter(status=Sale.Status.COMPLETED).values(
-        'cashier__id', 'cashier__username', 'cashier__first_name', 'cashier__last_name'
-    ).annotate(
-        orders_count=Count('id'),
-        total_revenue=Sum('total_amount')
-    ).order_by('-total_revenue')
+    # Fetch today's shift expenses & calculate physical cash in drawer
+    from pakpos_project.apps.expenses.models import Expense
+    shift_expenses_qs = Expense.objects.filter(
+        Q(date__gte=start_of_day, date__lte=end_of_day) |
+        Q(created_at__gte=start_of_day, created_at__lte=end_of_day)
+    ).distinct().select_related('category', 'logged_by').order_by('-date')
+    
+    shift_expenses_total = shift_expenses_qs.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    shift_expenses_list = list(shift_expenses_qs)
+    net_cash_in_drawer = cash_sales - shift_expenses_total
 
-    cashier_breakdown = []
-    for item in cashier_breakdown_raw:
-        fname = (item['cashier__first_name'] or '').strip()
-        lname = (item['cashier__last_name'] or '').strip()
-        full_name = f"{fname} {lname}".strip()
-        cashier_breakdown.append({
-            'username': item['cashier__username'],
-            'full_name': full_name if full_name else item['cashier__username'],
-            'orders_count': item['orders_count'],
-            'total_revenue': item['total_revenue'] or Decimal('0.00'),
-        })
+    # Cashier breakdown with full name & payment channels
+    cashier_map = {}
+    for sale in completed_today:
+        c = sale.cashier
+        cid = c.id if c else 0
+        uname = c.username if c else 'admin'
+        fname = (c.first_name if c else '').strip()
+        lname = (c.last_name if c else '').strip()
+        full_name = f"{fname} {lname}".strip() or uname
+
+        if cid not in cashier_map:
+            cashier_map[cid] = {
+                'username': uname,
+                'full_name': full_name,
+                'orders_count': 0,
+                'cash_collected': Decimal('0.00'),
+                'card_collected': Decimal('0.00'),
+                'online_collected': Decimal('0.00'),
+                'total_revenue': Decimal('0.00'),
+            }
+
+        cashier_map[cid]['orders_count'] += 1
+        cashier_map[cid]['total_revenue'] += sale.total_amount
+        if sale.payment_method == Sale.PaymentMethod.CASH:
+            cashier_map[cid]['cash_collected'] += sale.total_amount
+        elif sale.payment_method == Sale.PaymentMethod.CARD:
+            cashier_map[cid]['card_collected'] += sale.total_amount
+        elif sale.payment_method == Sale.PaymentMethod.ONLINE:
+            cashier_map[cid]['online_collected'] += sale.total_amount
+
+    cashier_breakdown = sorted(cashier_map.values(), key=lambda x: x['total_revenue'], reverse=True)
 
     # Payment Methods split percentages
     tot_sales_float = float(total_sales) if total_sales > 0 else 1.0
@@ -548,7 +584,7 @@ def _get_shift_context(request):
         'delivery': '🛵 Delivery'
     }
     for ot in order_type_data:
-        code = ot['order_type']
+        code = ot['order_type'] or 'walk_in'
         rev = ot['total_revenue'] or Decimal('0.00')
         cnt = ot['orders_count']
         pct = round((float(rev) / tot_sales_float) * 100, 1) if total_sales > 0 else 0.0
@@ -563,14 +599,14 @@ def _get_shift_context(request):
     # Profit today (Managers/Admins only)
     completed_items_today = SaleItem.objects.filter(sale__in=completed_today)
     total_cogs_today = completed_items_today.aggregate(
-        cogs=Sum(F('cost_price') * F('quantity'))
+        cogs=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
     )['cogs'] or Decimal('0.00')
 
     net_rev_today = completed_today.aggregate(
         net_rev=Sum(F('subtotal') - F('discount_amount'))
     )['net_rev'] or Decimal('0.00')
 
-    today_profit = max(Decimal('0.00'), net_rev_today - total_cogs_today)
+    today_profit = max(Decimal('0.00'), net_rev_today - total_cogs_today - shift_expenses_total)
     today_margin = round((today_profit / net_rev_today) * 100, 1) if net_rev_today > 0 else 0.0
 
     # Hourly sales progression for today (dynamic timing from .env)
@@ -634,6 +670,10 @@ def _get_shift_context(request):
         'cash_pct': cash_pct,
         'card_pct': card_pct,
         'online_pct': online_pct,
+        'shift_expenses_total': shift_expenses_total,
+        'shift_expenses': shift_expenses_list,
+        'net_cash_in_drawer': net_cash_in_drawer,
+        'expected_cash_drawer': net_cash_in_drawer,
         'order_types_summary': order_types_summary,
         'refunds_today': refunds_today,
         'net_sales': net_sales,

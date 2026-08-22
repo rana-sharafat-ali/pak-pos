@@ -85,13 +85,16 @@ def home(request):
         date_preset = 'today'
         preset_label = 'Today'
 
-    # 2. Base Queryset Filtering
+    # 2. Timezone-Aware DateTime Range & Base Queryset Filtering
+    start_datetime = timezone.make_aware(timezone.datetime.combine(start_date, timezone.datetime.min.time())) if start_date else None
+    end_datetime = timezone.make_aware(timezone.datetime.combine(end_date, timezone.datetime.max.time())) if end_date else None
+
     sales_qs = Sale.objects.select_related('customer', 'cashier').prefetch_related('items').all()
 
-    if start_date:
-        sales_qs = sales_qs.filter(created_at__date__gte=start_date)
-    if end_date:
-        sales_qs = sales_qs.filter(created_at__date__lte=end_date)
+    if start_datetime:
+        sales_qs = sales_qs.filter(created_at__gte=start_datetime)
+    if end_datetime:
+        sales_qs = sales_qs.filter(created_at__lte=end_datetime)
     if cashier_id and cashier_id.isdigit():
         sales_qs = sales_qs.filter(cashier_id=int(cashier_id))
     if order_type_filter:
@@ -116,18 +119,20 @@ def home(request):
     online_revenue = completed_sales.filter(payment_method=Sale.PaymentMethod.ONLINE).aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00')
     digital_revenue = card_revenue + online_revenue
 
-    # Expenses Calculation
+    # Expenses Calculation (Proper Timezone Bounds)
     expenses_qs = Expense.objects.all()
-    if start_date:
-        expenses_qs = expenses_qs.filter(date__date__gte=start_date)
-    if end_date:
-        expenses_qs = expenses_qs.filter(date__date__lte=end_date)
+    if start_datetime:
+        expenses_qs = expenses_qs.filter(date__gte=start_datetime)
+    if end_datetime:
+        expenses_qs = expenses_qs.filter(date__lte=end_datetime)
     
     total_expenses = expenses_qs.aggregate(e=Sum('amount'))['e'] or Decimal('0.00')
 
-    # COGS and Profitability
+    # COGS and Profitability (Net after item-level refunds)
     completed_items = SaleItem.objects.filter(sale__in=completed_sales)
-    total_cogs = completed_items.aggregate(c=Sum(F('cost_price') * F('quantity')))['c'] or Decimal('0.00')
+    total_cogs = completed_items.aggregate(
+        c=Sum(F('cost_price') * (F('quantity') - F('refunded_quantity')))
+    )['c'] or Decimal('0.00')
     net_revenue_basis = completed_sales.aggregate(nr=Sum(F('subtotal') - F('discount_amount')))['nr'] or Decimal('0.00')
     
     # Net profit considers COGS and operating expenses
@@ -135,7 +140,9 @@ def home(request):
     profit_margin_pct = round((float(total_profit) / float(net_revenue_basis)) * 100, 1) if net_revenue_basis > 0 else 0.0
     
     avg_order_value = round(float(total_revenue) / total_orders_count, 2) if total_orders_count > 0 else 0.0
-    total_items_sold = completed_items.aggregate(q=Sum('quantity'))['q'] or 0
+    total_items_sold = completed_items.aggregate(
+        q=Sum(F('quantity') - F('refunded_quantity'))
+    )['q'] or 0
 
     # 4. Chart 1: Revenue Timeline (Hourly or Daily)
     timeline_labels = []
@@ -185,14 +192,15 @@ def home(request):
             timeline_revenue.append(round(day_map[k]['revenue'], 2))
             timeline_orders.append(day_map[k]['orders'])
 
-    # 5. Chart 2: Order Types / Channels Distribution
+    # 5. Chart 2: Order Types / Channels Distribution (Includes Walk-In / Counter)
     order_type_map = {
+        'walk_in': {'label': 'Walk-In / Counter', 'revenue': 0.0, 'count': 0},
         'dine_in': {'label': 'Dine-In', 'revenue': 0.0, 'count': 0},
         'takeaway': {'label': 'Takeaway', 'revenue': 0.0, 'count': 0},
         'delivery': {'label': 'Delivery', 'revenue': 0.0, 'count': 0},
     }
     for s in completed_sales:
-        ot = s.order_type or 'walk_in'
+        ot = str(s.order_type or 'walk_in').lower()
         if ot in order_type_map:
             order_type_map[ot]['revenue'] += float(s.total_amount)
             order_type_map[ot]['count'] += 1
@@ -205,11 +213,13 @@ def home(request):
     chart_payment_labels = ['Cash', 'Card', 'Online / Mobile']
     chart_payment_data = [float(cash_revenue), float(card_revenue), float(online_revenue)]
 
-    # 7. Chart 4: Top 5 Best-Selling Products in Filtered Period
-    top_items_qs = completed_items.values('product_name').annotate(
-        total_qty=Sum('quantity'),
+    # 7. Chart 4: Top 5 Best-Selling Products in Filtered Period (Net Units Sold)
+    top_items_qs = completed_items.annotate(
+        net_qty=F('quantity') - F('refunded_quantity')
+    ).values('product_name').annotate(
+        total_qty=Sum('net_qty'),
         total_rev=Sum('total_price')
-    ).order_by('-total_qty')[:5]
+    ).filter(total_qty__gt=0).order_by('-total_qty')[:5]
 
     top_products_list = []
     chart_top_prod_names = []
@@ -225,7 +235,18 @@ def home(request):
         chart_top_prod_qtys.append(int(item['total_qty']))
         chart_top_prod_revs.append(float(item['total_rev']))
 
-    # 8. Live Operational Activity
+    # 8. Chart 5: Expense Categories Breakdown
+    exp_cat_qs = expenses_qs.values('category__name').annotate(
+        cat_total=Sum('amount')
+    ).order_by('-cat_total')
+
+    chart_exp_cat_labels = []
+    chart_exp_cat_data = []
+    for ec in exp_cat_qs:
+        chart_exp_cat_labels.append(ec['category__name'] or 'General')
+        chart_exp_cat_data.append(float(ec['cat_total']))
+
+    # 9. Live Operational Activity
     recent_sales = Sale.objects.select_related('customer', 'cashier').prefetch_related('items').order_by('-created_at')[:6]
 
     # Inventory Health & Low Stock Alerts
@@ -233,7 +254,6 @@ def home(request):
     total_products = all_products.filter(is_active=True).count()
     variant_products_count = all_products.filter(has_variants=True).count()
     simple_products_count = all_products.filter(has_variants=False).count()
-
 
     cashiers_list = User.objects.filter(is_active=True).order_by('first_name', 'username')
 
@@ -280,6 +300,8 @@ def home(request):
         'top_prod_names_json': json.dumps(chart_top_prod_names),
         'top_prod_qtys_json': json.dumps(chart_top_prod_qtys),
         'top_prod_revs_json': json.dumps(chart_top_prod_revs),
+        'exp_cat_labels_json': json.dumps(chart_exp_cat_labels),
+        'exp_cat_data_json': json.dumps(chart_exp_cat_data),
         'top_products_list': top_products_list,
 
         # Operational Widgets

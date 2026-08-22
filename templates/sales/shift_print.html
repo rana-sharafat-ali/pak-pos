@@ -424,9 +424,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Cashier Name</th>
+                        <th>Cashier</th>
                         <th class="text-center">Orders</th>
-                        <th class="text-right">Total Sold</th>
+                        <th class="text-right">Cash</th>
+                        <th class="text-right">Card</th>
+                        <th class="text-right">Online</th>
+                        <th class="text-right">Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -437,11 +440,14 @@
                             <div style="font-size: 6.5pt; color: #64748b;">@{{ op.username }}</div>
                         </td>
                         <td class="text-center"><strong>{{ op.orders_count }}</strong></td>
-                        <td class="text-right"><strong>PKR {{ op.total_revenue|floatformat:2 }}</strong></td>
+                        <td class="text-right" style="color: #16a34a;">PKR {{ op.cash_collected|floatformat:0 }}</td>
+                        <td class="text-right" style="color: #7c3aed;">PKR {{ op.card_collected|floatformat:0 }}</td>
+                        <td class="text-right" style="color: #d97706;">PKR {{ op.online_collected|floatformat:0 }}</td>
+                        <td class="text-right"><strong>PKR {{ op.total_revenue|floatformat:0 }}</strong></td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center" style="color: #64748b; padding: 10px;">No cashier sales recorded today.</td>
+                        <td colspan="6" class="text-center" style="padding: 10px; color: #64748b;">No operators recorded today.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

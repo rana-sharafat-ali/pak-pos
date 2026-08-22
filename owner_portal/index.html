@@ -194,8 +194,8 @@
                         </div>
                     </div>
 
-                    <!-- Charts Grid 2: Expense Categories & Payment Methods -->
-                    <div class="charts-grid">
+                    <!-- Charts Grid 2: Expense Categories, Payment Methods & Order Channels -->
+                    <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
                         <div class="card">
                             <div class="card-header">
                                 <h3 class="card-title">Expense Categories Breakdown</h3>
@@ -213,6 +213,16 @@
                             </div>
                             <div class="chart-container">
                                 <canvas id="chart-payment-methods"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Order Channels Distribution</h3>
+                                <span class="badge badge-blue">Dine-In vs Takeaway</span>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="chart-order-channels"></canvas>
                             </div>
                         </div>
                     </div>
@@ -407,6 +417,17 @@
                         </div>
                     </div>
 
+                    <!-- Shift Hourly Sales Velocity Chart -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div class="card-header">
+                            <h3 class="card-title">📈 Shift Hourly Sales Velocity & Progression</h3>
+                            <span class="badge badge-blue" id="shift-peak-hour-badge">Timeline</span>
+                        </div>
+                        <div class="chart-container" style="height: 220px;">
+                            <canvas id="chart-hourly-shift"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Shift Detailed Breakdown (2 Columns) -->
                     <div class="charts-grid" style="margin-bottom: 24px;">
                         <!-- Cashier Breakdown -->
@@ -423,6 +444,7 @@
                                             <th>Orders</th>
                                             <th>Cash Collected</th>
                                             <th>Card Collected</th>
+                                            <th>Online / Digital</th>
                                             <th>Total Revenue</th>
                                         </tr>
                                     </thead>
@@ -454,6 +476,30 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Shift Expenses & Outflows Table -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div class="card-header">
+                            <h3 class="card-title">💸 Expenses & Outflows During Shift</h3>
+                            <span class="badge badge-amber" id="shift-expenses-count-badge">0 Expenses</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th>Time Logged</th>
+                                        <th>Logged By</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shift-expenses-tbody">
+                                    <!-- Injected by JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 

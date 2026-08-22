@@ -3,6 +3,7 @@
  * Pure Client-Side Application (Zero Python / Django Dependency)
  * 100% Read-Only Live Database Visualizer (Crisp Modern Light Theme)
  * Security: Master Password Guard, Payment Notice Integration
+ * Audited & Logically Calibrated KPI & Graph Engine
  */
 
 window.OwnerPortal = (function() {
@@ -14,6 +15,7 @@ window.OwnerPortal = (function() {
             ExpenseCategories: [],
             Shifts: [],
             SystemSettings: {},
+            Actions: {},
             Customers: [],
             Tables: []
         },
@@ -38,7 +40,7 @@ window.OwnerPortal = (function() {
         activePassword: null
     };
 
-    // Default Fallback Password (matched against Google Apps Script)
+    // Default Fallback Password
     const DEFAULT_MASTER_PASSWORD = "7860";
 
     // Initialize Application
@@ -137,7 +139,6 @@ window.OwnerPortal = (function() {
                     state.activePassword = enteredPass;
                     sessionStorage.setItem('owner_auth_session', enteredPass);
 
-                    // Clean Fresh State Assignment (Never keep stale deleted data)
                     setFreshCloudData(result.data);
 
                     const lockOverlay = document.getElementById('lock-screen-overlay');
@@ -306,12 +307,10 @@ window.OwnerPortal = (function() {
     }
 
     async function fetchLiveDatabaseData(isManual = false) {
-        // If manual click, unlock stuck state
         if (isManual) {
             state.isLoading = false;
         }
 
-        // Ensure session password exists
         if (!state.isAuthenticated) {
             const savedSession = sessionStorage.getItem('owner_auth_session');
             if (savedSession) {
@@ -461,11 +460,26 @@ window.OwnerPortal = (function() {
     }
 
     // =========================================================================
-    // Helper Formatting Functions
+    // Helper Formatting & Validation Functions
     // =========================================================================
+    function isValidSale(s) {
+        if (!s) return false;
+        const st = String(s.status || 'completed').toLowerCase().trim();
+        return st !== 'cancelled' && st !== 'void';
+    }
+
     function parseDate(dateStr) {
         if (!dateStr) return null;
-        const d = new Date(dateStr);
+        let str = String(dateStr).trim();
+        // Safe parsing for YYYY-MM-DD to avoid UTC midnight rollover
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+            const parts = str.split('-');
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        if (str.includes(' ') && !str.includes('T')) {
+            str = str.replace(' ', 'T');
+        }
+        const d = new Date(str);
         return isNaN(d.getTime()) ? null : d;
     }
 
@@ -476,23 +490,27 @@ window.OwnerPortal = (function() {
 
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
         if (rangeType === 'today') {
-            return d >= startOfDay;
+            return d >= startOfDay && d <= endOfDay;
         } else if (rangeType === 'yesterday') {
             const yesterdayStart = new Date(startOfDay);
             yesterdayStart.setDate(yesterdayStart.getDate() - 1);
             return d >= yesterdayStart && d < startOfDay;
         } else if (rangeType === '7days') {
             const sevenDaysAgo = new Date(startOfDay);
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            return d >= sevenDaysAgo;
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+            return d >= sevenDaysAgo && d <= endOfDay;
         } else if (rangeType === 'month') {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return d >= startOfMonth;
+            return d >= startOfMonth && d <= endOfDay;
         } else if (rangeType === 'specific' && customDateStr) {
-            const dateOnly = d.toISOString().split('T')[0];
-            return dateOnly === customDateStr;
+            const target = parseDate(customDateStr);
+            if (!target) return true;
+            return d.getFullYear() === target.getFullYear() &&
+                   d.getMonth() === target.getMonth() &&
+                   d.getDate() === target.getDate();
         }
         return true;
     }
@@ -520,13 +538,16 @@ window.OwnerPortal = (function() {
     // 1. DASHBOARD VIEW
     // =========================================================================
     function renderDashboard() {
-        const sales = state.data.Sales || [];
+        const allSales = state.data.Sales || [];
         const saleItems = state.data.SaleItems || [];
         const expenses = state.data.Expenses || [];
 
+        // Filter valid completed sales
+        const completedSales = allSales.filter(isValidSale);
+
         let totalRevenue = 0;
         let todayOrdersCount = 0;
-        sales.forEach(s => {
+        completedSales.forEach(s => {
             totalRevenue += parseFloat(s.total_amount) || 0;
             if (isDateInRange(s.created_at, 'today')) todayOrdersCount++;
         });
@@ -537,15 +558,15 @@ window.OwnerPortal = (function() {
         const netProfit = totalRevenue - totalExpense;
 
         document.getElementById('dash-total-sales').innerText = formatCurrency(totalRevenue);
-        document.getElementById('dash-total-orders').innerText = sales.length.toLocaleString();
+        document.getElementById('dash-total-orders').innerText = completedSales.length.toLocaleString();
         document.getElementById('dash-total-expenses').innerText = formatCurrency(totalExpense);
         document.getElementById('dash-expense-count').innerText = expenses.length.toLocaleString();
         document.getElementById('dash-total-profit').innerText = formatCurrency(netProfit);
         document.getElementById('dash-shift-orders-today').innerText = todayOrdersCount.toLocaleString();
 
-        renderDashboardCharts(sales, saleItems, expenses);
+        renderDashboardCharts(completedSales, saleItems, expenses);
 
-        const recentSales = sales.slice().reverse().slice(0, 6);
+        const recentSales = completedSales.slice().reverse().slice(0, 6);
         const tbody = document.getElementById('dash-recent-sales-tbody');
         if (tbody) {
             tbody.innerHTML = recentSales.length ? recentSales.map(s => `
@@ -569,24 +590,26 @@ window.OwnerPortal = (function() {
     function renderDashboardCharts(sales, saleItems, expenses) {
         if (typeof Chart === 'undefined') return;
 
-        // Line Chart: Revenue Trend
-        const daysMap = {};
+        // 1. Line Chart: Daily Sales Revenue Trend (Past -> Today Ascending Chronological Order)
+        const timelineDays = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            const label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+            timelineDays.push({ key: dateKey, label: label, revenue: 0 });
+        }
+
         sales.forEach(s => {
             const d = parseDate(s.created_at);
             if (d) {
-                const key = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                daysMap[key] = (daysMap[key] || 0) + (parseFloat(s.total_amount) || 0);
+                const sKey = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                const slot = timelineDays.find(t => t.key === sKey);
+                if (slot) {
+                    slot.revenue += parseFloat(s.total_amount) || 0;
+                }
             }
         });
-
-        if (Object.keys(daysMap).length < 2) {
-            for (let i = 4; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const key = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                if (!daysMap[key]) daysMap[key] = 0;
-            }
-        }
 
         const ctxTrend = document.getElementById('chart-sales-trend');
         if (ctxTrend) {
@@ -594,10 +617,10 @@ window.OwnerPortal = (function() {
             state.charts.trend = new Chart(ctxTrend, {
                 type: 'line',
                 data: {
-                    labels: Object.keys(daysMap),
+                    labels: timelineDays.map(t => t.label),
                     datasets: [{
                         label: 'Sales Revenue',
-                        data: Object.values(daysMap),
+                        data: timelineDays.map(t => t.revenue),
                         borderColor: '#2563eb',
                         backgroundColor: 'rgba(37, 99, 235, 0.08)',
                         fill: true,
@@ -620,11 +643,19 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Bar Chart: Top Products
+        // 2. Bar Chart: Top Selling Products (Net Quantity Sold)
+        const validSaleIds = new Set(sales.map(s => String(s.id).trim()));
         const itemQtyMap = {};
+        
         saleItems.forEach(it => {
-            const name = it.product_name || it.product || 'Product';
-            itemQtyMap[name] = (itemQtyMap[name] || 0) + (parseFloat(it.quantity) || 1);
+            const saleRef = String(it.sale || it.sale_id || '').trim();
+            // Count items from valid sales
+            if (validSaleIds.has(saleRef) || !saleRef) {
+                const baseName = it.product_name || it.product || 'Product';
+                const fullName = it.variant_name ? `${baseName} (${it.variant_name})` : baseName;
+                const netQty = Math.max(0, (parseFloat(it.quantity) || 1) - (parseFloat(it.refunded_quantity) || 0));
+                itemQtyMap[fullName] = (itemQtyMap[fullName] || 0) + netQty;
+            }
         });
 
         const sortedItems = Object.entries(itemQtyMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -657,7 +688,7 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Doughnut Chart: Expenses
+        // 3. Doughnut Chart: Expense Categories Breakdown
         const expCatMap = {};
         expenses.forEach(e => {
             const cat = e.category || 'General';
@@ -669,13 +700,15 @@ window.OwnerPortal = (function() {
             if (state.charts.expenses) state.charts.expenses.destroy();
             const labels = Object.keys(expCatMap);
             const data = Object.values(expCatMap);
+            const hasData = labels.length > 0 && data.some(v => v > 0);
+
             state.charts.expenses = new Chart(ctxExp, {
                 type: 'doughnut',
                 data: {
-                    labels: labels.length ? labels : ['No Expenses'],
+                    labels: hasData ? labels : ['No Outflows Recorded'],
                     datasets: [{
-                        data: data.length ? data : [1],
-                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#2563eb', '#8b5cf6', '#ec4899'],
+                        data: hasData ? data : [1],
+                        backgroundColor: hasData ? ['#ef4444', '#f59e0b', '#10b981', '#2563eb', '#8b5cf6', '#ec4899'] : ['#e2e8f0'],
                         borderWidth: 2,
                         borderColor: '#ffffff'
                     }]
@@ -688,25 +721,74 @@ window.OwnerPortal = (function() {
             });
         }
 
-        // Pie Chart: Payment Methods
-        const payMap = { 'Cash': 0, 'Card': 0, 'Online/Other': 0 };
+        // 4. Pie Chart: Payment Methods Distribution (Revenue Share)
+        const payRevenueMap = { 'Cash': 0, 'Card': 0, 'Online / Digital': 0 };
         sales.forEach(s => {
+            const amount = parseFloat(s.total_amount) || 0;
             const method = String(s.payment_method || '').toLowerCase();
-            if (method.includes('cash')) payMap['Cash']++;
-            else if (method.includes('card')) payMap['Card']++;
-            else payMap['Online/Other']++;
+            if (method.includes('cash')) payRevenueMap['Cash'] += amount;
+            else if (method.includes('card')) payRevenueMap['Card'] += amount;
+            else payRevenueMap['Online / Digital'] += amount;
         });
 
         const ctxPay = document.getElementById('chart-payment-methods');
         if (ctxPay) {
             if (state.charts.payments) state.charts.payments.destroy();
+            const payLabels = Object.keys(payRevenueMap);
+            const payData = Object.values(payRevenueMap);
+            const hasPayData = payData.some(v => v > 0);
+
             state.charts.payments = new Chart(ctxPay, {
                 type: 'pie',
                 data: {
-                    labels: Object.keys(payMap),
+                    labels: hasPayData ? payLabels : ['No Payments Recorded'],
                     datasets: [{
-                        data: Object.values(payMap),
-                        backgroundColor: ['#2563eb', '#8b5cf6', '#f59e0b'],
+                        data: hasPayData ? payData : [1],
+                        backgroundColor: hasPayData ? ['#2563eb', '#8b5cf6', '#f59e0b'] : ['#e2e8f0'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        // 5. Doughnut Chart: Order Channels Distribution (Dine-in vs Takeaway vs Delivery vs Walk-in)
+        const orderChannelMap = {
+            'walk_in': { label: 'Walk-In / Counter', revenue: 0, count: 0 },
+            'dine_in': { label: 'Dine-In', revenue: 0, count: 0 },
+            'takeaway': { label: 'Takeaway', revenue: 0, count: 0 },
+            'delivery': { label: 'Delivery', revenue: 0, count: 0 }
+        };
+        sales.forEach(s => {
+            const ot = String(s.order_type || 'walk_in').toLowerCase();
+            const amount = parseFloat(s.total_amount) || 0;
+            if (orderChannelMap[ot]) {
+                orderChannelMap[ot].revenue += amount;
+                orderChannelMap[ot].count++;
+            } else {
+                orderChannelMap[ot] = { label: ot.charAt(0).toUpperCase() + ot.slice(1), revenue: amount, count: 1 };
+            }
+        });
+
+        const ctxChannels = document.getElementById('chart-order-channels');
+        if (ctxChannels) {
+            if (state.charts.orderChannels) state.charts.orderChannels.destroy();
+            const channelLabels = Object.values(orderChannelMap).map(c => c.label);
+            const channelRevenues = Object.values(orderChannelMap).map(c => c.revenue);
+            const hasChannelData = channelRevenues.some(v => v > 0);
+
+            state.charts.orderChannels = new Chart(ctxChannels, {
+                type: 'doughnut',
+                data: {
+                    labels: hasChannelData ? channelLabels : ['No Orders Recorded'],
+                    datasets: [{
+                        data: hasChannelData ? channelRevenues : [1],
+                        backgroundColor: hasChannelData ? ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6'] : ['#e2e8f0'],
                         borderWidth: 2,
                         borderColor: '#ffffff'
                     }]
@@ -724,10 +806,11 @@ window.OwnerPortal = (function() {
     // 2. INVOICES / SALES VIEW
     // =========================================================================
     function renderInvoices() {
-        const sales = state.data.Sales || [];
+        const allSales = state.data.Sales || [];
         const filter = state.salesFilter;
 
-        let filtered = sales.filter(s => {
+        let filtered = allSales.filter(s => {
+            if (!isValidSale(s)) return false;
             if (!isDateInRange(s.created_at, filter.dateRange)) return false;
             if (filter.orderType !== 'all' && String(s.order_type).toLowerCase() !== filter.orderType) return false;
             if (filter.search) {
@@ -750,23 +833,26 @@ window.OwnerPortal = (function() {
 
         const tbody = document.getElementById('invoices-tbody');
         if (tbody) {
-            tbody.innerHTML = filtered.length ? filtered.slice().reverse().map(s => `
-                <tr>
-                    <td><strong>#${s.invoice_number || s.id}</strong></td>
-                    <td>${formatDateTime(s.created_at)}</td>
-                    <td>${s.customer || 'Walk-in Customer'}</td>
-                    <td><span class="badge ${s.order_type === 'dine_in' ? 'badge-blue' : s.order_type === 'delivery' ? 'badge-amber' : 'badge-green'}">${s.order_type || 'Takeaway'}</span></td>
-                    <td>${s.payment_method || 'Cash'}</td>
-                    <td>${formatCurrency(s.subtotal || s.total_amount)}</td>
-                    <td>${formatCurrency(s.discount_amount || 0)}</td>
-                    <td><strong>${formatCurrency(s.total_amount)}</strong></td>
-                    <td>
-                        <button class="btn btn-sm" onclick="OwnerPortal.viewReceipt('${s.invoice_number || s.id}')">
-                            <span>Receipt</span>
-                        </button>
-                    </td>
-                </tr>
-            `).join('') : `<tr><td colspan="9" style="text-align:center; padding: 32px; color: var(--text-muted);">No invoices found for selected filter</td></tr>`;
+            tbody.innerHTML = filtered.length ? filtered.slice().reverse().map(s => {
+                const subtotal = parseFloat(s.subtotal) || (parseFloat(s.total_amount) + (parseFloat(s.discount_amount) || 0) - (parseFloat(s.tax_amount) || 0));
+                return `
+                    <tr>
+                        <td><strong>#${s.invoice_number || s.id}</strong></td>
+                        <td>${formatDateTime(s.created_at)}</td>
+                        <td>${s.customer || 'Walk-in Customer'}</td>
+                        <td><span class="badge ${s.order_type === 'dine_in' ? 'badge-blue' : s.order_type === 'delivery' ? 'badge-amber' : 'badge-green'}">${s.order_type || 'Takeaway'}</span></td>
+                        <td>${s.payment_method || 'Cash'}</td>
+                        <td>${formatCurrency(subtotal)}</td>
+                        <td>${formatCurrency(s.discount_amount || 0)}</td>
+                        <td><strong>${formatCurrency(s.total_amount)}</strong></td>
+                        <td>
+                            <button class="btn btn-sm" onclick="OwnerPortal.viewReceipt('${s.invoice_number || s.id}')">
+                                <span>Receipt</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') : `<tr><td colspan="9" style="text-align:center; padding: 32px; color: var(--text-muted);">No invoices found for selected filter</td></tr>`;
         }
     }
 
@@ -774,9 +860,14 @@ window.OwnerPortal = (function() {
         const sale = (state.data.Sales || []).find(s => String(s.invoice_number || s.id) === String(invoiceNo));
         if (!sale) return;
 
+        // Strict Item Matching to avoid ID overlap bug
+        const saleIdStr = String(sale.id).trim();
+        const invoiceStr = String(sale.invoice_number || '').trim();
+
         const saleItems = (state.data.SaleItems || []).filter(item => {
-            const saleRef = String(item.sale || item.sale_id || '');
-            return saleRef.includes(String(sale.invoice_number)) || saleRef === String(sale.id);
+            const itemSaleId = String(item.sale || item.sale_id || '').trim();
+            const itemInv = String(item.invoice_number || '').trim();
+            return (itemSaleId && itemSaleId === saleIdStr) || (itemInv && itemInv === invoiceStr);
         });
 
         const settings = state.data.SystemSettings || {};
@@ -791,15 +882,22 @@ window.OwnerPortal = (function() {
 
         const itemsBody = document.getElementById('rec-items-tbody');
         if (itemsBody) {
-            itemsBody.innerHTML = saleItems.length ? saleItems.map(it => `
-                <tr>
-                    <td style="padding: 6px 0;">${it.product_name || it.product || 'Item'} x ${it.quantity}</td>
-                    <td style="text-align: right; padding: 6px 0;">${formatCurrency(it.total_price || (it.unit_price * it.quantity))}</td>
-                </tr>
-            `).join('') : `<tr><td colspan="2" style="padding: 10px 0; color: #64748b;">Items breakdown not itemized</td></tr>`;
+            itemsBody.innerHTML = saleItems.length ? saleItems.map(it => {
+                const itemName = it.product_name || it.product || 'Item';
+                const varName = it.variant_name ? ` (${it.variant_name})` : '';
+                const qty = it.quantity || 1;
+                const lineTotal = parseFloat(it.total_price) || (parseFloat(it.unit_price || 0) * qty);
+                return `
+                    <tr>
+                        <td style="padding: 6px 0;">${itemName}${varName} x ${qty}</td>
+                        <td style="text-align: right; padding: 6px 0;">${formatCurrency(lineTotal)}</td>
+                    </tr>
+                `;
+            }).join('') : `<tr><td colspan="2" style="padding: 10px 0; color: #64748b;">Items breakdown not itemized</td></tr>`;
         }
 
-        document.getElementById('rec-subtotal').innerText = formatCurrency(sale.subtotal || sale.total_amount);
+        const subtotal = parseFloat(sale.subtotal) || (parseFloat(sale.total_amount) + (parseFloat(sale.discount_amount) || 0) - (parseFloat(sale.tax_amount) || 0));
+        document.getElementById('rec-subtotal').innerText = formatCurrency(subtotal);
         document.getElementById('rec-tax').innerText = formatCurrency(sale.tax_amount || 0);
         document.getElementById('rec-discount').innerText = formatCurrency(sale.discount_amount || 0);
         document.getElementById('rec-total').innerText = formatCurrency(sale.total_amount);
@@ -856,11 +954,21 @@ window.OwnerPortal = (function() {
     // 4. DAILY SHIFTS VIEW (REAL-TIME CASH RECONCILIATION REPORT)
     // =========================================================================
     function renderShifts() {
-        const sales = state.data.Sales || [];
+        const allSales = state.data.Sales || [];
         const expenses = state.data.Expenses || [];
+        const settings = state.data.SystemSettings || {};
         const filter = state.shiftFilter;
 
-        const shiftSales = sales.filter(s => {
+        // Shift Timing Badge from SystemSettings
+        const startHour = settings.pos_shift_start_hour !== undefined ? String(settings.pos_shift_start_hour).padStart(2, '0') : '00';
+        const endHour = settings.pos_shift_end_hour !== undefined ? String(settings.pos_shift_end_hour).padStart(2, '0') : '23';
+        const timingBadge = document.getElementById('shift-timing-badge');
+        if (timingBadge) {
+            timingBadge.innerText = `Shift Hours: ${startHour}:00 – ${endHour}:00`;
+        }
+
+        const shiftSales = allSales.filter(s => {
+            if (!isValidSale(s)) return false;
             return isDateInRange(s.created_at, filter.dateRange, filter.customDate);
         });
 
@@ -887,18 +995,30 @@ window.OwnerPortal = (function() {
             grossSales += amount;
 
             const method = String(s.payment_method || '').toLowerCase();
-            if (method.includes('cash')) cashSales += amount;
-            else if (method.includes('card')) cardSales += amount;
-            else onlineSales += amount;
+            let isCash = false;
+            let isCard = false;
+            let isOnline = false;
+
+            if (method.includes('cash')) {
+                cashSales += amount;
+                isCash = true;
+            } else if (method.includes('card')) {
+                cardSales += amount;
+                isCard = true;
+            } else {
+                onlineSales += amount;
+                isOnline = true;
+            }
 
             const cName = s.cashier || 'Cashier (Admin)';
             if (!cashierMap[cName]) {
-                cashierMap[cName] = { cashier: cName, orders: 0, cash: 0, card: 0, total: 0 };
+                cashierMap[cName] = { cashier: cName, orders: 0, cash: 0, card: 0, online: 0, total: 0 };
             }
             cashierMap[cName].orders++;
             cashierMap[cName].total += amount;
-            if (method.includes('cash')) cashierMap[cName].cash += amount;
-            else if (method.includes('card')) cashierMap[cName].card += amount;
+            if (isCash) cashierMap[cName].cash += amount;
+            else if (isCard) cashierMap[cName].card += amount;
+            else if (isOnline) cashierMap[cName].online += amount;
 
             const oType = String(s.order_type || 'takeaway').toLowerCase();
             if (!orderTypeMap[oType]) {
@@ -911,6 +1031,7 @@ window.OwnerPortal = (function() {
         let totalShiftExpenses = 0;
         shiftExpenses.forEach(e => totalShiftExpenses += parseFloat(e.amount) || 0);
 
+        const netCashInDrawer = cashSales - totalShiftExpenses;
         const totFloat = grossSales > 0 ? grossSales : 1;
         const cashPct = Math.round((cashSales / totFloat) * 100);
         const cardPct = Math.round((cardSales / totFloat) * 100);
@@ -918,13 +1039,122 @@ window.OwnerPortal = (function() {
 
         document.getElementById('shift-kpi-gross').innerText = formatCurrency(grossSales);
         document.getElementById('shift-kpi-orders').innerText = shiftSales.length.toLocaleString();
-        document.getElementById('shift-kpi-cash').innerText = formatCurrency(cashSales);
-        document.getElementById('shift-kpi-cash-pct').innerText = `${cashPct}%`;
+        
+        const cashCardEl = document.getElementById('shift-kpi-cash');
+        const cashSubEl = document.getElementById('shift-kpi-cash-pct');
+        if (cashCardEl) {
+            cashCardEl.innerText = formatCurrency(netCashInDrawer);
+            if (netCashInDrawer < 0) {
+                cashCardEl.style.color = 'var(--danger)';
+                if (cashSubEl) cashSubEl.innerHTML = `<span style="color: var(--danger); font-weight: 700;">⚠️ Deficit (Outflows exceed cash)</span>`;
+            } else {
+                cashCardEl.style.color = 'var(--success)';
+                if (cashSubEl) cashSubEl.innerText = `Cash Sales (${formatCurrency(cashSales)}) − Outflows`;
+            }
+        }
+
         document.getElementById('shift-kpi-card').innerText = formatCurrency(cardSales);
-        document.getElementById('shift-kpi-card-pct').innerText = `${cardPct}%`;
+        document.getElementById('shift-kpi-card-pct').innerText = `${cardPct}% of shift`;
         document.getElementById('shift-kpi-online').innerText = formatCurrency(onlineSales);
-        document.getElementById('shift-kpi-online-pct').innerText = `${onlinePct}%`;
+        document.getElementById('shift-kpi-online-pct').innerText = `${onlinePct}% of shift`;
         document.getElementById('shift-kpi-expenses').innerText = formatCurrency(totalShiftExpenses);
+
+        // Render Shift Hourly Sales Velocity Chart
+        const ctxHourly = document.getElementById('chart-hourly-shift');
+        if (ctxHourly) {
+            if (state.charts.hourlyShift) state.charts.hourlyShift.destroy();
+
+            const startH = settings.pos_shift_start_hour !== undefined ? parseInt(settings.pos_shift_start_hour, 10) : 9;
+            const endH = settings.pos_shift_end_hour !== undefined ? parseInt(settings.pos_shift_end_hour, 10) : 23;
+
+            const shiftHourSlots = [];
+            if (startH <= endH) {
+                for (let h = startH; h <= endH; h++) shiftHourSlots.push(h);
+            } else {
+                for (let h = startH; h < 24; h++) shiftHourSlots.push(h);
+                for (let h = 0; h <= endH; h++) shiftHourSlots.push(h);
+            }
+
+            const hourlyRevenueMap = {};
+            shiftHourSlots.forEach(h => hourlyRevenueMap[h] = 0);
+
+            let peakHourLabel = 'None';
+            let peakHourRev = 0;
+
+            shiftSales.forEach(s => {
+                const d = parseDate(s.created_at);
+                if (d) {
+                    const hr = d.getHours();
+                    const amt = parseFloat(s.total_amount) || 0;
+                    if (hourlyRevenueMap[hr] !== undefined) {
+                        hourlyRevenueMap[hr] += amt;
+                    }
+                }
+            });
+
+            const hourlyLabels = shiftHourSlots.map(h => {
+                const period = h < 12 ? 'AM' : 'PM';
+                const disp = h % 12 || 12;
+                const label = `${disp} ${period}`;
+                const rev = hourlyRevenueMap[h] || 0;
+                if (rev > peakHourRev) {
+                    peakHourRev = rev;
+                    peakHourLabel = label;
+                }
+                return label;
+            });
+            const hourlyData = shiftHourSlots.map(h => hourlyRevenueMap[h] || 0);
+
+            const peakBadge = document.getElementById('shift-peak-hour-badge');
+            if (peakBadge) {
+                peakBadge.innerText = peakHourRev > 0 ? `⭐ Peak: ${peakHourLabel} (${formatCurrency(peakHourRev)})` : 'Shift Timeline';
+            }
+
+            state.charts.hourlyShift = new Chart(ctxHourly, {
+                type: 'bar',
+                data: {
+                    labels: hourlyLabels,
+                    datasets: [{
+                        label: 'Hourly Revenue',
+                        data: hourlyData,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ` Revenue: ${formatCurrency(ctx.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Render Shift Expenses Table
+        const expTbody = document.getElementById('shift-expenses-tbody');
+        const expBadge = document.getElementById('shift-expenses-count-badge');
+        if (expBadge) expBadge.innerText = `${shiftExpenses.length} Outflows`;
+        if (expTbody) {
+            expTbody.innerHTML = shiftExpenses.length ? shiftExpenses.slice().reverse().map(e => `
+                <tr>
+                    <td><span class="badge badge-amber">${e.category || 'General'}</span></td>
+                    <td><strong>${e.description || 'Expense Entry'}</strong></td>
+                    <td>${formatTimeOnly(e.date || e.created_at)}</td>
+                    <td>${e.logged_by || 'Admin'}</td>
+                    <td><strong style="color: var(--danger); font-size: 14px;">-${formatCurrency(e.amount)}</strong></td>
+                </tr>
+            `).join('') : `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No expense outflows recorded during this shift</td></tr>`;
+        }
 
         const cashierTbody = document.getElementById('shift-cashier-tbody');
         const cashierList = Object.values(cashierMap);
@@ -935,9 +1165,10 @@ window.OwnerPortal = (function() {
                     <td><span class="badge badge-blue">${c.orders} Orders</span></td>
                     <td>${formatCurrency(c.cash)}</td>
                     <td>${formatCurrency(c.card)}</td>
+                    <td>${formatCurrency(c.online)}</td>
                     <td><strong style="color: var(--primary);">${formatCurrency(c.total)}</strong></td>
                 </tr>
-            `).join('') : `<tr><td colspan="5" style="text-align:center; padding: 20px; color: var(--text-muted);">No cashier activity in this shift</td></tr>`;
+            `).join('') : `<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--text-muted);">No cashier activity in this shift</td></tr>`;
         }
 
         const orderTypesTbody = document.getElementById('shift-ordertypes-tbody');
@@ -986,7 +1217,7 @@ window.OwnerPortal = (function() {
     function setupEventListeners() {
         const refreshBtn = document.getElementById('global-refresh-btn');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => fetchLiveDatabaseData());
+            refreshBtn.addEventListener('click', () => fetchLiveDatabaseData(true));
         }
 
         document.querySelectorAll('#invoices-pills .pill-btn').forEach(btn => {
