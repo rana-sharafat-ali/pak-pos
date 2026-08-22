@@ -127,26 +127,51 @@ def api_create_sale(request):
         return JsonResponse({'success': False, 'error': 'Cannot checkout with an empty cart.'}, status=400)
 
     # 1. Customer Resolution
-    customer_phone = data.get('customer_phone')
-    customer_name = data.get('customer_name', 'Walk-in Customer')
-    customer_email = data.get('customer_email')
-    customer_address = data.get('customer_address')
+    customer_id = data.get('customer_id')
+    customer_phone = str(data.get('customer_phone') or '').strip()
+    customer_name = str(data.get('customer_name') or 'Walk-in Customer').strip()
+    customer_email = str(data.get('customer_email') or '').strip() or None
+    customer_address = str(data.get('customer_address') or '').strip() or None
     customer_obj = None
 
-    if customer_phone and customer_phone != 'walk_in':
-        customer_obj, created = Customer.objects.get_or_create(
-            phone=customer_phone,
-            defaults={
-                'name': customer_name or 'Valued Customer',
-                'email': customer_email or None,
-                'address': customer_address or None,
-            }
-        )
-        if not created and customer_name and customer_name != 'Valued Customer' and customer_name != 'Walk-in Customer':
-            customer_obj.name = customer_name
+    if customer_id:
+        try:
+            customer_obj = Customer.objects.get(id=customer_id)
+            if customer_name and customer_name not in ['Valued Customer', 'Walk-in Customer']:
+                customer_obj.name = customer_name
+            if customer_phone and customer_phone != 'walk_in':
+                customer_obj.phone = customer_phone
             if customer_email: customer_obj.email = customer_email
             if customer_address: customer_obj.address = customer_address
             customer_obj.save()
+        except Customer.DoesNotExist:
+            customer_obj = None
+
+    if not customer_obj:
+        if customer_phone and customer_phone != 'walk_in':
+            customer_obj, created = Customer.objects.get_or_create(
+                phone=customer_phone,
+                defaults={
+                    'name': customer_name if customer_name not in ['Walk-in Customer', ''] else 'Valued Customer',
+                    'email': customer_email,
+                    'address': customer_address,
+                }
+            )
+            if not created and customer_name and customer_name not in ['Valued Customer', 'Walk-in Customer']:
+                customer_obj.name = customer_name
+                if customer_email: customer_obj.email = customer_email
+                if customer_address: customer_obj.address = customer_address
+                customer_obj.save()
+        elif customer_name and customer_name not in ['Walk-in Customer', 'Walk-in', '']:
+            customer_obj = Customer.objects.filter(name__iexact=customer_name).first()
+            if not customer_obj:
+                fallback_phone = f"CUST-{timezone.now().strftime('%m%d%H%M%S')}"
+                customer_obj = Customer.objects.create(
+                    name=customer_name,
+                    phone=fallback_phone,
+                    email=customer_email,
+                    address=customer_address,
+                )
 
     # 2. Process Line Items and Calculate Totals inside Atomic Transaction
     subtotal = Decimal('0.00')
@@ -306,15 +331,16 @@ def api_create_sale(request):
 @login_required
 def api_search_customers(request):
     """
-    Autocomplete Customer search by Phone or Name
+    Autocomplete Customer search by Phone, Name, or Address
+    If q is empty, returns recent customers.
     """
     q = request.GET.get('q', '').strip()
     if not q:
-        return JsonResponse({'customers': []})
-
-    customers = Customer.objects.filter(
-        Q(phone__icontains=q) | Q(name__icontains=q)
-    )[:10]
+        customers = Customer.objects.all().order_by('-created_at')[:10]
+    else:
+        customers = Customer.objects.filter(
+            Q(phone__icontains=q) | Q(name__icontains=q) | Q(email__icontains=q) | Q(address__icontains=q)
+        )[:10]
 
     results = []
     for c in customers:
@@ -327,7 +353,62 @@ def api_search_customers(request):
             'total_orders': c.total_orders_count,
         })
 
-    return JsonResponse({'customers': results})
+    return JsonResponse({'customers': results, 'results': results, 'success': True})
+
+
+@login_required
+@require_POST
+def api_create_customer(request):
+    """
+    Instant Customer Creation & Fast Association Endpoint from POS
+    """
+    import json
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON format.'}, status=400)
+
+    name = str(data.get('name') or '').strip()
+    phone = str(data.get('phone') or '').strip()
+    email = str(data.get('email') or '').strip() or None
+    address = str(data.get('address') or '').strip() or None
+
+    if not name and not phone:
+        return JsonResponse({'success': False, 'error': 'Customer Name or Phone Number is required.'}, status=400)
+
+    if not name:
+        name = f"Customer {phone}"
+    if not phone:
+        phone = f"CUST-{timezone.now().strftime('%m%d%H%M%S')}"
+
+    customer, created = Customer.objects.get_or_create(
+        phone=phone,
+        defaults={
+            'name': name,
+            'email': email,
+            'address': address,
+        }
+    )
+    if not created:
+        if name and name not in ['Valued Customer', 'Walk-in Customer']:
+            customer.name = name
+        if email:
+            customer.email = email
+        if address:
+            customer.address = address
+        customer.save()
+
+    return JsonResponse({
+        'success': True,
+        'customer': {
+            'id': customer.id,
+            'name': customer.name,
+            'phone': customer.phone,
+            'email': customer.email or '',
+            'address': customer.address or '',
+            'total_orders': customer.total_orders_count,
+        }
+    })
 
 
 @login_required

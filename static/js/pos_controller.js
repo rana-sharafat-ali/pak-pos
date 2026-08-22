@@ -185,9 +185,16 @@
     function setupGlobalFocusAndHotkeys() {
         // Refocus search bar on any mouse/pointer click anywhere on the page
         document.addEventListener('pointerdown', (e) => {
-            const isOtherInput = e.target.closest('input:not(#pos-search-input), select, textarea, #modal-variant-selector, #customer-search-results');
+            const isOtherInput = e.target.closest('input:not(#pos-search-input), select, textarea, #modal-variant-selector, #modal-customer-form, #customer-search-results');
             if (!isOtherInput) {
                 setTimeout(() => focusSearchInput(true), 10);
+            }
+        });
+
+        // Close customer dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#pos-customer-input, #customer-search-results')) {
+                if (customerDropdown) customerDropdown.style.display = 'none';
             }
         });
 
@@ -214,6 +221,7 @@
             if (e.key === 'Escape') {
                 if (customerDropdown) customerDropdown.style.display = 'none';
                 closeVariantModal();
+                closeCustomerModal();
                 if (searchInput) {
                     searchInput.value = '';
                     searchQuery = '';
@@ -921,85 +929,210 @@
         }
     }
 
-    // ================= 7. INLINE CUSTOMER LOOKUP =================
+    // ================= 7. INLINE CUSTOMER LOOKUP & REGISTRATION =================
     window.handleCustomerInlineSearch = function (query) {
         if (!customerDropdown) return;
-        const q = query.trim();
+        const q = (query || '').trim();
 
         if (customerSearchTimeout) clearTimeout(customerSearchTimeout);
-
-        if (q.length < 2) {
-            customerDropdown.style.display = 'none';
-            return;
-        }
 
         customerSearchTimeout = setTimeout(() => {
             fetch(`${window.CUSTOMER_SEARCH_API_URL}?q=${encodeURIComponent(q)}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.results && data.results.length > 0) {
-                        customerDropdown.innerHTML = '';
-                        data.results.forEach(cust => {
+                    const list = data.customers || data.results || [];
+                    customerDropdown.innerHTML = '';
+
+                    if (list.length > 0) {
+                        list.forEach(cust => {
                             const opt = document.createElement('div');
                             opt.className = 'pos-cust-opt';
-                            opt.style.cssText = 'padding: 0.45rem 0.75rem; font-size: 0.8rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: space-between;';
+                            opt.style.cssText = 'padding: 0.5rem 0.75rem; font-size: 0.8rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: background 0.12s ease;';
+                            opt.onmouseover = () => opt.style.background = '#f0fdf4';
+                            opt.onmouseout = () => opt.style.background = '#ffffff';
+                            
+                            const phoneDisplay = cust.phone ? `<span style="font-size: 0.72rem; color: #64748b;">📞 ${cust.phone}</span>` : '';
+                            const emailDisplay = cust.email ? `<span style="font-size: 0.72rem; color: #64748b;">✉️ ${cust.email}</span>` : '';
+                            const ordersDisplay = cust.total_orders ? `<span style="font-size: 0.68rem; background: #e0f2fe; color: #0369a1; padding: 1px 5px; border-radius: 10px; margin-left: 4px;">${cust.total_orders} orders</span>` : '';
+                            const addressDisplay = cust.address ? `<div style="font-size: 0.68rem; color: #94a3b8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📍 ${cust.address}</div>` : '';
+
                             opt.innerHTML = `
-                                <div>
-                                    <strong style="color: var(--secondary);">${cust.name}</strong>
-                                    <div style="font-size: 0.72rem; color: var(--muted-text);">${cust.phone || 'No phone'}</div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                        <strong style="color: var(--secondary); font-size: 0.82rem;">${cust.name}</strong>
+                                        ${ordersDisplay}
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        ${phoneDisplay}
+                                        ${emailDisplay}
+                                    </div>
+                                    ${addressDisplay}
                                 </div>
-                                <span style="font-size: 0.72rem; color: #2563eb; font-weight: 700;">Select</span>
+                                <span style="font-size: 0.72rem; color: var(--primary); font-weight: 800; padding: 0.2rem 0.5rem; background: #ecfdf5; border-radius: 4px; white-space: nowrap;">Select</span>
                             `;
                             opt.onclick = () => selectInlineCustomer(cust);
                             customerDropdown.appendChild(opt);
                         });
-                        customerDropdown.style.display = 'block';
-                    } else {
-                        // Quick create option
-                        customerDropdown.innerHTML = `
-                            <div style="padding: 0.6rem 0.75rem; font-size: 0.8rem; color: var(--muted-text);">
-                                <div>No customer found for "<strong>${q}</strong>"</div>
-                                <button type="button" onclick="quickRegisterInlineCustomer('${q}')" style="margin-top: 0.35rem; padding: 0.25rem 0.65rem; font-size: 0.75rem; font-weight: 700; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 4px; cursor: pointer;">
-                                    + Add as New Customer (${q})
-                                </button>
-                            </div>
-                        `;
-                        customerDropdown.style.display = 'block';
                     }
+
+                    // Always provide an option to register / add as new customer
+                    const addOpt = document.createElement('div');
+                    addOpt.style.cssText = 'padding: 0.55rem 0.75rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;';
+                    addOpt.innerHTML = `
+                        <span style="font-size: 0.74rem; color: #64748b;">${q ? `Not in list: "${q}"` : 'New customer?'}</span>
+                        <button type="button" onclick="openCustomerModal('${q.replace(/'/g, "\\'")}')" style="padding: 0.2rem 0.6rem; font-size: 0.74rem; font-weight: 800; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 4px; cursor: pointer;">
+                            + Add New Customer
+                        </button>
+                    `;
+                    customerDropdown.appendChild(addOpt);
+                    customerDropdown.style.display = 'block';
                 })
                 .catch(() => {
                     customerDropdown.style.display = 'none';
                 });
-        }, 150);
+        }, 120);
     };
 
     function selectInlineCustomer(cust) {
         const currentTab = getActiveTab();
         currentTab.customer = {
+            id: cust.id,
             name: cust.name,
             phone: cust.phone || '',
             email: cust.email || '',
             address: cust.address || '',
         };
         if (customerDropdown) customerDropdown.style.display = 'none';
-        showScanFeedbackToast(`👤 Customer: ${cust.name}`);
+        showScanFeedbackToast(`👤 Selected: ${cust.name}`);
         renderActiveCart();
         focusSearchInput();
     }
 
-    window.quickRegisterInlineCustomer = function (identifier) {
-        const currentTab = getActiveTab();
-        const isNumeric = /^\d+$/.test(identifier);
-        currentTab.customer = {
-            name: isNumeric ? `Customer ${identifier}` : identifier,
-            phone: isNumeric ? identifier : '',
-            email: '',
-            address: '',
-        };
+    window.openCustomerModal = function (prefill) {
         if (customerDropdown) customerDropdown.style.display = 'none';
-        showScanFeedbackToast(`👤 Customer set to ${currentTab.customer.name}`);
-        renderActiveCart();
+        const modal = document.getElementById('modal-customer-form');
+        if (!modal) return;
+
+        const phoneInput = document.getElementById('modal-cust-phone');
+        const nameInput = document.getElementById('modal-cust-name');
+        const addressInput = document.getElementById('modal-cust-address');
+        const emailInput = document.getElementById('modal-cust-email');
+
+        const currentTab = getActiveTab();
+        const currentCust = currentTab.customer || {};
+
+        let searchVal = prefill !== undefined ? prefill : (customerInput ? customerInput.value.trim() : '');
+        if (searchVal.includes('(')) searchVal = searchVal.split('(')[0].trim();
+
+        const isNumeric = /^\d+$/.test(searchVal);
+
+        if (phoneInput) phoneInput.value = isNumeric ? searchVal : (currentCust.phone && currentCust.phone !== 'walk_in' ? currentCust.phone : '');
+        if (nameInput) nameInput.value = !isNumeric ? searchVal : (currentCust.name && currentCust.name !== 'Walk-in Customer' ? currentCust.name : '');
+        if (addressInput) addressInput.value = currentCust.address || '';
+        if (emailInput) emailInput.value = currentCust.email || '';
+
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            if (isNumeric && nameInput) nameInput.focus();
+            else if (phoneInput) phoneInput.focus();
+        }, 50);
+    };
+
+    window.closeCustomerModal = function () {
+        const modal = document.getElementById('modal-customer-form');
+        if (modal) modal.style.display = 'none';
         focusSearchInput();
+    };
+
+    window.saveCustomerModal = function () {
+        const phoneInput = document.getElementById('modal-cust-phone');
+        const nameInput = document.getElementById('modal-cust-name');
+        const addressInput = document.getElementById('modal-cust-address');
+        const emailInput = document.getElementById('modal-cust-email');
+        const btnSave = document.getElementById('btn-save-customer');
+
+        const phone = phoneInput ? phoneInput.value.trim() : '';
+        const name = nameInput ? nameInput.value.trim() : '';
+        const address = addressInput ? addressInput.value.trim() : '';
+        const email = emailInput ? emailInput.value.trim() : '';
+
+        if (!name && !phone) {
+            showScanFeedbackToast('⚠️ Name or Phone is required');
+            if (phoneInput) phoneInput.focus();
+            return;
+        }
+
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.innerText = 'Saving...';
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const payload = {
+            name: name || `Customer ${phone}`,
+            phone: phone,
+            address: address,
+            email: email,
+        };
+
+        const createUrl = window.CUSTOMER_CREATE_API_URL || '/sales/api/customers/create/';
+
+        fetch(createUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify(payload),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerText = '✓ Save & Select';
+                }
+
+                if (data.success && data.customer) {
+                    selectInlineCustomer(data.customer);
+                    closeCustomerModal();
+                    showScanFeedbackToast(`✓ Customer "${data.customer.name}" Saved & Selected!`);
+                } else {
+                    showScanFeedbackToast(`❌ ${data.error || 'Failed to save customer'}`);
+                }
+            })
+            .catch(() => {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerText = '✓ Save & Select';
+                }
+                // Fallback client-side assignment
+                const fallbackCust = {
+                    name: name || `Customer ${phone}`,
+                    phone: phone || 'walk_in',
+                    address: address,
+                    email: email,
+                };
+                selectInlineCustomer(fallbackCust);
+                closeCustomerModal();
+            });
+    };
+
+    window.quickRegisterInlineCustomer = function (identifier) {
+        openCustomerModal(identifier);
     };
 
     window.clearCustomerSelection = function () {
@@ -1007,6 +1140,7 @@
         currentTab.customer = { name: 'Walk-in Customer', phone: 'walk_in', email: '', address: '' };
         if (customerDropdown) customerDropdown.style.display = 'none';
         renderActiveCart();
+        showScanFeedbackToast('👤 Reset to Walk-in Customer');
         focusSearchInput();
     };
 

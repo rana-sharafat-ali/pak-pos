@@ -188,26 +188,33 @@ def setting_worker_loop():
                                     settings = SystemSetting.load()
                                     changed = False
                                     
-                                    for key, val in remote_settings.items():
+                                    for key, raw_val in remote_settings.items():
                                         key = str(key).strip()
                                         if not hasattr(settings, key) or key in ['id', 'is_synced', 'updated_at']:
                                             continue
-                                            
-                                        val = str(val).strip()
                                         
-                                        # Type Conversion
-                                        if key == 'pos_operation_mode':
-                                            val = val.lower()
+                                        try:
+                                            field = settings._meta.get_field(key)
+                                        except Exception:
+                                            continue
+                                            
+                                        str_val = str(raw_val).strip() if raw_val is not None else ''
+                                        
+                                        # Accurate Django Field Type Conversions
+                                        if isinstance(field, models.BooleanField):
+                                            val = True if str_val.upper() in ["TRUE", "1", "YES", "T"] else False
+                                        elif isinstance(field, (models.IntegerField, models.SmallIntegerField, models.PositiveIntegerField)):
+                                            try: val = int(float(str_val))
+                                            except (ValueError, TypeError): continue
+                                        elif isinstance(field, (models.DecimalField, models.FloatField)):
+                                            try: val = float(str_val)
+                                            except (ValueError, TypeError): continue
+                                        elif key == 'pos_operation_mode':
+                                            val = str_val.lower()
                                             if val not in ['retail', 'restaurant', 'cafe', 'fast_food']:
-                                                val = 'restaurant' 
-                                        elif key == 'pos_auto_apply_discount':
-                                            val = True if val.upper() in ["TRUE", "1", "YES", "T"] else False
-                                        elif key in ['pos_shift_start_hour', 'pos_shift_end_hour', 'products_per_page', 'session_cookie_age_days']:
-                                            try: val = int(float(val))
-                                            except ValueError: continue 
-                                        elif 'percent' in key or 'charges' in key:
-                                            try: val = float(val)
-                                            except ValueError: continue 
+                                                val = 'restaurant'
+                                        else:
+                                            val = str_val
                                                 
                                         # Update if changed remotely
                                         # We only update if local is_synced=True, meaning no pending local changes.
