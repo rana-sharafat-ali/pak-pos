@@ -100,7 +100,7 @@ class ExpenseCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         form.instance.logged_by = self.request.user
         response = super().form_valid(form)
         
-        # Trigger email asynchronously
-        threading.Thread(target=send_expense_alert_async, args=(form.instance.id,)).start()
+        # Call directly since it only saves to DB (very fast), no need for dangerous threads
+        send_expense_alert_async(form.instance.id)
         
         return response

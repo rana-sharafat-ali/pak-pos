@@ -43,9 +43,6 @@ window.OwnerPortal = (function() {
         activePassword: null
     };
 
-    // Default Fallback Password
-    const DEFAULT_MASTER_PASSWORD = "7860";
-
     // Initialize Application
     function init() {
         checkAuthentication();
@@ -156,33 +153,11 @@ window.OwnerPortal = (function() {
                     return;
                 }
             }
-
-            // Fallback check against local cache
-            const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
-            if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
-                state.isAuthenticated = true;
-                state.activePassword = enteredPass;
-                sessionStorage.setItem('owner_auth_session', enteredPass);
-
-                const lockOverlay = document.getElementById('lock-screen-overlay');
-                if (lockOverlay) lockOverlay.classList.add('hidden');
-
-                fetchLiveDatabaseData();
-            } else {
-                showPasswordError("Incorrect Password. Access Denied.");
             }
+            
+            showPasswordError("Access Denied or Server Error.");
         } catch (err) {
-            const settingsPass = (state.data.SystemSettings && (state.data.SystemSettings.owner_password || state.data.SystemSettings.owner_master_pin)) || DEFAULT_MASTER_PASSWORD;
-            if (enteredPass === settingsPass || enteredPass === DEFAULT_MASTER_PASSWORD) {
-                state.isAuthenticated = true;
-                state.activePassword = enteredPass;
-                sessionStorage.setItem('owner_auth_session', enteredPass);
-                const lockOverlay = document.getElementById('lock-screen-overlay');
-                if (lockOverlay) lockOverlay.classList.add('hidden');
-                renderAllViews();
-            } else {
-                showPasswordError("Verification failed. Please check password.");
-            }
+            showPasswordError("Network Error. Cannot connect to database.");
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
@@ -337,7 +312,7 @@ window.OwnerPortal = (function() {
         if (syncBtnText) syncBtnText.innerText = 'Syncing...';
 
         const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
-        const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || DEFAULT_MASTER_PASSWORD;
+        const currentPass = state.activePassword || sessionStorage.getItem('owner_auth_session') || "";
 
         try {
             let response = null;

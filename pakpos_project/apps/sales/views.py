@@ -57,7 +57,7 @@ def pos_terminal_view(request):
     live barcode search, real-time multi-tab cart engine, and cash tender assistant.
     """
     categories = Category.objects.all().order_by('name')
-    products = Product.objects.filter(is_active=True).prefetch_related('variants', 'category').order_by('name')
+    products = Product.objects.filter(is_active=True).select_related('category').prefetch_related('variants').order_by('name')
     dining_tables = DiningTable.objects.filter(is_active=True).order_by('floor_section', 'name')
     
     # Pass initial serialized products for fast instantaneous client-side searching & scanning
@@ -198,12 +198,19 @@ def api_create_sale(request):
                 unit_price = variant.selling_price
                 cost_price = variant.cost_price
                 variant_name = variant.name
+                
+                variant.stock_quantity -= qty
+                variant.save(update_fields=['stock_quantity'])
             except ProductVariant.DoesNotExist:
                 return JsonResponse({'success': False, 'error': f'Variant ID {variant_id} is unavailable.'}, status=404)
         else:
             unit_price = product.base_price
             cost_price = product.cost_price
             variant_name = ''
+            
+            if product.track_stock:
+                product.stock_quantity -= qty
+                product.save(update_fields=['stock_quantity'])
 
         line_subtotal = (unit_price * qty).quantize(Decimal('0.01'))
         subtotal += line_subtotal
@@ -560,6 +567,13 @@ def sale_refund_view(request, pk):
         item.is_refunded = True
         item.refunded_quantity = item.quantity
         item.save()
+        
+        if item.variant:
+            item.variant.stock_quantity += item.quantity
+            item.variant.save(update_fields=['stock_quantity'])
+        elif item.product and item.product.track_stock:
+            item.product.stock_quantity += item.quantity
+            item.product.save(update_fields=['stock_quantity'])
 
     # 2. Update Sale Status
     sale.status = Sale.Status.REFUNDED

@@ -28,7 +28,7 @@ load_dotenv(BASE_DIR / '.env', override=True)
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '').split(',') if host.strip()]
 
@@ -69,6 +69,14 @@ LOGOUT_REDIRECT_URL = 'users:login'
 SESSION_COOKIE_AGE_DAYS = int(os.getenv('SESSION_COOKIE_AGE_DAYS', '30'))
 SESSION_COOKIE_AGE = SESSION_COOKIE_AGE_DAYS * 86400  # in seconds
 SESSION_SAVE_EVERY_REQUEST = True
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
