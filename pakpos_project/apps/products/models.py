@@ -50,7 +50,7 @@ class Product(models.Model):
     stock_quantity = models.IntegerField(default=0, blank=True, verbose_name="Stock Quantity")
     track_stock = models.BooleanField(default=True, verbose_name="Track Stock Quantity")
     description = models.TextField(blank=True, null=True, verbose_name="Description")
-    is_active = models.BooleanField(default=True, verbose_name="Active for Sale")
+    is_active = models.BooleanField(default=True, verbose_name="Active for Sale", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_synced = models.BooleanField(default=False)
@@ -131,7 +131,7 @@ class ProductVariant(models.Model):
         verbose_name="Selling Price (PKR)"
     )
     stock_quantity = models.IntegerField(default=0, blank=True, verbose_name="Stock Quantity")
-    is_active = models.BooleanField(default=True, verbose_name="Active")
+    is_active = models.BooleanField(default=True, verbose_name="Active", db_index=True)
     is_synced = models.BooleanField(default=False)
 
     class Meta:

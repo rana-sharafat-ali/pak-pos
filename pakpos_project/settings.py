@@ -110,6 +110,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'pakpos_project.wsgi.application'
 
+# File Upload Limits (Configured for up to 10GB database restorations locally)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10737418240  # 10 GB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10737418240  # 10 GB
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases

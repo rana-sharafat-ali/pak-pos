@@ -79,7 +79,7 @@ class Sale(models.Model):
         verbose_name="Cashier / Operator"
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.COMPLETED, db_index=True)
-    order_type = models.CharField(max_length=20, choices=OrderType.choices, default=OrderType.WALK_IN)
+    order_type = models.CharField(max_length=20, choices=OrderType.choices, default=OrderType.WALK_IN, db_index=True)
     
     # Financial Calculation Fields
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Subtotal (PKR)")

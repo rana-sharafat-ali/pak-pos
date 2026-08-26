@@ -539,27 +539,6 @@ def download_db_backup_view(request):
         return redirect('core:home' if request.user.role == 'admin' else 'sales:pos')
 
 
-@login_required
-def download_json_backup_view(request):
-    """
-    Generate and stream a full JSON fixture dump of the database.
-    Available to both Admin and Cashiers.
-    """
-    from django.core.management import call_command
-    timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f"pakpos_data_dump_{timestamp}.json"
-
-    buf = io.StringIO()
-    try:
-        call_command('dumpdata', 'core', 'products', 'sales', 'expenses', 'users', indent=2, stdout=buf)
-        buf.seek(0)
-        response = HttpResponse(buf.read(), content_type='application/json')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
-    except Exception as e:
-        messages.error(request, f"JSON Dump creation failed: {str(e)}")
-        return redirect('core:home' if request.user.role == 'admin' else 'sales:pos')
-
 
 @admin_required
 def restore_db_view(request):
@@ -578,12 +557,12 @@ def restore_db_view(request):
 
     uploaded_file = request.FILES.get('backup_file')
     if not uploaded_file:
-        messages.error(request, "No backup file selected. Please choose a .sqlite3 or .json file.")
+        messages.error(request, "No backup file selected. Please choose a .sqlite3 or .db file.")
         return redirect('core:system_settings')
 
     filename = uploaded_file.name.lower()
-    if not (filename.endswith('.sqlite3') or filename.endswith('.db') or filename.endswith('.json')):
-        messages.error(request, "Invalid file format. Please upload a valid .sqlite3, .db, or .json file.")
+    if not (filename.endswith('.sqlite3') or filename.endswith('.db')):
+        messages.error(request, "Invalid file format. Please upload a valid .sqlite3 or .db file.")
         return redirect('core:system_settings')
 
     # 1. Take automated pre-restore safety snapshot of the active database
@@ -648,11 +627,6 @@ def restore_db_view(request):
 
             # Re-open and apply any pending migrations
             call_command('migrate', interactive=False)
-
-        elif filename.endswith('.json'):
-            # Flush existing database tables and load fixture
-            call_command('flush', interactive=False)
-            call_command('loaddata', temp_uploaded_path)
 
         # Clean up temp file
         if os.path.exists(temp_uploaded_path):

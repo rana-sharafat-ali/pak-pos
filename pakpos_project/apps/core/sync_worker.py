@@ -24,7 +24,8 @@ def start_sync_worker():
         threading.Thread(target=setting_worker_loop, daemon=True),
         threading.Thread(target=data_sync_worker_loop, daemon=True),
         threading.Thread(target=log_sync_worker_loop, daemon=True),
-        threading.Thread(target=gdrive_backup_worker_loop, daemon=True)
+        threading.Thread(target=gdrive_backup_worker_loop, daemon=True),
+        threading.Thread(target=maintenance_worker_loop, daemon=True)
     ]
     for thread in threads:
         thread.start()
@@ -450,3 +451,42 @@ def log_sync_worker_loop():
             close_old_connections()
             
         time.sleep(60) # 1 Minute Interval
+
+# ---------------------------------------------------------
+# 6. MAINTENANCE WORKER (Daily Google Sheets Cleanup)
+# ---------------------------------------------------------
+def maintenance_worker_loop():
+    time.sleep(60) # Wait 60 seconds on boot
+    import requests
+    from pakpos_project.apps.core.logger import log_system_error
+    from django.utils import timezone
+    
+    last_cleanup_day = None
+    
+    while True:
+        close_old_connections()
+        try:
+            today = timezone.localtime().strftime('%Y-%m-%d')
+            # Run cleanup once a day at midnight or first boot of the day
+            if today != last_cleanup_day:
+                payload = {'action': 'cleanup_old_data', 'days': 365}
+                all_success = True
+                
+                for webhook in WEBHOOK_URLS:
+                    try:
+                        response = requests.post(webhook, json=payload, headers={'User-Agent': 'Mozilla/5.0'}, timeout=30)
+                        if response.status_code != 200:
+                            all_success = False
+                    except Exception as e:
+                        all_success = False
+                
+                if all_success:
+                    last_cleanup_day = today
+                    log_system_error("MaintenanceWorker", "Triggered remote 365-day Google Sheets cleanup successfully.")
+                    
+        except Exception as e:
+            log_system_error("MaintenanceWorker", f"Critical Error: {e}")
+        finally:
+            close_old_connections()
+            
+        time.sleep(3600) # Check every hour if day has changed

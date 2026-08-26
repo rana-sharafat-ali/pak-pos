@@ -36,4 +36,5 @@ urlpatterns = [
     path('api/checkout/', views.api_create_sale, name='api_checkout'),
     path('api/customers/search/', views.api_search_customers, name='api_customer_search'),
     path('api/customers/create/', views.api_create_customer, name='api_customer_create'),
+    path('api/products/search/', views.api_search_products, name='api_search_products'),
 ]

@@ -57,7 +57,7 @@ def pos_terminal_view(request):
     live barcode search, real-time multi-tab cart engine, and cash tender assistant.
     """
     categories = Category.objects.all().order_by('name')
-    products = Product.objects.filter(is_active=True).select_related('category').prefetch_related('variants').order_by('name')
+    products = Product.objects.filter(is_active=True).select_related('category').prefetch_related('variants').order_by('name')[:200]
     dining_tables = DiningTable.objects.filter(is_active=True).order_by('floor_section', 'name')
     
     # Pass initial serialized products for fast instantaneous client-side searching & scanning
@@ -1164,3 +1164,56 @@ def customer_bulk_delete_view(request):
 
     return redirect('sales:customer_list')
 
+
+from django.http import JsonResponse
+from django.db.models import Q
+
+@login_required
+def api_search_products(request):
+    """
+    AJAX endpoint for POS terminal to fetch products dynamically.
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse({'products': []})
+
+    if query.startswith('800') and len(query) >= 5 and query.isdigit():
+        try:
+            prod_id = int(query[3:6])
+            products = Product.objects.filter(id=prod_id, is_active=True).select_related('category').prefetch_related('variants')
+        except ValueError:
+            products = Product.objects.none()
+    else:
+        products = Product.objects.filter(name__icontains=query, is_active=True).select_related('category').prefetch_related('variants')[:200]
+
+    product_catalog_json = []
+    for p in products:
+        variants_data = []
+        if p.has_variants:
+            for v in p.variants.filter(is_active=True):
+                var_barcode = f"800{p.id:03d}{v.id:02d}"
+                variants_data.append({
+                    'id': v.id,
+                    'name': v.name,
+                    'selling_price': float(v.selling_price),
+                    'cost_price': float(v.cost_price or 0),
+                    'selling_price_display': f"PKR {v.selling_price:,.2f}",
+                    'barcode': var_barcode,
+                })
+        
+        prod_barcode = f"800{p.id:03d}00"
+        product_catalog_json.append({
+            'id': p.id,
+            'name': p.name,
+            'category_id': p.category_id if p.category else 0,
+            'category_name': p.category.name if p.category else 'General',
+            'category_icon': p.category.icon if p.category and p.category.icon else '📦',
+            'has_variants': p.has_variants,
+            'base_price': float(p.base_price) if not p.has_variants else 0,
+            'cost_price': float(p.cost_price or 0) if not p.has_variants else 0,
+            'price_display': p.price_display,
+            'barcode': prod_barcode,
+            'variants': variants_data,
+        })
+    
+    return JsonResponse({'products': product_catalog_json})

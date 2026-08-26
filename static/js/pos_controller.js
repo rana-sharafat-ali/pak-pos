@@ -89,6 +89,7 @@
             searchInput.addEventListener('input', (e) => {
                 searchQuery = e.target.value.toLowerCase().trim();
                 renderProductGrid();
+                performLiveSearch(searchQuery);
             });
 
             // Fast Barcode Scanner / Enter Key Handler
@@ -249,6 +250,7 @@
                     }
                     searchQuery = searchInput.value.toLowerCase().trim();
                     renderProductGrid();
+                    performLiveSearch(searchQuery);
                 } else if (e.key === 'Backspace') {
                     e.preventDefault();
                     if (hadFullSelection) {
@@ -258,6 +260,7 @@
                     }
                     searchQuery = searchInput.value.toLowerCase().trim();
                     renderProductGrid();
+                    performLiveSearch(searchQuery);
                 } else if (e.key === 'Enter') {
                     e.preventDefault();
                     const code = searchInput.value.trim();
@@ -452,7 +455,61 @@
             return true;
         }
 
+        // 6. IF NOT FOUND LOCALLY, TRY AJAX FETCH
+        fetch(`/sales/api/products/search/?q=${encodeURIComponent(code)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.products && data.products.length > 0) {
+                    let added = false;
+                    data.products.forEach(p => {
+                        if (!catalog.find(existing => existing.id === p.id)) {
+                            catalog.push(p);
+                            added = true;
+                        }
+                    });
+                    
+                    if (added) {
+                        // Re-run handleBarcodeScan now that the product is in the catalog
+                        const handledNow = handleBarcodeScan(rawCode);
+                        if (handledNow) {
+                            if (searchInput) {
+                                searchInput.value = '';
+                                searchQuery = '';
+                                renderProductGrid();
+                            }
+                        }
+                    }
+                } else {
+                    showScanFeedbackToast("Product not found");
+                }
+            })
+            .catch(err => console.error("AJAX search error", err));
+
         return false;
+    }
+
+    let liveSearchTimeout = null;
+    function performLiveSearch(query) {
+        if (!query || query.length < 3) return;
+        
+        clearTimeout(liveSearchTimeout);
+        liveSearchTimeout = setTimeout(() => {
+            fetch(`/sales/api/products/search/?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.products) {
+                        let added = false;
+                        data.products.forEach(p => {
+                            if (!catalog.find(existing => existing.id === p.id)) {
+                                catalog.push(p);
+                                added = true;
+                            }
+                        });
+                        if (added) renderProductGrid();
+                    }
+                })
+                .catch(err => console.error("Live search fetch error:", err));
+        }, 300);
     }
 
     // ================= 4. PRODUCT CATALOG & GRID =================
