@@ -463,6 +463,9 @@
                 </div>
 
                 <div>
+                    <a href="{% url 'core:gdrive_oauth_start' %}" class="btn btn-outline" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 800; border-color: #10b981; color: #10b981; margin-right: 0.5rem; text-decoration: none;">
+                        🔐 Authorize Google Drive
+                    </a>
                     {% if gdrive_remote_active %}
                     <button type="button" id="triggerGDriveUploadBtn" class="btn btn-primary" onclick="startGDriveUpload()" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 800; display: inline-flex; align-items: center; gap: 0.45rem;">
                         <span>☁️</span>

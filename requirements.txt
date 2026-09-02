@@ -18,3 +18,8 @@ urllib3>=2.2.0
 certifi>=2024.7.4
 charset-normalizer>=3.3.2
 idna>=3.7
+
+# Google Drive Cloud Backup
+google-api-python-client>=2.0.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0

@@ -746,13 +746,24 @@ def extract_gdrive_folder_id(link_or_id):
 
 def perform_gdrive_backup(settings_obj=None):
     """
-    Takes a clean, non-blocking SQLite database snapshot, base64-encodes it,
-    and uploads it to Google Drive via Google Apps Script Webhook.
+    Takes a clean, non-blocking SQLite database snapshot, zips it,
+    and uploads it to Google Drive using chunked resumable uploads via the official Python API.
+    Auto-prunes backups older than 7 days.
     Returns (success: bool, result_dict: dict, error_msg: str).
     """
-    import base64
-    import requests
+    import os
+    import tempfile
+    import zipfile
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    from django.conf import settings
+    import sqlite3
+    
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaFileUpload
     from pakpos_project.apps.core.logger import log_system_error
+    from pakpos_project.apps.core.models import SystemSetting
 
     if not settings_obj:
         settings_obj = SystemSetting.load()
@@ -761,19 +772,24 @@ def perform_gdrive_backup(settings_obj=None):
     if not getattr(settings_obj, 'gdrive_remote_active', True):
         return False, {}, "Cloud Backup is currently Not Allowed."
 
-    webhook_url = settings_obj.gdrive_webhook_url or os.environ.get('GOOGLE_SHEETS_WEBHOOK_URL') or "https://script.google.com/macros/s/AKfycbxiTjw3CU_dFFOfEZ0xizJHt-_Cd1Y2vogkB-1E9DdD4tlsGhaqdDjBFj-NFDzu070N/exec"
     folder_id = extract_gdrive_folder_id(settings_obj.gdrive_folder_id_or_link)
-    max_files = settings_obj.gdrive_max_files or 3
+    if not folder_id:
+        return False, {}, "Invalid Google Drive Folder ID."
+
+
 
     timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f"pakpos_backup_{timestamp}.sqlite3"
+    db_filename = f"pakpos_backup_{timestamp}.sqlite3"
+    zip_filename = f"pakpos_backup_{timestamp}.zip"
 
     temp_dir = tempfile.gettempdir()
-    temp_backup_path = os.path.join(temp_dir, filename)
+    temp_db_path = os.path.join(temp_dir, db_filename)
+    temp_zip_path = os.path.join(temp_dir, zip_filename)
 
     try:
+        # 1. Snapshot DB
         db_path = str(settings.DATABASES['default']['NAME'])
-        dest_conn = sqlite3.connect(temp_backup_path)
+        dest_conn = sqlite3.connect(temp_db_path)
 
         if os.path.exists(db_path):
             src_conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True)
@@ -788,49 +804,94 @@ def perform_gdrive_backup(settings_obj=None):
 
         dest_conn.close()
 
-        # Read binary file and base64 encode
-        with open(temp_backup_path, 'rb') as f:
-            file_base64 = base64.b64encode(f.read()).decode('utf-8')
+        # 2. Compress to ZIP
+        with zipfile.ZipFile(temp_zip_path, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zipf:
+            zipf.write(temp_db_path, arcname=db_filename)
 
-        if os.path.exists(temp_backup_path):
-            os.remove(temp_backup_path)
+        if os.path.exists(temp_db_path):
+            os.remove(temp_db_path)
 
-        payload = {
-            'action': 'upload_backup',
-            'filename': filename,
-            'folder_id': folder_id,
-            'max_files': max_files,
-            'file_data': file_base64
+        # 3. Authenticate Google Drive API
+        SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
+        token_path = os.path.join(settings.BASE_DIR, 'token.json')
+        
+        if not os.path.exists(token_path):
+            return False, {}, "Google Drive is not authorized. Please click 'Login with Google' in Settings."
+            
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open(token_path, 'w') as token_file:
+                token_file.write(creds.to_json())
+                
+        service = build('drive', 'v3', credentials=creds)
+
+        # 4. Upload ZIP file (Chunked Resumable Upload, 10MB Chunks)
+        file_metadata = {
+            'name': zip_filename,
+            'parents': [folder_id]
         }
+        media = MediaFileUpload(temp_zip_path, mimetype='application/zip', resumable=True, chunksize=10*1024*1024)
+        
+        request = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink')
+        
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
 
-        resp = requests.post(webhook_url, json=payload, headers={'User-Agent': 'PakPOS/1.0'}, timeout=50)
-        if resp.status_code == 200:
-            res_json = resp.json()
-            if res_json.get('success'):
-                file_url = res_json.get('file_url', '')
-                settings_obj.gdrive_last_upload_time = timezone.now()
-                settings_obj.gdrive_last_upload_status = f"Success: {filename} uploaded"
-                settings_obj.gdrive_last_file_url = file_url
-                settings_obj.save(update_fields=['gdrive_last_upload_time', 'gdrive_last_upload_status', 'gdrive_last_file_url'])
-                log_system_error("GDriveBackup", f"Successfully uploaded {filename} to Google Drive. Retained: {res_json.get('retained_count')}, Deleted: {res_json.get('deleted_count')}")
-                return True, res_json, ""
-            else:
-                err = res_json.get('error', 'Google Drive script returned error.')
-                settings_obj.gdrive_last_upload_status = f"Failed: {err}"
-                settings_obj.save(update_fields=['gdrive_last_upload_status'])
-                return False, res_json, err
-        else:
-            err = f"HTTP Error {resp.status_code}"
-            settings_obj.gdrive_last_upload_status = f"Failed: {err}"
-            settings_obj.save(update_fields=['gdrive_last_upload_status'])
-            return False, {}, err
+        file_id = response.get('id')
+        file_url = response.get('webViewLink')
 
-    except Exception as e:
-        if os.path.exists(temp_backup_path):
+        try:
+            if hasattr(media, '_fd') and media._fd:
+                media._fd.close()
+        except:
+            pass
+
+        if os.path.exists(temp_zip_path):
             try:
-                os.remove(temp_backup_path)
+                os.remove(temp_zip_path)
             except Exception:
                 pass
+
+        # 5. Prune old backups based on Max Files setting
+        max_files = getattr(settings_obj, 'gdrive_max_files', 3)
+        if not max_files or max_files < 1:
+            max_files = 3
+            
+        query = f"'{folder_id}' in parents and name contains 'pakpos_backup_' and trashed = false"
+        results = service.files().list(q=query, spaces='drive', fields='files(id, name)', orderBy='createdTime desc').execute()
+        items = results.get('files', [])
+        
+        deleted_count = 0
+        if len(items) > max_files:
+            files_to_delete = items[max_files:]
+            for item in files_to_delete:
+                try:
+                    service.files().delete(fileId=item['id']).execute()
+                    deleted_count += 1
+                except Exception as e:
+                    log_system_error("GDrivePrune", f"Could not delete old backup {item['name']}: {str(e)}")
+
+        # Success! Update settings
+        settings_obj.gdrive_last_upload_time = timezone.now()
+        settings_obj.gdrive_last_upload_status = f"Success: {zip_filename} uploaded"
+        settings_obj.gdrive_last_file_url = file_url
+        settings_obj.save(update_fields=['gdrive_last_upload_time', 'gdrive_last_upload_status', 'gdrive_last_file_url'])
+        
+        log_system_error("GDriveBackup", f"Successfully uploaded {zip_filename} to Drive. Deleted {deleted_count} old backups.")
+        return True, {'file_url': file_url}, ""
+
+    except Exception as e:
+        if os.path.exists(temp_db_path):
+            try: os.remove(temp_db_path)
+            except: pass
+        if os.path.exists(temp_zip_path):
+            try: os.remove(temp_zip_path)
+            except: pass
+            
         err_msg = str(e)
         settings_obj.gdrive_last_upload_status = f"Failed: {err_msg}"
         settings_obj.save(update_fields=['gdrive_last_upload_status'])
@@ -880,3 +941,70 @@ def upload_gdrive_backup_api(request):
         }, status=400)
 
 
+@login_required
+def gdrive_oauth_start(request):
+    import os
+    from django.conf import settings
+    from django.shortcuts import redirect
+    from google_auth_oauthlib.flow import Flow
+    
+    client_secrets_file = os.path.join(settings.BASE_DIR, 'client_secret.json')
+    if not os.path.exists(client_secrets_file):
+        from django.http import HttpResponse
+        return HttpResponse('client_secret.json not found in project root.', status=400)
+        
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+        
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file,
+        scopes=['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+        redirect_uri=request.build_absolute_uri('/core/gdrive/callback/')
+    )
+    
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'
+    )
+    request.session['gdrive_oauth_state'] = state
+    request.session['gdrive_code_verifier'] = getattr(flow, 'code_verifier', None)
+    return redirect(authorization_url)
+
+
+@login_required
+def gdrive_oauth_callback(request):
+    import os
+    from django.conf import settings
+    from django.shortcuts import redirect
+    from google_auth_oauthlib.flow import Flow
+    from pakpos_project.apps.core.models import SystemSetting
+    
+    state = request.session.get('gdrive_oauth_state')
+    if not state:
+        return redirect('core:system_settings')
+        
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    client_secrets_file = os.path.join(settings.BASE_DIR, 'client_secret.json')
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file,
+        scopes=['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive'],
+        state=state,
+        redirect_uri=request.build_absolute_uri('/core/gdrive/callback/')
+    )
+    
+    code_verifier = request.session.get('gdrive_code_verifier')
+    if code_verifier:
+        flow.code_verifier = code_verifier
+        
+    flow.fetch_token(authorization_response=request.build_absolute_uri())
+    creds = flow.credentials
+    
+    token_path = os.path.join(settings.BASE_DIR, 'token.json')
+    with open(token_path, 'w') as token_file:
+        token_file.write(creds.to_json())
+        
+    sys_settings = SystemSetting.load()
+    sys_settings.gdrive_last_upload_status = "OAuth Connected Successfully! Ready to Backup."
+    sys_settings.save(update_fields=['gdrive_last_upload_status'])
+    
+    return redirect('core:system_settings')

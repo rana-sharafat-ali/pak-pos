@@ -48,3 +48,7 @@ desktop.ini
 *.swo
 *.sublime-project
 *.sublime-workspace
+
+# Google Cloud OAuth Credentials
+client_secret.json
+token.json
