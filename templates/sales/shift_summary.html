@@ -190,7 +190,23 @@
 
 <!-- COMPACT KPI SUMMARY CARDS -->
 <div class="shift-kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-    <!-- Card 1: Gross Sales -->
+    <!-- Card 1: Opening Balance -->
+    <div class="shift-kpi-card" style="border-left: 3px solid #8b5cf6;">
+        <div class="shift-kpi-header">
+            <span class="shift-kpi-label">Opening Balance</span>
+            <span class="shift-kpi-icon">🌅</span>
+        </div>
+        <div class="shift-kpi-amount" style="color: #6d28d9;">
+            PKR {{ total_opening_cash|floatformat:0 }}
+        </div>
+        <div class="shift-kpi-footer">
+            <span class="pill-variant" style="font-size: 0.68rem; padding: 0.1rem 0.4rem;">
+                Starting Cash
+            </span>
+        </div>
+    </div>
+
+    <!-- Card 2: Gross Sales -->
     <div class="shift-kpi-card" style="border-left: 3px solid #2563eb;">
         <div class="shift-kpi-header">
             <span class="shift-kpi-label">Gross Sales</span>
@@ -206,7 +222,7 @@
         </div>
     </div>
 
-    <!-- Card 2: Cash Collected -->
+    <!-- Card 3: Cash Collected -->
     <div class="shift-kpi-card" style="border-left: 3px solid #16a34a;">
         <div class="shift-kpi-header">
             <span class="shift-kpi-label">Cash Collected</span>
@@ -220,7 +236,7 @@
         </div>
     </div>
 
-    <!-- Card 3: Shift Expenses / Outflows -->
+    <!-- Card 4: Shift Expenses / Outflows -->
     <div class="shift-kpi-card" style="border-left: 3px solid #dc2626;">
         <div class="shift-kpi-header">
             <span class="shift-kpi-label" style="color: #dc2626;">Total Outflows</span>
@@ -234,7 +250,7 @@
         </div>
     </div>
 
-    <!-- Card 4: Net Cash in Drawer -->
+    <!-- Card 5: Net Cash in Drawer -->
     <div class="shift-kpi-card" style="border-left: 3px solid {% if net_cash_in_drawer < 0 %}#dc2626{% else %}#0f172a{% endif %}; {% if net_cash_in_drawer < 0 %}background: #fef2f2;{% endif %}">
         <div class="shift-kpi-header">
             <span class="shift-kpi-label" style="font-weight: 800; {% if net_cash_in_drawer < 0 %}color: #dc2626;{% endif %}">💵 Net Cash in Drawer</span>
@@ -247,7 +263,7 @@
             {% if net_cash_in_drawer < 0 %}
             <span style="color: #dc2626; font-weight: 700;">⚠️ Deficit (Outflows exceed cash)</span>
             {% else %}
-            <span>Cash Sales − Outflows</span>
+            <span>Opening + Cash Sales − Outflows</span>
             {% endif %}
         </div>
     </div>

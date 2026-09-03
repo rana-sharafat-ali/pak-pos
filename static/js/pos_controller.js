@@ -79,6 +79,7 @@
             document.body.classList.add('sidebar-collapsed');
         }
 
+        checkShiftStatus(); // Wait for shift to be verified before rendering POS fully
         renderProductGrid();
         renderTabs();
         renderActiveCart();
@@ -1573,6 +1574,67 @@
                 showScanFeedbackToast(`❌ Network Error: ${err}`);
                 focusSearchInput();
             });
+    };
+
+    // ================= 12. SHIFT MANAGEMENT ENGINE =================
+    window.checkShiftStatus = function() {
+        if (!window.SHIFT_CURRENT_API_URL) return; // If API not provided, skip shift check
+
+        fetch(window.SHIFT_CURRENT_API_URL)
+            .then(response => response.json())
+            .then(data => {
+                const modal = document.getElementById('modal-open-shift');
+                if (data.has_open_shift) {
+                    // Shift is open, ensure modal is hidden
+                    if (modal) modal.style.display = 'none';
+                    // Re-focus search
+                    focusSearchInput();
+                } else {
+                    // No open shift, show modal and lock POS
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        const cashInput = document.getElementById('input-opening-cash');
+                        if (cashInput) setTimeout(() => cashInput.focus(), 100);
+                    }
+                }
+            })
+            .catch(err => {
+                console.error("Failed to check shift status:", err);
+            });
+    };
+
+    window.submitOpenShift = function(event) {
+        event.preventDefault();
+        
+        const btn = document.getElementById('btn-submit-shift');
+        if (btn) btn.disabled = true;
+
+        const openingCash = parseFloat(document.getElementById('input-opening-cash').value) || 0;
+
+        fetch(window.SHIFT_OPEN_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ opening_cash: openingCash })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (btn) btn.disabled = false;
+            
+            if (data.success) {
+                document.getElementById('modal-open-shift').style.display = 'none';
+                showScanFeedbackToast(`✓ Shift Opened! Balance: Rs. ${openingCash.toFixed(2)}`);
+                focusSearchInput();
+            } else {
+                alert(data.error || 'Failed to open shift.');
+            }
+        })
+        .catch(err => {
+            if (btn) btn.disabled = false;
+            alert('Network error while opening shift. Please try again.');
+        });
     };
 
 })();

@@ -78,6 +78,14 @@ class Sale(models.Model):
         related_name='sales', 
         verbose_name="Cashier / Operator"
     )
+    shift = models.ForeignKey(
+        'CashDrawerShift',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales',
+        verbose_name="Cash Drawer Shift"
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.COMPLETED, db_index=True)
     order_type = models.CharField(max_length=20, choices=OrderType.choices, default=OrderType.WALK_IN, db_index=True)
     

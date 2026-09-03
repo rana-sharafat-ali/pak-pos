@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Daily Shift & Cash Reconciliation
     path('shift/', views.daily_shift_summary_view, name='shift_summary'),
+    path('shift/history/', views.shift_history_view, name='shift_history'),
     path('shift/print/', views.shift_print_view, name='shift_print'),
     
     # Restaurant Dining Tables Management
@@ -37,4 +38,6 @@ urlpatterns = [
     path('api/customers/search/', views.api_search_customers, name='api_customer_search'),
     path('api/customers/create/', views.api_create_customer, name='api_customer_create'),
     path('api/products/search/', views.api_search_products, name='api_search_products'),
+    path('api/shift/current/', views.api_shift_current, name='api_shift_current'),
+    path('api/shift/open/', views.api_shift_open, name='api_shift_open'),
 ]

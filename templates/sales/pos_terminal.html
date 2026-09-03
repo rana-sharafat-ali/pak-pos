@@ -984,6 +984,53 @@
 <!-- HIDDEN PRINT IFRAME FOR INSTANT THERMAL PRINTING -->
 <iframe id="receipt-print-frame" style="position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: 0; opacity: 0; pointer-events: none;"></iframe>
 
+<!-- ================= OPEN SHIFT MODAL (FORCED ON BOOT IF NO SHIFT) ================= -->
+<div id="modal-open-shift" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 99999; backdrop-filter: blur(8px); align-items: center; justify-content: center;">
+    <div style="background: #ffffff; width: 400px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden; transform: translateY(20px); animation: modalSlideUp 0.3s forwards;">
+        
+        <div style="background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%); padding: 1.5rem; text-align: center;">
+            <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; color: #fff; font-size: 1.75rem;">
+                <i class="fas fa-cash-register"></i>
+            </div>
+            <h3 style="margin: 0; color: #ffffff; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em;">Start New Shift</h3>
+            <p style="margin: 0.25rem 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem; font-weight: 500;">Enter your opening balance to begin</p>
+        </div>
+
+        <div style="padding: 1.75rem;">
+            <form id="form-open-shift" onsubmit="submitOpenShift(event)">
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: var(--secondary); display: block; margin-bottom: 0.4rem;">Opening Cash in Drawer (PKR) *</label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 700; font-size: 0.9rem;">Rs.</span>
+                        <input 
+                            type="number" 
+                            id="input-opening-cash" 
+                            required 
+                            min="0" 
+                            step="1"
+                            placeholder="0.00" 
+                            style="width: 100%; padding: 0.75rem 0.75rem 0.75rem 2.5rem; font-size: 1.1rem; font-weight: 700; border: 2px solid #e2e8f0; border-radius: 8px; outline: none; transition: border-color 0.2s; color: var(--text-dark);"
+                            onfocus="this.style.borderColor='var(--primary)'"
+                            onblur="this.style.borderColor='#e2e8f0'"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <p style="margin: 0.4rem 0 0; font-size: 0.75rem; color: #64748b;">Count the physical cash currently in the drawer.</p>
+                </div>
+
+                <button type="submit" id="btn-submit-shift" style="width: 100%; padding: 0.85rem; font-size: 0.95rem; font-weight: 800; background: var(--primary); border: none; border-radius: 8px; color: #ffffff; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem; transition: background 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+                    <i class="fas fa-lock-open"></i> Open Register & Start Selling
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modalSlideUp {
+    to { transform: translateY(0); }
+}
+</style>
 
 {% endblock %}
 
@@ -999,6 +1046,8 @@
     window.POS_CHECKOUT_API_URL = "{% url 'sales:api_checkout' %}";
     window.CUSTOMER_SEARCH_API_URL = "{% url 'sales:api_customer_search' %}";
     window.CUSTOMER_CREATE_API_URL = "{% url 'sales:api_customer_create' %}";
+    window.SHIFT_CURRENT_API_URL = "{% url 'sales:api_shift_current' %}";
+    window.SHIFT_OPEN_API_URL = "{% url 'sales:api_shift_open' %}";
     window.POS_MODE = "{{ pos_mode }}";
 </script>
 <script src="{% static 'js/pos_controller.js' %}?v={% now 'U' %}"></script>

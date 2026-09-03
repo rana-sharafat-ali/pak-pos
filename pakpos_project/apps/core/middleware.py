@@ -1,6 +1,23 @@
 import traceback
 from django.utils.deprecation import MiddlewareMixin
 from pakpos_project.apps.core.logger import log_system_error
+from django.utils import timezone
+import zoneinfo
+from pakpos_project.apps.core.models import SystemSetting
+
+class TimezoneMiddleware(MiddlewareMixin):
+    """
+    Middleware that globally activates the timezone chosen by the user in System Settings.
+    """
+    def process_request(self, request):
+        try:
+            setting = SystemSetting.objects.get(pk=1)
+            if setting.time_zone:
+                timezone.activate(zoneinfo.ZoneInfo(setting.time_zone))
+            else:
+                timezone.deactivate()
+        except Exception:
+            timezone.deactivate()
 
 class ExceptionLoggingMiddleware(MiddlewareMixin):
     """

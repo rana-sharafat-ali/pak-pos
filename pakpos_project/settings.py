@@ -87,6 +87,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'pakpos_project.apps.core.middleware.ExceptionLoggingMiddleware',
+    'pakpos_project.apps.core.middleware.TimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'pakpos_project.urls'

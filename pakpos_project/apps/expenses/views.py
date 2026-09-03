@@ -98,6 +98,14 @@ class ExpenseCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.logged_by = self.request.user
+        
+        from pakpos_project.apps.sales.models import CashDrawerShift
+        active_shift = CashDrawerShift.objects.filter(
+            cashier=self.request.user,
+            status=CashDrawerShift.Status.OPEN
+        ).first()
+        form.instance.shift = active_shift
+        
         response = super().form_valid(form)
         
         # Call directly since it only saves to DB (very fast), no need for dangerous threads

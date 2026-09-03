@@ -279,11 +279,18 @@ def api_create_sale(request):
     payment_method = data.get('payment_method', Sale.PaymentMethod.CASH)
     amount_tendered = Decimal(str(data.get('amount_tendered', total_amount) or total_amount))
     change_returned = max(Decimal('0.00'), amount_tendered - total_amount) if payment_method == Sale.PaymentMethod.CASH else Decimal('0.00')
+    
+    # Fetch current active shift for this cashier
+    active_shift = CashDrawerShift.objects.filter(
+        cashier=request.user,
+        status=CashDrawerShift.Status.OPEN
+    ).first()
 
     # 3. Create Sale Record
     sale = Sale.objects.create(
         customer=customer_obj,
         cashier=request.user,
+        shift=active_shift,
         status=Sale.Status.COMPLETED,
         order_type=order_type,
         subtotal=subtotal,
@@ -621,7 +628,13 @@ def _get_shift_context(request):
     
     shift_expenses_total = shift_expenses_qs.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
     shift_expenses_list = list(shift_expenses_qs)
-    net_cash_in_drawer = cash_sales - shift_expenses_total
+    
+    # Calculate total opening cash from today's shifts
+    from pakpos_project.apps.sales.models import CashDrawerShift
+    shifts_today = CashDrawerShift.objects.filter(opening_time__gte=start_of_day, opening_time__lte=end_of_day)
+    total_opening_cash = shifts_today.aggregate(s=Sum('opening_cash'))['s'] or Decimal('0.00')
+
+    net_cash_in_drawer = total_opening_cash + cash_sales - shift_expenses_total
 
     # Cashier breakdown with full name & payment channels
     cashier_map = {}
@@ -763,6 +776,7 @@ def _get_shift_context(request):
         'cash_pct': cash_pct,
         'card_pct': card_pct,
         'online_pct': online_pct,
+        'total_opening_cash': total_opening_cash,
         'shift_expenses_total': shift_expenses_total,
         'shift_expenses': shift_expenses_list,
         'total_tax_today': total_tax_today,
@@ -1217,3 +1231,103 @@ def api_search_products(request):
         })
     
     return JsonResponse({'products': product_catalog_json})
+
+from django.views.decorators.http import require_http_methods
+
+@login_required
+@require_http_methods(["GET"])
+def api_shift_current(request):
+    """
+    Check if the user has an open shift for TODAY.
+    If they have an open shift from yesterday, auto-close it.
+    """
+    from datetime import date
+    from django.db.models import Sum
+    from django.utils import timezone
+    from pakpos_project.apps.expenses.models import Expense
+
+    today = timezone.localdate()
+    active_shifts = CashDrawerShift.objects.filter(cashier=request.user, status=CashDrawerShift.Status.OPEN)
+
+    current_shift = None
+    for shift in active_shifts:
+        if timezone.localtime(shift.opening_time).date() < today:
+            # Shift is from a previous day. Auto-close it.
+            # Calculate sales, refunds, expenses
+            sales = Sale.objects.filter(shift=shift, status=Sale.Status.COMPLETED)
+            total_cash = sales.filter(payment_method=Sale.PaymentMethod.CASH).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+            total_card = sales.exclude(payment_method=Sale.PaymentMethod.CASH).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+            
+            refunds = Sale.objects.filter(shift=shift, status=Sale.Status.REFUNDED).aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
+            expenses = Expense.objects.filter(shift=shift).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+            shift.total_cash_sales = total_cash
+            shift.total_card_sales = total_card
+            shift.total_refunds = refunds
+            
+            # Auto calculate closing cash: Opening + Cash Sales - Refunds - Expenses
+            expected_cash = max(Decimal('0.00'), shift.opening_cash + total_cash - refunds - expenses)
+            
+            shift.closing_cash = expected_cash
+            shift.closing_time = timezone.now()
+            shift.status = CashDrawerShift.Status.CLOSED
+            shift.notes = (shift.notes or "") + "\n[System Auto-Closed on Day Change. Cash Not Counted.]"
+            shift.save()
+        else:
+            current_shift = shift
+
+    if current_shift:
+        return JsonResponse({
+            'has_open_shift': True,
+            'shift_id': current_shift.id,
+            'opening_cash': float(current_shift.opening_cash),
+            'opening_time': current_shift.opening_time.isoformat()
+        })
+    else:
+        return JsonResponse({'has_open_shift': False})
+
+@login_required
+@require_http_methods(["POST"])
+def api_shift_open(request):
+    """
+    Open a new shift for today.
+    """
+    import json
+    try:
+        data = json.loads(request.body)
+        opening_cash = Decimal(str(data.get('opening_cash', 0)))
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'success': False, 'error': 'Invalid opening cash value.'}, status=400)
+
+    # Check if one already exists
+    existing_shift = CashDrawerShift.objects.filter(cashier=request.user, status=CashDrawerShift.Status.OPEN).first()
+    if existing_shift:
+        return JsonResponse({'success': False, 'error': 'You already have an open shift.'}, status=400)
+
+    shift = CashDrawerShift.objects.create(
+        cashier=request.user,
+        opening_cash=opening_cash,
+        status=CashDrawerShift.Status.OPEN
+    )
+
+    return JsonResponse({'success': True, 'shift_id': shift.id})
+
+@manager_or_admin_required
+def shift_history_view(request):
+    """
+    Dedicated view for Admins to see all daily shifts, their opening balances, 
+    calculated closing balances, total sales, and expenses.
+    """
+    shifts = CashDrawerShift.objects.select_related('cashier').order_by('-opening_time')
+    
+    paginator = Paginator(shifts, 25)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'title': 'Daily Shift Ledger',
+        'shifts': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+    }
+    return render(request, 'sales/shift_history.html', context)
