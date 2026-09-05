@@ -81,6 +81,22 @@ a {
   left: 0;
   z-index: 40;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+}
+
+/* Custom Scrollbar for Sidebar */
+.app-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.app-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-sidebar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+.app-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
 }
 
 /* Collapsed State */

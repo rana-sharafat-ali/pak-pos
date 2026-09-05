@@ -149,6 +149,21 @@ body {
     overflow-y: auto;
 }
 
+/* Custom Scrollbar */
+.sidebar-menu::-webkit-scrollbar {
+    width: 4px;
+}
+.sidebar-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar-menu::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 4px;
+}
+.sidebar-menu::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
 .menu-label {
     font-size: 11px;
     font-weight: 700;
