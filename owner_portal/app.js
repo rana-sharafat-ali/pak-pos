@@ -126,10 +126,22 @@ window.OwnerPortal = (function() {
             const webhookUrl = PORTAL_CONFIG.getWebhookUrl();
             const authParam = `&pin=${encodeURIComponent(enteredPass)}&password=${encodeURIComponent(enteredPass)}`;
             
-            const response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
+            let response = null;
+            try {
+                response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
+                    method: 'GET'
+                });
+            } catch (getErr) {
+                console.warn("GET fetch failed, trying POST fallback...", getErr);
+                try {
+                    response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        body: JSON.stringify({ fetch_all: true, table: 'all', pin: enteredPass, password: enteredPass })
+                    });
+                } catch (postErr) {
+                    console.error("POST fetch also failed:", postErr);
+                }
+            }
 
             if (response && response.ok) {
                 const result = await response.json();
@@ -153,10 +165,36 @@ window.OwnerPortal = (function() {
                     return;
                 }
             }
+
+            // Master Password offline / fallback check for 7860
+            if (enteredPass === '7860') {
+                state.isAuthenticated = true;
+                state.activePassword = enteredPass;
+                sessionStorage.setItem('owner_auth_session', enteredPass);
+
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.add('hidden');
+
+                loadCachedData();
+                renderAllViews();
+                return;
             }
-            
+
             showPasswordError("Access Denied or Server Error.");
         } catch (err) {
+            console.error("Submit password error:", err);
+            if (enteredPass === '7860') {
+                state.isAuthenticated = true;
+                state.activePassword = enteredPass;
+                sessionStorage.setItem('owner_auth_session', enteredPass);
+
+                const lockOverlay = document.getElementById('lock-screen-overlay');
+                if (lockOverlay) lockOverlay.classList.add('hidden');
+
+                loadCachedData();
+                renderAllViews();
+                return;
+            }
             showPasswordError("Network Error. Cannot connect to database.");
         } finally {
             if (submitBtn) {
@@ -319,8 +357,7 @@ window.OwnerPortal = (function() {
             const authParam = `&pin=${encodeURIComponent(currentPass)}&password=${encodeURIComponent(currentPass)}`;
             try {
                 response = await fetch(webhookUrl + '?action=fetch_all' + authParam, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
+                    method: 'GET'
                 });
             } catch (err) {
                 response = await fetch(webhookUrl, {
